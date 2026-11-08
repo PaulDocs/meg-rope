@@ -29,3 +29,4 @@ datum: 2026-11-08
 - Pascal: zu einfach, Welt zu kurz. Tempo im Video gemessen (rund 50 m/s im
   Flug). Endlose Strasse mit wachsenden Lücken, schneller, Kamera näher.
   Grafik verschoben auf später (Vorschlag three.js).
+- Loopings bis 3 Umdrehungen schneller, Schwung holen nach Energie (Abflug je nach Winkel). Flughöhe: Frage an Pascal.

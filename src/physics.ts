@@ -16,11 +16,15 @@ export const TUNING = {
   bodyRadius: 0.45, // ab diesem Abstand zum Boden ist der Versuch vorbei
   minRopeLength: 1, // kürzer wird ein Seil nie, auch wenn man ganz nah tippt
   // Schwung holen: Am gespannten Seil bewegt das Männchen die Beine wie auf
-  // einer Schaukel und beschleunigt in Schwungrichtung – überall, auch oben.
-  // So werden die Drehungen schneller, bis maxSwingSpeed. Mit genug Schwung
-  // geht ein Looping (oben braucht es mindestens √(g·Seillänge)).
+  // einer Schaukel und beschleunigt in Schwungrichtung – auch oben im Looping.
+  // Es holt aber nur Schwung, solange seine Energie unter einer Grenze liegt
+  // (Tempo auf Hakenhöhe höchstens swingSpeedAtHookHeight): oben im Kreis ist es so
+  // immer langsamer als unten, wie bei einer echten Schaukel. Und es holt nur
+  // während der ersten maxPumpTurns Umdrehungen um einen Haken Schwung, danach
+  // dreht es mit dem gewonnenen Tempo weiter.
   pump: 7, // m/s²
-  maxSwingSpeed: 55, // m/s – schneller wird das Schwingen durch Schwung holen nicht
+  swingSpeedAtHookHeight: 50, // m/s – Energiegrenze, ausgedrückt als Tempo auf Hakenhöhe; unten je nach Seillänge schneller
+  maxPumpTurns: 3, // so viele volle Umdrehungen lang wird das Kreisen schneller
   pumpStartSpeed: 0.3, // m/s – langsamer gilt als «hängt still», dann stösst es sich nach vorne ab
   tautTolerance: 0.02, // m – so knapp unter der Seillänge gilt das Seil als gespannt
   airDrag: 0.02, // Luftwiderstand pro Sekunde (Anteil)
@@ -57,6 +61,8 @@ export interface Rope {
   anchor: Vec;
   length: number;
   chain: Chain;
+  turned: number; // rad – Winkel um den Haken seit dem Einhaken, mit Vorzeichen (hin und her hebt sich auf)
+  lastPolar: number; // rad – letzter Winkel Haken → Männchen
 }
 
 /** Ein gelöstes Seil, das herunterfällt und dann verschwindet. */
@@ -123,7 +129,13 @@ export function tap(s: State, target: Vec, holds: Hold[]): 'attached' | 'release
     const t = i / n;
     points.push({ x: anchor.x + (s.pos.x - anchor.x) * t, y: anchor.y + (s.pos.y - anchor.y) * t });
   }
-  s.rope = { anchor, length, chain: { points, prev: points.map((p) => ({ ...p })), seg: length / n } };
+  s.rope = {
+    anchor,
+    length,
+    chain: { points, prev: points.map((p) => ({ ...p })), seg: length / n },
+    turned: 0,
+    lastPolar: polarAngle(s.pos, anchor),
+  };
   return 'attached';
 }
 
@@ -168,7 +180,10 @@ export function step(s: State, dt = STEP): void {
   s.pos.y += s.vel.y * dt;
   applyRope(s, wasTaut);
 
-  if (s.rope) stepChain(s.rope.chain, dt, s.rope.anchor, s.pos);
+  if (s.rope) {
+    trackTurn(s.rope, s.pos);
+    stepChain(s.rope.chain, dt, s.rope.anchor, s.pos);
+  }
   turnBody(s, dt);
 
   if (s.pos.x > s.maxX) s.maxX = s.pos.x;
@@ -187,9 +202,42 @@ export function isTaut(s: State): boolean {
   return Math.hypot(s.pos.x - s.rope.anchor.x, s.pos.y - s.rope.anchor.y) >= s.rope.length - TUNING.tautTolerance;
 }
 
-/** Holt das Männchen gerade Schwung? Am gespannten Seil, bis maxSwingSpeed. */
+/**
+ * Energie je kg, gemessen auf Hakenhöhe: ½·v² + g·(Höhe über dem Haken).
+ * Bleibt beim Kreisen ohne Schwung holen gleich – oben langsam, unten schnell.
+ */
+export function swingEnergy(s: State): number {
+  if (!s.rope) return 0;
+  return 0.5 * (s.vel.x ** 2 + s.vel.y ** 2) + TUNING.gravity * (s.pos.y - s.rope.anchor.y);
+}
+
+/** Winkel Haken → Männchen (rad). */
+function polarAngle(pos: Vec, anchor: Vec): number {
+  return Math.atan2(pos.y - anchor.y, pos.x - anchor.x);
+}
+
+/** Drehwinkel um den Haken mitzählen; Hin- und Herschwingen hebt sich auf. */
+function trackTurn(rope: Rope, pos: Vec): void {
+  const polar = polarAngle(pos, rope.anchor);
+  rope.turned += wrap(polar - rope.lastPolar);
+  rope.lastPolar = polar;
+}
+
+/** Volle Umdrehungen um den aktuellen Haken (Loopings), seit dem Einhaken. */
+export function turnsOnRope(s: State): number {
+  return s.rope ? Math.floor(Math.abs(s.rope.turned) / (2 * Math.PI)) : 0;
+}
+
+/**
+ * Holt das Männchen gerade Schwung? Am gespannten Seil, solange die Energie
+ * unter der Grenze liegt und es noch keine maxPumpTurns Umdrehungen gemacht hat.
+ */
 export function isPumping(s: State): boolean {
-  return isTaut(s) && Math.hypot(s.vel.x, s.vel.y) < TUNING.maxSwingSpeed;
+  return (
+    isTaut(s) &&
+    swingEnergy(s) < 0.5 * TUNING.swingSpeedAtHookHeight ** 2 &&
+    turnsOnRope(s) < TUNING.maxPumpTurns
+  );
 }
 
 /** Tangente an den Kreis um den Haken, Richtung gegen den Uhrzeigersinn. */

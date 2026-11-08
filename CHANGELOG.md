@@ -5,6 +5,7 @@ sammelt «Unveröffentlicht».
 
 ## [Unveröffentlicht]
 
+- 08.11.2026 · B1: Loopings werden 3 Umdrehungen lang schneller; Schwung holen nach Energie, darum oben langsamer als unten und Abflug je nach Winkel verschieden.
 - 08.11.2026 · B1 schwerer: endlose Strasse, Lücken wachsen mit der Strecke, Tempo nach Video (g 40, bis 55 m/s), Kamera näher.
 - 08.11.2026 · B1 dritter Umbau nach Video: Boden, Perspektive, Schatten, höhere Türme, Dachkräne, Luftschiffe, dünnes Seil, Meter oben rechts.
 - 08.11.2026 · B1 zweiter Umbau: Welt mit Türmen, Kränen, Ballonen und grossen Lücken; heller eigener Look; schneller; Loopings; nur noch Kulisse.

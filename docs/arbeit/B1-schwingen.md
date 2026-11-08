@@ -151,6 +151,27 @@ Umgesetzt:
   wirklich bis 55 m/s; Loopings werden in Tests nur gezählt, wenn das Seil
   oben gespannt ist.
 
+## Rückmeldung Pascal 08.11.2026: Loopings und Abflug
+
+Pascal: Tempo ok, Loopings ok. Loopings sollen pro Drehung schneller werden,
+bis zu 3 Umdrehungen, nicht extrem. Abflug-Tempo soll je nach Winkel
+verschieden sein (physikalisch korrekt); maximale Flughöhe evtl. anpassen.
+
+Ursache: Schwung holen hob das Tempo überall bis zur Grenze – oben im Kreis
+war das Männchen fast so schnell wie unten, der Abflug darum in jedem Winkel
+ähnlich.
+
+Umgesetzt:
+- **Grenze nach Energie** statt nach Tempo (`swingEnergy`): oben langsamer,
+  unten schneller; ohne Schwung holen bleibt die Energie gleich. Die Grenze
+  ist neu ein Tempo **auf Hakenhöhe: 50 m/s** (vorher 55 m/s überall); ganz
+  unten wird es je nach Seillänge schneller (20 m Seil: rund 64 m/s).
+- **Bis 3 Umdrehungen** (`maxPumpTurns`, `turnsOnRope`): jede volle Drehung
+  um denselben Haken wird schneller, danach kein Zuwachs mehr.
+- Abflug ist ein echter Wurf: Höhe = v_y²/(2g). Mit g 40 heisst das: 25 m/s
+  steil nach oben → rund 8 m, 50 m/s → rund 31 m. **Offen: Flughöhe** –
+  höher oder tiefer? Stellschraube ist die Schwerkraft (`TUNING.gravity`).
+
 ## Testanleitung für Pascal
 
 Testlink (privat): https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW
@@ -166,3 +187,7 @@ Neu erzeugen: `npm run einzelseite -- ‹ziel.html›`, dann veröffentlichen.
 5. Ein paar hundert Meter weit kommen. Stimmen Tempo und Abstände? Wird es mit der
    Strecke schwerer (grössere Lücken)?
 6. In den Himmel tippen: nichts passiert. Am Boden: tippen startet neu.
+7. Schnell am kurzen Seil einhaken (z. B. an einem Kranausleger): Die ersten
+   3 Loopings werden spürbar schneller, danach nicht mehr.
+8. Einmal ganz unten, einmal schräg oben lösen: Oben gelöst fliegt höher,
+   unten gelöst flacher und schneller. Passt die Flughöhe – höher oder tiefer?
