@@ -335,6 +335,7 @@ Umgesetzt:
   wie unten; danach (ohne Schwung holen) wieder deutlich langsamer.
   **Hebt «Weniger Hilfe» (oben) auf**: Looping aus dem Stand ist jetzt
   möglich (nach 2–4 s). Frage an Pascal bei der Abnahme: so gewollt?
+  → Nein, siehe nächster Abschnitt.
 - **Häuser höher**: alle rund +10 m, die kurzen am meisten (kurz 20–35,
   doppelt 38–62, gestuft 52–88, Scheibe 58–94, Nadel 75–110 m); erster
   Turm 60 m, Start 72 m. Spielentscheid über der Video-Messung (dort bis
@@ -351,6 +352,33 @@ Umgesetzt:
   frühestens nach 1,5 s und ohne lockeres Seil, Kamera senkrecht auch bei
   120 Hz gleich, Häuser mindestens 20 m.
 
+## Rückmeldung Pascal 08.11.2026: kein Looping aus dem Stand
+
+Pascal: «das mit dem Schwung ist jetzt zu viel des Guten. Aus dem Stand
+sollte kein Looping möglich sein.»
+
+Umgesetzt:
+- **Grenze beim Schwung holen je Seil** (`Rope.pumpLimit`, `pumpLimitFor()`),
+  festgelegt, sobald das Seil zum ersten Mal zieht: Aus dem Stand holt es
+  höchstens bis auf Hakenhöhe Schwung. Dort bleibt das Seil gespannt, es
+  stockt also nicht (gemessen bei 5–30 m Seil: Hakenhöhe nach 2–6 s, nie
+  locker, kein Looping). Kommt es mit Tempo vom Flug (Energie über
+  `flightEnergy` 0,5 · g · Seillänge über Hakenhöhe), gilt wie bisher die
+  Energiegrenze 80 m/s – daraus werden Loopings.
+- Schwung holen bleibt 22; «Weniger Hilfe» gilt wieder für den Looping.
+- Gegenlesen fand ein Schlupfloch: oben lösen, knapp darunter neu einhaken
+  gab wieder Loopings. Grund war ein alter Rechenfehler: Fiel das Männchen
+  ins schon gespannte Seil (Einhaken im Wegfliegen, oder knapp innerhalb der
+  Seillänge), wurde das Fall-Tempo ohne Ruck zu Tempo quer zum Seil. Jetzt
+  nimmt der **Ruck** diesen Teil weg – beim Einhaken (`catchJerk`) und beim
+  Fall ins Seil. Folge fürs Spielgefühl: Wer im Fallen schräg über sich
+  einhakt, schwingt etwas weniger stark an als bisher.
+- Offen (Frage an Pascal), beides mit Test festgehalten: Schnell fliegend
+  weit über sich einhaken (hohe Turmspitze) zählt als «aus dem Stand», wenn
+  die Energie nicht über die Hakenhöhe reicht – an diesem Seil dann kein
+  Looping. Umgekehrt zählt hochschwingen, lösen, rund 10 m fallen und
+  seitlich an einem kurzen Seil einhaken als «vom Flug» – Looping möglich.
+
 ## Testanleitung für Pascal
 
 Testlink (privat): https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW
@@ -362,7 +390,8 @@ Neu erzeugen: `npm run einzelseite -- ‹ziel.html›`, dann veröffentlichen.
    Seil hakt dort ein, auch an der sichtbaren Seitenwand eines Turms. In den
    Himmel oder aufs Dach tippen: nichts. Tippen löst das Seil.
 3. Hängen lassen: Das Männchen holt mit den Beinen Schwung, die Schwünge
-   werden grösser. Am Boden: tippen startet neu.
+   werden grösser, aber höchstens bis auf Hakenhöhe – aus dem Stand kein
+   Looping. Am Boden: tippen startet neu.
 4. Schnell am kurzen Seil einhaken (z. B. an einem Kranausleger): Nach jedem
    der ersten 3 Loopings ein spürbarer Schub, danach nicht mehr.
 5. Mit vollem Schwung steil oben lösen: rund 80 m hoch? Fällt er danach

@@ -18,17 +18,28 @@ export const TUNING = {
   // Schwung holen: Am gespannten Seil bewegt das Männchen die Beine wie auf
   // einer Schaukel und beschleunigt in Schwungrichtung – auch oben im Looping.
   // Es holt aber nur Schwung, solange seine Energie unter einer Grenze liegt
-  // (Tempo auf Hakenhöhe höchstens swingSpeedAtHookHeight): oben im Kreis ist es so
-  // langsamer als unten, wie bei einer echten Schaukel. Bei pump 22 ist der
-  // Unterschied in den ersten maxPumpTurns Umdrehungen klein – gewollt (Pascal
-  // 08.11.: sonst stockt das Schwung holen); danach wieder voll. Und es holt nur
-  // während der ersten maxPumpTurns Umdrehungen um einen Haken Schwung, danach
-  // dreht es mit dem gewonnenen Tempo weiter.
-  pump: 22, // m/s² – stark genug, dass die Schwünge über die Hakenhöhe weiter wachsen bis zum Looping (mit 8 stockten sie bei g 40 immer an derselben Stelle)
+  // (pumpLimitFor, festgelegt, sobald das Seil zum ersten Mal zieht):
+  // - Aus dem Stand höchstens bis auf Hakenhöhe – kein Looping aus dem Stand
+  //   (Pascal 08.11.). Bis dorthin bleibt das Seil gespannt, es fällt also
+  //   nicht zurück ins Seil und stockt nicht.
+  // - Mit Tempo vom Flug (Energie über flightEnergy) bis swingSpeedAtHookHeight:
+  //   daraus werden Loopings. Oben im Kreis ist es langsamer als unten, wie bei
+  //   einer echten Schaukel; bei pump 22 ist der Unterschied in den ersten
+  //   maxPumpTurns Umdrehungen klein, danach wieder voll. Nach maxPumpTurns
+  //   Umdrehungen um einen Haken dreht es mit dem gewonnenen Tempo weiter.
+  pump: 22, // m/s² – Schwünge erreichen rasch die Hakenhöhe (mit 8 stockten sie bei g 40 schon darunter)
   swingSpeedAtHookHeight: 80, // m/s – Energiegrenze als Tempo auf Hakenhöhe: steil gelöst rund 80 m Wurfhöhe (v²/2g); unten je nach Seillänge schneller
+  // Ab dieser Energie über Hakenhöhe (Anteil von g·Seillänge) zählt es als «vom Flug».
+  // Nur fallen lassen und neu einhaken reicht nicht: das gibt nach dem Ruck
+  // höchstens rund 0,27·g·L (fällt es senkrecht ins Seil, sogar nichts).
+  flightEnergy: 0.5,
   maxPumpTurns: 3, // so viele volle Umdrehungen lang wird das Kreisen schneller
   loopBoost: 1.1, // nach jeder dieser Umdrehungen ein spürbarer Schub: Tempo × loopBoost (pump 0 schaltet ihn ab)
   pumpStartSpeed: 0.3, // m/s – langsamer gilt als «hängt still», dann stösst es sich nach vorne ab
+  // Fliegt es schneller als das vom Haken weg oder darauf zu, kommt der Ruck
+  // erst noch: kein Schwingen am gespannten Seil (step), Seil zieht noch nicht
+  // (ropePulls). Im Schwung bleibt es darunter (Schwerkraft je Schritt 0,33 m/s).
+  jerkSpeed: 1, // m/s
   tautTolerance: 0.02, // m – so knapp unter der Seillänge gilt das Seil als gespannt
   airDrag: 0.02, // Luftwiderstand pro Sekunde (Anteil)
   maxSpeed: 130, // m/s – Obergrenze, damit nichts explodiert
@@ -74,6 +85,7 @@ export interface Rope {
   chain: Chain;
   turned: number; // rad – Winkel um den Haken seit dem Einhaken, mit Vorzeichen (hin und her hebt sich auf)
   lastPolar: number; // rad – letzter Winkel Haken → Männchen
+  pumpLimit: number | null; // Energie, bis zu der es Schwung holt (pumpLimitFor); null, bis das Seil zum ersten Mal zieht (ropePulls)
 }
 
 /** Ein gelöstes Seil, das herunterfällt und dann verschwindet. */
@@ -161,8 +173,43 @@ export function tap(
     chain: { points, prev: points.map((p) => ({ ...p })), seg: length / n },
     turned: 0,
     lastPolar: polarAngle(s.pos, anchor),
+    pumpLimit: null,
   };
+  catchJerk(s);
   return 'attached';
+}
+
+/**
+ * Ruck beim Einhaken: Das Seil ist sofort gespannt (Länge = Abstand). Fliegt
+ * das Männchen gerade vom Haken weg, nimmt der Ruck diesen Teil des Tempos –
+ * wie in echt. (Früher machte der erste Schritt daraus Tempo quer zum Seil:
+ * oben loslassen und knapp darunter neu einhaken gab so einen Looping.)
+ */
+function catchJerk(s: State): void {
+  removeOutwardSpeed(s, outward(s));
+}
+
+/** Der Ruck selbst: Tempo vom Haken weg (Richtung n) fällt weg. */
+function removeOutwardSpeed(s: State, n: Vec): void {
+  const radial = s.vel.x * n.x + s.vel.y * n.y;
+  if (radial <= 0) return;
+  s.vel.x -= radial * n.x;
+  s.vel.y -= radial * n.y;
+}
+
+/** Einheitsvektor Haken → Männchen. */
+function outward(s: State): Vec {
+  const r = s.rope!;
+  const dx = s.pos.x - r.anchor.x;
+  const dy = s.pos.y - r.anchor.y;
+  const d = Math.hypot(dx, dy) || 1;
+  return { x: dx / d, y: dy / d };
+}
+
+/** Tempo vom Haken weg (negativ: auf den Haken zu). */
+function radialSpeed(s: State): number {
+  const n = outward(s);
+  return s.vel.x * n.x + s.vel.y * n.y;
 }
 
 /** Das Seil löst sich am Haken und fällt mit dem Schwung herunter. */
@@ -214,12 +261,14 @@ export function step(s: State, dt = STEP): void {
   // Ziel-Energie am Ende des Schritts: Start plus Arbeit von Luft, Schwung holen und Obergrenze
   const energyTarget = energyStart + (kin() - kinAfterGravity);
 
-  const wasTaut = isTaut(s);
+  // Gespannt geschwungen (nicht: fliegt gerade ins Seil, das ist ein Ruck)
+  const wasTaut = isTaut(s) && radialSpeed(s) < TUNING.jerkSpeed;
   s.pos.x += s.vel.x * dt;
   s.pos.y += s.vel.y * dt;
   applyRope(s, wasTaut ? energyTarget : null);
 
   if (s.rope) {
+    if (s.rope.pumpLimit === null && ropePulls(s)) s.rope.pumpLimit = pumpLimitFor(s);
     const before = turnsOnRope(s);
     trackTurn(s.rope, s.pos);
     const after = turnsOnRope(s);
@@ -283,15 +332,45 @@ export function turnsOnRope(s: State): number {
 
 /**
  * Holt das Männchen gerade Schwung? Am gespannten Seil, solange die Energie
- * unter der Grenze liegt und es noch keine maxPumpTurns Umdrehungen gemacht hat.
+ * unter der Grenze des Seils liegt (pumpLimitFor) und es noch keine
+ * maxPumpTurns Umdrehungen gemacht hat.
  */
 export function isPumping(s: State): boolean {
-  return isTaut(s) && swingEnergy(s) < energyLimit() && turnsOnRope(s) < TUNING.maxPumpTurns;
+  if (!s.rope || !isTaut(s) || turnsOnRope(s) >= TUNING.maxPumpTurns) return false;
+  return swingEnergy(s) < (s.rope.pumpLimit ?? standingLimit()); // bis das Seil zieht wie aus dem Stand
 }
 
-/** Energiegrenze je kg fürs Schwung holen (einzige Stelle, die sie festlegt). */
+/** Energiegrenze je kg fürs Schwung holen mit Tempo vom Flug. */
 export function energyLimit(): number {
   return 0.5 * TUNING.swingSpeedAtHookHeight ** 2;
+}
+
+/**
+ * Zieht das Seil wirklich (gespannt und es bleibt gespannt)? Über dem Haken
+ * nur, wenn das Tempo quer zum Seil reicht (v² ≥ g·Höhe über dem Haken), sonst
+ * fällt das Männchen zurück ins Seil. Und nicht, solange es noch auf den Haken
+ * zu- oder davon wegfliegt (dann kommt der Ruck erst noch).
+ */
+function ropePulls(s: State): boolean {
+  if (!s.rope || !isTaut(s) || Math.abs(radialSpeed(s)) >= TUNING.jerkSpeed) return false;
+  const t = tangent(s);
+  const across = s.vel.x * t.x + s.vel.y * t.y;
+  return across ** 2 >= TUNING.gravity * (s.pos.y - s.rope.anchor.y);
+}
+
+/** Energiegrenze je kg fürs Schwung holen aus dem Stand: die Hakenhöhe. */
+export function standingLimit(): number {
+  return 0;
+}
+
+/**
+ * Bis zu welcher Energie holt es an diesem Seil Schwung? Einzige Stelle, die
+ * die Grenzen festlegt. Gerechnet, sobald das Seil zum ersten Mal zieht
+ * (ropePulls, also nach dem Ruck): mit Tempo vom Flug energyLimit(), sonst die Hakenhöhe (0).
+ */
+function pumpLimitFor(s: State): number {
+  const fromFlight = swingEnergy(s) > TUNING.flightEnergy * TUNING.gravity * s.rope!.length;
+  return fromFlight ? energyLimit() : standingLimit();
 }
 
 /**
@@ -332,7 +411,8 @@ function pump(s: State, dt: number): void {
 /**
  * Seil-Länge erzwingen: zurück auf den Kreis, Tempo nach aussen wegnehmen.
  * Spannt sich das Seil gerade erst (Ruck), geht dabei Schwung verloren – wie
- * in echt. War es schon gespannt (`energyTarget` gesetzt), folgt das Tempo
+ * in echt. War es schon gespannt und nicht gerade nach aussen
+ * unterwegs (`energyTarget` gesetzt, sonst Ruck – siehe jerkSpeed), folgt das Tempo
  * der Energie: ½v² + g·y = Ziel-Energie des Schritts. So verliert die Rechnung
  * in festen Schritten nichts und erfindet nichts dazu. (Früher wurde das ganze
  * Tempo erhalten; fast still wurde dann der Zug der Schwerkraft nach aussen
@@ -344,15 +424,10 @@ function applyRope(s: State, energyTarget: number | null): void {
   const dy = s.pos.y - s.rope.anchor.y;
   const d = Math.hypot(dx, dy);
   if (d <= s.rope.length) return;
-  const nx = dx / d;
-  const ny = dy / d;
-  s.pos.x = s.rope.anchor.x + nx * s.rope.length;
-  s.pos.y = s.rope.anchor.y + ny * s.rope.length;
-  const radial = s.vel.x * nx + s.vel.y * ny;
-  if (radial > 0) {
-    s.vel.x -= radial * nx;
-    s.vel.y -= radial * ny;
-  }
+  const n = { x: dx / d, y: dy / d };
+  s.pos.x = s.rope.anchor.x + n.x * s.rope.length;
+  s.pos.y = s.rope.anchor.y + n.y * s.rope.length;
+  removeOutwardSpeed(s, n);
   if (energyTarget === null) return;
   const left = Math.hypot(s.vel.x, s.vel.y);
   const v2 = 2 * (energyTarget - TUNING.gravity * s.pos.y);

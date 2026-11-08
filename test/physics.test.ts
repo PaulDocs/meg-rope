@@ -20,8 +20,8 @@ function run(s: State, seconds: number) {
 function hang(pos: { x: number; y: number }, hook: { x: number; y: number }, vel = { x: 0, y: 0 }): State {
   const s = createState();
   s.pos = { ...pos };
+  s.vel = { ...vel }; // vor dem Einhaken: das Tempo entscheidet, ob es vom Flug kommt
   expect(tap(s, hook, holds, noSideWalls)).toBe('attached');
-  s.vel = { ...vel };
   return s;
 }
 
@@ -153,26 +153,108 @@ describe('Schwung holen und Loopings', () => {
     }
   });
 
-  it('aus dem Stand stockt es nicht: die Schwünge wachsen über die Hakenhöhe bis zum Looping', () => {
+  it('aus dem Stand: Schwünge wachsen ohne Stocken bis auf Hakenhöhe, aber kein Looping', () => {
     // Pascal: «beim Versuch Schwung zu holen fällt er immer beim gleichen Punkt»
-    for (const L of [10, 20, 30]) {
-      const s = hang({ x: 10, y: 80 - L }, { x: 10, y: 80 });
-      // die ersten 1,5 s noch kein Looping, und bis zum ersten Looping nie ein lockeres Seil (kein Zurückfallen)
-      let t = 0;
-      while (t < 120 * 1.5) {
+    // und «Aus dem Stand sollte kein Looping möglich sein» (08.11.)
+    for (const L of [5, 10, 20, 30]) {
+      const hook = { x: 10, y: 80 };
+      const s = hang({ x: 10, y: 80 - L }, hook);
+      let highest = -Infinity;
+      for (let i = 0; i < 120 * 15; i++) {
         step(s);
-        t++;
-        expect(isTaut(s)).toBe(true);
+        expect(isTaut(s)).toBe(true); // nie zurück ins Seil fallen
+        highest = Math.max(highest, s.pos.y);
       }
+      expect(highest).toBeGreaterThan(hook.y - 1); // erreicht die Hakenhöhe …
+      expect(highest).toBeLessThan(hook.y + 0.5); // … aber kommt kaum darüber
       expect(turnsOnRope(s)).toBe(0);
-      let looped = false;
-      while (t < 120 * 8 && !looped) {
-        step(s);
-        t++;
-        expect(isTaut(s)).toBe(true);
-        looped = turnsOnRope(s) >= 1;
-      }
-      expect(looped).toBe(true);
+      expect(s.phase).toBe('flying');
+      expect(s.rope!.pumpLimit).toBe(0);
+    }
+  });
+
+  it('aus dem Stand endet Schwung holen auf Hakenhöhe, vom Flug erst bei der Energiegrenze', () => {
+    // 5 m Seil, ganz unten: Hakenhöhe heisst Energie 0, «vom Flug» über 0,5·g·L = 100
+    const still = hang({ x: 10, y: 50 }, { x: 10, y: 55 });
+    expect(still.rope!.pumpLimit).toBeNull(); // erst nach dem ersten Schritt am gespannten Seil
+    step(still);
+    expect(still.rope!.pumpLimit).toBe(0);
+    still.vel = { x: 12, y: 0 }; // Energie ½·144 − 40·5 = −128: unter Hakenhöhe
+    expect(isPumping(still)).toBe(true);
+    still.vel = { x: 21, y: 0 }; // ½·441 − 200 = 20,5: über Hakenhöhe
+    expect(isPumping(still)).toBe(false);
+    // knapp über Hakenhöhe eingehakt ist noch kein Flug, deutlich darüber schon
+    const slow = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: 21, y: 0 });
+    step(slow);
+    expect(slow.rope!.pumpLimit).toBe(0);
+    const flight = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: 26, y: 0 }); // ½·676 − 200 = 138
+    step(flight);
+    expect(flight.rope!.pumpLimit).toBe(energyLimit());
+    expect(isPumping(flight)).toBe(true);
+  });
+
+  it('fällt es senkrecht ins Seil, kostet der Ruck den Schwung: zählt nicht als Flug', () => {
+    // 5 m über dem Haken still eingehakt: fällt am Haken vorbei ins Seil
+    const s = hang({ x: 10, y: 60 }, { x: 10, y: 55 });
+    for (let i = 0; i < 240 && s.rope!.pumpLimit === null; i++) step(s);
+    expect(s.rope!.pumpLimit).toBe(0);
+  });
+
+  it('Ruck beim Einhaken: nimmt nur das Tempo vom Haken weg', () => {
+    // 5 m unter dem Haken, fällt schräg nach unten: der Teil nach unten (vom Haken weg) fällt weg
+    const away = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: 5, y: -10 });
+    expect(away.vel.x).toBeCloseTo(5, 9);
+    expect(away.vel.y).toBeCloseTo(0, 9);
+    // auf den Haken zu: kein Ruck, Tempo bleibt
+    const toward = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: 0, y: 10 });
+    expect(toward.vel).toEqual({ x: 0, y: 10 });
+  });
+
+  it('fällt es schräg ins Seil, bleibt nach dem Ruck höchstens rund 0,27·g·L', () => {
+    // 5,1 m Seil schräg über dem Haken, still: fällt am Haken vorbei ins Seil
+    const s = hang({ x: 11, y: 60 }, { x: 10, y: 55 });
+    for (let i = 0; i < 240 && s.rope!.pumpLimit === null; i++) step(s);
+    expect(s.rope!.pumpLimit).toBe(0);
+    expect(swingEnergy(s)).toBeLessThan(0.27 * TUNING.gravity * s.rope!.length);
+  });
+
+  it('festgehalten (Frage an Pascal offen): hoch über sich einhaken gilt als «aus dem Stand», tief fallen als «vom Flug»', () => {
+    // schnell fliegend 20 m über sich eingehakt: Energie ½·900 − 40·20 = −350, unter Hakenhöhe
+    const high = hang({ x: 10, y: 50 }, { x: 10, y: 70 }, { x: 30, y: 0 });
+    step(high);
+    expect(high.rope!.pumpLimit).toBe(0);
+    // 10 m gefallen (20 m/s), dann seitlich auf gleicher Höhe an 5 m Seil: ½·400 = 200 > 0,5·g·L = 100
+    const fell = hang({ x: 10, y: 50 }, { x: 15, y: 50 }, { x: 0, y: -Math.sqrt(2 * TUNING.gravity * 10) });
+    step(fell);
+    expect(fell.rope!.pumpLimit).toBe(energyLimit());
+    // Schwelle flightEnergy: knapp darunter / darüber (5 m Seil ganz unten, Energie ½v² − 200)
+    const at = (e: number) => {
+      const s = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: Math.sqrt(2 * (e + 200)), y: 0 });
+      step(s);
+      return s.rope!.pumpLimit;
+    };
+    expect(at(0.5 * TUNING.gravity * 5 - 5)).toBe(0);
+    expect(at(0.5 * TUNING.gravity * 5 + 5)).toBe(energyLimit());
+  });
+
+  it('aus dem Stand oben lösen und knapp darunter neu einhaken gibt keinen Looping', () => {
+    // breite Wand, damit überall eingehakt werden kann
+    const wall: Hold[] = [{ kind: 'rect', x: -100, y: 0, w: 200, h: 100 }];
+    for (const [dx, dy] of [[0, -1.5], [1, -1], [2, -1], [1, -2], [-1, -1], [3, -2], [2, -4]] as const) {
+      const hook = { x: 10, y: 80 };
+      const s = createState();
+      s.pos = { x: 10, y: 60 };
+      expect(tap(s, hook, wall, noSideWalls)).toBe('attached');
+      for (let i = 0; i < 120 * 15 && s.pos.y < hook.y - 0.3; i++) step(s); // hoch bis zur Hakenhöhe
+      expect(s.pos.y).toBeGreaterThan(hook.y - 1);
+      expect(tap(s, hook, wall, noSideWalls)).toBe('released');
+      const again = { x: s.pos.x + dx * Math.sign(s.pos.x - hook.x), y: s.pos.y + dy };
+      expect(tap(s, again, wall, noSideWalls)).toBe('attached');
+      // erst zählen, wenn das Seil zieht (sonst zählte die Startlage über dem Haken als Looping)
+      for (let i = 0; i < 240 && s.rope!.pumpLimit === null; i++) step(s);
+      expect(s.rope!.pumpLimit).toBe(0);
+      expect(countLoops(s, again, 15)).toBe(0);
+      expect(turnsOnRope(s)).toBe(0);
     }
   });
 
@@ -218,10 +300,18 @@ describe('Schwung holen und Loopings', () => {
     const vTop = Math.sqrt(2 * (energyLimit() - TUNING.gravity * 5)) + 1;
     expect(vTop).toBeLessThan(TUNING.swingSpeedAtHookHeight);
     const top = hang({ x: 10, y: 60 }, { x: 10, y: 55 }, { x: -vTop, y: 0 });
+    step(top); // die Grenze des Seils steht nach dem ersten Schritt fest
+    expect(top.rope!.pumpLimit).toBe(energyLimit());
     expect(swingEnergy(top)).toBeGreaterThan(0.5 * TUNING.swingSpeedAtHookHeight ** 2);
     expect(isPumping(top)).toBe(false);
+    // Gegenfall: oben knapp langsamer, Energie unter der Grenze – holt noch Schwung
+    const below = hang({ x: 10, y: 60 }, { x: 10, y: 55 }, { x: -(vTop - 2), y: 0 });
+    step(below);
+    expect(swingEnergy(below)).toBeLessThan(energyLimit());
+    expect(isPumping(below)).toBe(true);
     // ganz unten mit genau diesem Tempo: Energie darunter, es holt noch Schwung
     const bottom = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: TUNING.swingSpeedAtHookHeight, y: 0 });
+    step(bottom); // die Grenze des Seils steht nach dem ersten Schritt fest
     expect(swingEnergy(bottom)).toBeLessThan(0.5 * TUNING.swingSpeedAtHookHeight ** 2);
     expect(isPumping(bottom)).toBe(true);
   });
@@ -378,7 +468,8 @@ describe('Schwung holen und Loopings', () => {
       { pos: { x: 28.1, y: 60.6 }, vel: { x: 0, y: 0 } },
     ];
     for (const c of cases) {
-      const s = hang(c.pos, { x: 9.9, y: 80 }, c.vel);
+      const s = hang(c.pos, { x: 9.9, y: 80 });
+      s.vel = { ...c.vel }; // nach dem Einhaken: genau Pascals Zustand, ohne Ruck beim Einhaken
       const y0 = s.pos.y;
       run(s, 1);
       expect(s.pos.y).toBeLessThan(y0 - 5); // fällt und schwingt nach unten

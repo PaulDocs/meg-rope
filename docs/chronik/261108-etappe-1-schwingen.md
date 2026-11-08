@@ -37,3 +37,4 @@ datum: 2026-11-08
 - Pascal: bleibt hängen (Fehler in applyRope behoben), Häuser zu hoch (× 0,6 nach Video).
 - Pascal: anderer Einflug. Männchen fällt jetzt vor dem ersten Turm herunter (Video), Bot mit drei parallelen Wegen.
 - Pascal: kaum spielbar. Schwung holen 22 (stockte bei 8), niedrige Häuser höher, Kamera senkrecht ruhiger.
+- Pascal: kein Looping aus dem Stand. Schwung holen aus dem Stand bis Hakenhöhe, Loopings nur mit Tempo vom Flug (`pumpLimitFor`). Gegenlesen fand das Schlupfloch «oben lösen, knapp darunter neu einhaken»; dafür Ruck beim Einhaken und beim Fall ins Seil.

@@ -5,6 +5,7 @@ sammelt «Unveröffentlicht».
 
 ## [Unveröffentlicht]
 
+- 08.11.2026 · B1: kein Looping aus dem Stand – Schwung holen reicht dort nur bis auf Hakenhöhe; Loopings nur mit Tempo vom Flug; Ruck auch beim Einhaken im Wegfliegen und beim Fall ins Seil.
 - 08.11.2026 · B1: Schwung holen 22 (stockt nicht mehr, Looping aus dem Stand), alle Häuser rund 10 m höher, Kamera senkrecht ruhiger.
 - 08.11.2026 · B1: Einflug wie im Vorbild – Männchen fällt vor dem ersten Turm gerade herunter, kein Sprung nach vorne.
 - 08.11.2026 · B1: Fehler behoben – Männchen blieb schräg am Seil hängen; Häuser rund 0,6 × so hoch wie im Video.
