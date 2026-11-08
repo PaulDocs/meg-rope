@@ -12,7 +12,7 @@ export interface Vec {
 
 /** Stellschrauben für das Spielgefühl. Pascals Rückmeldungen landen hier. */
 export const TUNING = {
-  gravity: 40, // m/s² – viel stärker als echt (9.81): Vorbild-Video fliegt bis rund 50 m/s
+  gravity: 30, // m/s² – stärker als echt (9.81), so schwach, dass 50 m/s steil nach oben rund 40 m Wurfhöhe ergibt
   bodyRadius: 0.45, // ab diesem Abstand zum Boden ist der Versuch vorbei
   minRopeLength: 1, // kürzer wird ein Seil nie, auch wenn man ganz nah tippt
   // Schwung holen: Am gespannten Seil bewegt das Männchen die Beine wie auf
@@ -22,20 +22,20 @@ export const TUNING = {
   // immer langsamer als unten, wie bei einer echten Schaukel. Und es holt nur
   // während der ersten maxPumpTurns Umdrehungen um einen Haken Schwung, danach
   // dreht es mit dem gewonnenen Tempo weiter.
-  pump: 7, // m/s²
-  swingSpeedAtHookHeight: 50, // m/s – Energiegrenze, ausgedrückt als Tempo auf Hakenhöhe; unten je nach Seillänge schneller
+  pump: 8, // m/s²
+  swingSpeedAtHookHeight: 60, // m/s – Energiegrenze, ausgedrückt als Tempo auf Hakenhöhe; unten je nach Seillänge schneller
   maxPumpTurns: 3, // so viele volle Umdrehungen lang wird das Kreisen schneller
   loopBoost: 1.1, // nach jeder dieser Umdrehungen ein spürbarer Schub: Tempo × loopBoost (pump 0 schaltet ihn ab)
   pumpStartSpeed: 0.3, // m/s – langsamer gilt als «hängt still», dann stösst es sich nach vorne ab
   tautTolerance: 0.02, // m – so knapp unter der Seillänge gilt das Seil als gespannt
   airDrag: 0.02, // Luftwiderstand pro Sekunde (Anteil)
-  maxSpeed: 90, // m/s – Obergrenze, damit nichts explodiert
+  maxSpeed: 110, // m/s – Obergrenze, damit nichts explodiert
   ropeSegment: 0.8, // m – Länge eines Seil-Glieds (nur Darstellung)
   ropeDamping: 0.995, // Anteil Tempo, den ein Seil-Glied pro Schritt behält
   looseRopeTime: 1.5, // s – so lange fällt ein gelöstes Seil, bevor es verschwindet
   spinDamping: 0.6, // Anteil Drehung, den das Männchen im freien Flug pro Sekunde behält
   startPos: { x: 4, y: 88 } as Vec,
-  startVel: { x: 22, y: 4 } as Vec,
+  startVel: { x: 24, y: 6 } as Vec,
 };
 
 export const STEP = 1 / 120; // feste Zeitschritte: überall gleiche Ergebnisse

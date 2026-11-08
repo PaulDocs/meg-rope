@@ -169,8 +169,8 @@ Umgesetzt:
 - **Bis 3 Umdrehungen** (`maxPumpTurns`, `turnsOnRope`): jede volle Drehung
   um denselben Haken wird schneller, danach kein Zuwachs mehr.
 - Abflug ist ein echter Wurf: Höhe = v_y²/(2g). Mit g 40 heisst das: 25 m/s
-  steil nach oben → rund 8 m, 50 m/s → rund 31 m. **Offen: Flughöhe** –
-  höher oder tiefer? Stellschraube ist die Schwerkraft (`TUNING.gravity`).
+  steil nach oben → rund 8 m, 50 m/s → rund 31 m. Flughöhe: Pascal wollte
+  höher, siehe Rückmeldung «zu wenig Schwung» weiter unten (g 30).
 
 ## Rückmeldung Pascal 08.11.2026: Welt zu gleichförmig
 
@@ -202,6 +202,26 @@ Umgesetzt:
   Dachkräne höher (Container hängt über dem Dach), Tests für Schub, Lücken
   samt Zwischenhalt, Container und Dachkran-Mast.
 
+## Rückmeldung Pascal 08.11.2026: zu wenig Schwung, zu leicht weit
+
+Pascal: fliegt immer noch zu wenig hoch, hat im Vergleich zum Vorbild
+immer etwas zu wenig Schwung. «Zu kurz» heisst: das Spiel ist zu wenig
+lang, man kommt zu leicht weit.
+
+Umgesetzt:
+- **Mehr Schwung, höher**: Schwerkraft 40 → 30, Energiegrenze 50 → 60 m/s
+  auf Hakenhöhe, Schwung holen 7 → 8, Start 24 m/s, Obergrenze 90 → 110 m/s
+  (sonst kappt sie das Tempo nach den Looping-Schüben). 50 m/s steil nach
+  oben ergibt jetzt rund 42 m Wurfhöhe (vorher 31 m).
+- **Schwerer bis 6 km statt 3 km** (`DIFFICULTY.fullAt`): normale Lücken
+  26–46 m am Start bis 70–90 m; dichte Gruppen von 25 % auf 5 %, weite
+  Strecken von 15 % auf 40 %, kurze Blöcke von 15 % auf 40 %.
+- Bot (sieht alles voraus): erste 1,5 km in 37 s, höchster Punkt 153 m; ab
+  6 km noch machbar (Test).
+- Gegenlesen: Wahrscheinlichkeiten in `DIFFICULTY.odds` (Start/Ende), Test
+  dass sie gültig bleiben; Strassentests bis 6,7 km; Test «oben langsamer»
+  rechnet den Zuwachs durch Schwung holen genau nach.
+
 ## Testanleitung für Pascal
 
 Testlink (privat): https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW
@@ -209,17 +229,13 @@ Neu erzeugen: `npm run einzelseite -- ‹ziel.html›`, dann veröffentlichen.
 
 1. Link auf dem iPad in Safari öffnen, iPad quer halten.
 2. Auf ein Haus, einen Kran, einen Ballon oder ein Luftschiff tippen: Das
-   Seil hakt dort ein.
+   Seil hakt dort ein. In den Himmel tippen: nichts. Tippen löst das Seil.
 3. Hängen lassen: Das Männchen holt mit den Beinen Schwung, die Schwünge
-   werden grösser. Einen Looping gibt es nur, wenn man schnell aus einem
-   Flug am kurzen Seil einhakt.
-4. Tippen löst das Seil, das Männchen fliegt (und dreht) weiter.
-5. Ein paar hundert Meter weit kommen. Stimmen Tempo und Abstände? Wird es mit der
-   Strecke schwerer (grössere Lücken)?
-6. In den Himmel tippen: nichts passiert. Am Boden: tippen startet neu.
-7. Schnell am kurzen Seil einhaken (z. B. an einem Kranausleger): Nach jedem
+   werden grösser. Am Boden: tippen startet neu.
+4. Schnell am kurzen Seil einhaken (z. B. an einem Kranausleger): Nach jedem
    der ersten 3 Loopings ein spürbarer Schub, danach nicht mehr.
-8. Einmal ganz unten, einmal schräg oben lösen: Oben gelöst fliegt höher,
-   unten gelöst flacher und schneller. Passt die Flughöhe – höher oder tiefer?
-9. Ein paar Kilometer fliegen: Wechseln Gebäudearten, Höhen und Abstände
-   wie im Video? Wird es spürbar schwerer?
+5. Schräg oben lösen: Fliegt er jetzt hoch genug (steil oben rund 40 m)? Unten
+   gelöst flacher und schneller. Reicht der Schwung im Vergleich zum Vorbild?
+6. Erste 1,5 km: Wechseln Gebäudearten, Höhen und Abstände wie im Video?
+7. Weiter fliegen: Ab etwa 1,5 km spürbar schwerer (grössere Lücken, mehr
+   weite Strecken, kurze Blöcke), bis 6 km immer schwerer?

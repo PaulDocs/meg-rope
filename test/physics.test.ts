@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { createState, isPumping, isTaut, step, swingEnergy, tap, turnsOnRope, TUNING, type State } from '../src/physics';
+import { createState, energyLimit, isPumping, isTaut, step, swingEnergy, tap, turnsOnRope, TUNING, type State } from '../src/physics';
 import type { Hold } from '../src/world';
 
 // Ein hoher, breiter Turm von x 0 bis 20, 80 m hoch
@@ -195,12 +195,15 @@ describe('Schwung holen und Loopings', () => {
   });
 
   it('Grenze nach Energie: oben schon bei weniger Tempo Schluss mit Schwung holen', () => {
-    // 5 m Seil, Männchen ganz oben, 47 m/s: Energie über der Grenze, obwohl Tempo < 50
-    const top = hang({ x: 10, y: 60 }, { x: 10, y: 55 }, { x: -47, y: 0 });
+    // 5 m Seil, Männchen ganz oben, knapp schneller als die Grenze oben erlaubt:
+    // Energie darüber, obwohl das Tempo unter swingSpeedAtHookHeight liegt
+    const vTop = Math.sqrt(2 * (energyLimit() - TUNING.gravity * 5)) + 1;
+    expect(vTop).toBeLessThan(TUNING.swingSpeedAtHookHeight);
+    const top = hang({ x: 10, y: 60 }, { x: 10, y: 55 }, { x: -vTop, y: 0 });
     expect(swingEnergy(top)).toBeGreaterThan(0.5 * TUNING.swingSpeedAtHookHeight ** 2);
     expect(isPumping(top)).toBe(false);
-    // ganz unten mit 50 m/s: Energie darunter, es holt noch Schwung
-    const bottom = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: 50, y: 0 });
+    // ganz unten mit genau diesem Tempo: Energie darunter, es holt noch Schwung
+    const bottom = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: TUNING.swingSpeedAtHookHeight, y: 0 });
     expect(swingEnergy(bottom)).toBeLessThan(0.5 * TUNING.swingSpeedAtHookHeight ** 2);
     expect(isPumping(bottom)).toBe(true);
   });
@@ -219,8 +222,12 @@ describe('Schwung holen und Loopings', () => {
     expect(isPumping(s)).toBe(true);
     expect(top).toBeGreaterThan(0);
     expect(top).toBeLessThan(bottom - 3);
-    // unten² − oben² ≈ 2·g·(2·L); Schwung holen in der halben Runde ändert wenig
-    expect(Math.abs(bottom ** 2 - top ** 2 - 2 * TUNING.gravity * 10)).toBeLessThan(0.25 * 2 * TUNING.gravity * 10);
+    // unten² − oben² = 2·g·(2·L) − 2·pump·(π·L): Schwung holen auf der halben Runde verkleinert den Unterschied
+    const L = 5;
+    const expected = 2 * TUNING.gravity * 2 * L - 2 * TUNING.pump * Math.PI * L;
+    const diff = bottom ** 2 - top ** 2;
+    expect(Math.abs(diff - expected)).toBeLessThan(0.15 * expected);
+    expect(diff).toBeLessThan(0.9 * 2 * TUNING.gravity * 2 * L); // Schwung holen wirkt
   });
 
   it('Pendeln zählt nicht als Umdrehung, neu einhaken beginnt bei null', () => {

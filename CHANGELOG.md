@@ -5,6 +5,7 @@ sammelt «Unveröffentlicht».
 
 ## [Unveröffentlicht]
 
+- 08.11.2026 · B1: mehr Schwung (g 30, Energiegrenze 60 m/s, Obergrenze 90 → 110 m/s), höhere Würfe; Schwierigkeit steigt bis 6 km (Lücken bis 90 m, mehr weite Strecken und kurze Blöcke).
 - 08.11.2026 · B1: Stadt nach Video abwechslungsreich (5 Gebäudearten, 20–170 m, dicht/normal/weit, Kräne mit Container); Schub nach jedem der ersten 3 Loopings.
 - 08.11.2026 · B1: Loopings werden 3 Umdrehungen lang schneller; Schwung holen nach Energie, darum oben langsamer als unten und Abflug je nach Winkel verschieden.
 - 08.11.2026 · B1 schwerer: endlose Strasse, Lücken wachsen mit der Strecke, Tempo nach Video (g 40, bis 55 m/s), Kamera näher.

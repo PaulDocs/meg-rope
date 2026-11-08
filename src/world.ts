@@ -177,12 +177,18 @@ function random(seed: number): () => number {
 // Schwierigkeit: Lücken (m) am Anfang und wie sie mit der Strecke wachsen.
 // Gehört zu den Stellschrauben fürs Spielgefühl (wie TUNING in physics.ts).
 export const DIFFICULTY = {
-  gapMin: 24,
-  gapMax: 42,
-  maxExtra: 30, // jede normale Lücke wird bis fullAt gleichmässig bis 30 m grösser
+  gapMin: 26,
+  gapMax: 46,
+  maxExtra: 44, // jede normale Lücke wird bis fullAt gleichmässig bis 44 m grösser
   cluster: [5, 12] as [number, number], // m – Lücke, wenn Häuser dicht beieinander stehen
-  fullAt: 3000, // m – ab hier ist die Schwierigkeit voll (Lücken, Abstände, kurze Blöcke)
+  fullAt: 6000, // m – ab hier ist die Schwierigkeit voll (Lücken, Abstände, kurze Blöcke)
   wideFactor: [1.4, 1.8] as [number, number], // weite Strecke: so viel mal die normale Lücke, immer mit Ballon oder Luftschiff
+  // Wie oft [am Start, ab fullAt]: dicht, weit, kurzer Block. cluster + wide muss ≤ 1 bleiben.
+  odds: {
+    cluster: [0.25, 0.05] as [number, number],
+    wide: [0.15, 0.4] as [number, number],
+    stub: [0.15, 0.4] as [number, number],
+  },
 };
 
 /** Wie weit die Schwierigkeit fortgeschritten ist: 0 am Start, 1 ab fullAt. */
@@ -199,7 +205,9 @@ export function gapRange(x: number): [number, number] {
 /** Wie oft dicht, weit oder ein kurzer Block – je weiter, desto öfter weit und kurz, seltener dicht. */
 export function spacingOdds(x: number): { cluster: number; wide: number; stub: number } {
   const t = progress(x);
-  return { cluster: 0.25 - 0.12 * t, wide: 0.15 + 0.15 * t, stub: 0.15 + 0.15 * t };
+  const at = ([start, end]: [number, number]) => start + (end - start) * t;
+  const { cluster, wide, stub } = DIFFICULTY.odds;
+  return { cluster: at(cluster), wide: at(wide), stub: at(stub) };
 }
 
 /** Eine Strasse, die sich nach rechts weiterbauen lässt. */

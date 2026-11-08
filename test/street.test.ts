@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createState, step, tap, TUNING, type State } from '../src/physics';
-import { buildPracticeStreet, extentOf, roofOf } from '../src/world';
+import { buildPracticeStreet, DIFFICULTY, extentOf, roofOf } from '../src/world';
 
-const W = buildPracticeStreet(7, 3600);
+const W = buildPracticeStreet(7, DIFFICULTY.fullAt + 700);
 const FIRST = 1500;
 
 /**
@@ -17,10 +17,10 @@ function targets(s: State) {
   const out: { x: number; y: number }[] = [];
   for (const h of W.holds) {
     if (h.kind === 'circle' || h.kind === 'ellipse') {
-      if (Math.abs(h.x - s.pos.x) < 70) out.push({ x: h.x, y: h.y });
+      if (Math.abs(h.x - s.pos.x) < 90) out.push({ x: h.x, y: h.y });
       continue;
     }
-    if (h.x + h.w < s.pos.x - 25 || h.x > s.pos.x + 70) continue; // Lücken bis 72 m: weit genug vorausschauen
+    if (h.x + h.w < s.pos.x - 25 || h.x > s.pos.x + 90) continue; // Lücken bis 90 m: weit genug vorausschauen
     for (const fy of [0.7, 1]) for (const fx of [0, 1]) out.push({ x: h.x + h.w * fx, y: h.y + h.h * fy });
   }
   return out;
@@ -63,10 +63,10 @@ describe('Übungsstrasse', () => {
     expect(s.maxX).toBeGreaterThanOrEqual(FIRST);
   });
 
-  it('ist auch mit den grössten Lücken (ab 3 km) machbar', { timeout: 120_000 }, () => {
-    // Start knapp über dem ersten Turm hinter 3 km, mit Starttempo
-    const t = W.props.find((p) => p.kind === 'tower' && extentOf(p).left > 3000);
-    if (!t || t.kind !== 'tower') throw new Error('kein Turm hinter 3 km');
+  it('ist auch mit den grössten Lücken (ab voller Schwierigkeit) machbar', { timeout: 120_000 }, () => {
+    // Start knapp über dem ersten Turm ab voller Schwierigkeit, mit Starttempo
+    const t = W.props.find((p) => p.kind === 'tower' && extentOf(p).left > DIFFICULTY.fullAt);
+    if (!t || t.kind !== 'tower') throw new Error('kein Turm ab voller Schwierigkeit');
     const roof = roofOf(t);
     let s = createState();
     s.pos = { x: roof.x + roof.w / 2, y: roof.y + roof.h + 8 };

@@ -16,7 +16,7 @@ import {
   type Prop,
 } from '../src/world';
 
-const street = buildPracticeStreet(7, 3000);
+const street = buildPracticeStreet(7, DIFFICULTY.fullAt + 700);
 const towers = street.props.filter((p): p is Extract<Prop, { kind: 'tower' }> => p.kind === 'tower');
 const ground = street.props.filter((p) => p.kind === 'tower' || (p.kind === 'crane' && p.base === 0));
 
@@ -145,7 +145,7 @@ describe('Strasse', () => {
       right = e.right;
     }
     expect(street.length).toBe(right);
-    expect(street.length).toBeGreaterThanOrEqual(3000);
+    expect(street.length).toBeGreaterThanOrEqual(DIFFICULTY.fullAt);
   });
 
   it('Abstände wechseln: dicht, normal und weit – Teile am Boden überlappen nie', () => {
@@ -205,13 +205,21 @@ describe('Strasse', () => {
   });
 
   it('Lücken wachsen mit der Strecke, weite Strecken werden häufiger', () => {
-    expect(gapRange(-50)).toEqual([24, 42]);
-    expect(gapRange(0)).toEqual([24, 42]);
-    expect(gapRange(1000)).toEqual([34, 52]);
-    expect(gapRange(3000)).toEqual([54, 72]);
-    expect(gapRange(50_000)).toEqual([54, 72]);
-    expect(spacingOdds(3000).wide).toBeGreaterThan(spacingOdds(0).wide);
-    expect(spacingOdds(3000).cluster).toBeLessThan(spacingOdds(0).cluster);
+    expect(gapRange(-50)).toEqual([26, 46]);
+    expect(gapRange(0)).toEqual([26, 46]);
+    expect(gapRange(3000)).toEqual([48, 68]);
+    expect(gapRange(6000)).toEqual([70, 90]);
+    expect(gapRange(50_000)).toEqual([70, 90]);
+    expect(spacingOdds(6000).wide).toBeGreaterThan(spacingOdds(0).wide);
+    expect(spacingOdds(6000).cluster).toBeLessThan(spacingOdds(0).cluster);
+    expect(spacingOdds(6000).stub).toBeGreaterThan(spacingOdds(0).stub);
+    expect(spacingOdds(3000).wide).toBeLessThan(spacingOdds(6000).wide); // steigt bis 6 km weiter
+    for (const x of [0, 3000, 6000, 50_000]) {
+      const o = spacingOdds(x);
+      expect(o.cluster).toBeGreaterThanOrEqual(0);
+      expect(o.cluster + o.wide).toBeLessThanOrEqual(1);
+      expect(o.stub).toBeLessThanOrEqual(1);
+    }
   });
 
   it('Haltepunkte liegen innerhalb der Teile (Tippen trifft, was man sieht)', () => {

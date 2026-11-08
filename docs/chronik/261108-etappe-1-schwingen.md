@@ -31,3 +31,4 @@ datum: 2026-11-08
   Grafik verschoben auf später (Vorschlag three.js).
 - Loopings bis 3 Umdrehungen schneller, Schwung holen nach Energie (Abflug je nach Winkel). Flughöhe: Frage an Pascal.
 - Stadt abwechslungsreich nach Video (Gebäudearten, Höhen, Abstände), Looping-Schub. Nachfrage «Welt zu kurz» offen.
+- Pascal: zu wenig Schwung, zu leicht weit. Schwerkraft 30, Energiegrenze 60, Schwierigkeit bis 6 km.
