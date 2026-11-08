@@ -127,6 +127,7 @@ describe('Kraft', () => {
     const s = createState('free');
     s.strength = 0.3;
     s.goodSwings = 3;
+    s.style.strike = 2;
     expect(fallIntoRope(s, 12)).toBe('attached'); // voller Ruck: 0,3 − 0,45 → 0
     expect(s.strength).toBe(0);
     s.vel = { x: 15, y: 0 };
@@ -134,6 +135,8 @@ describe('Kraft', () => {
     expect(s.rope).toBeNull();
     expect(s.looseRopes.length).toBe(1);
     expect(s.goodSwings).toBe(0); // Serie vorbei
+    expect(s.style.strike).toBe(0); // Strike vorbei …
+    expect(s.style.last).toBeNull(); // … ohne Note für einen Übergang
     expect(s.phase).toBe('flying');
     expect(s.vel.x).toBeGreaterThan(14);
   });

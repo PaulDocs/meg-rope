@@ -1,7 +1,7 @@
-import { attemptNumber, createRound, currentTurn, endAttempt, isRoundOver, ROUND, stopTurn, type Mode, type Round } from './game';
+import { attemptNumber, createRound, currentTurn, endAttempt, ROUND, stopTurn, type Mode, type Round } from './game';
 import { createState, resetState, settingByName, STEP, step, tap, TUNING, type Setting } from './physics';
 import { draw, onSideWall, screenToWorld, updateCamera, type Camera } from './render';
-import { attemptPoints, distanceOf } from './score';
+import { attemptOf } from './score';
 import { bestSingles, loadNames, loadResults, personalBest, recentChallenges, saveNames, saveRound, type KeyValue } from './store';
 import { Menu } from './ui';
 import { createStreet } from './world';
@@ -124,18 +124,16 @@ function showResult(): void {
 function attemptOver(): void {
   const r = round!;
   const turn = currentTurn(r)!;
-  const distance = distanceOf(state.maxX, TUNING.startPos.x);
-  const attempt = { distance, style: state.style.points, points: attemptPoints(distance, state.style), bestStrike: state.style.bestStrike };
+  const attempt = attemptOf(state.maxX, TUNING.startPos.x, state.style);
   endAttempt(r, attempt);
   menu.afterAttempt({
     r,
     turn,
     attempt,
-    onNext: () => (turn.done ? (isRoundOver(r) ? showResult() : showReady()) : newAttempt()),
+    onNext: () => (turn.done ? showReady() : newAttempt()), // showReady zeigt nach dem letzten Spieler die Wertung
     onStop: () => {
       stopTurn(r);
-      if (isRoundOver(r)) showResult();
-      else showReady();
+      showReady();
     },
   });
 }

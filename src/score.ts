@@ -1,4 +1,4 @@
-// Wertung eines Versuchs: Distanz plus Style (B-neu-1, Pascal 09.11.).
+// Wertung eines Versuchs: Distanz plus Style (B5, Pascal 09.11.).
 // Reine Rechnung ohne Physik und Bildschirm, damit sie testbar ist. Die Physik
 // meldet jeden Übergang (Lösen eines Seils) mit seinen Messwerten (SwingEnd),
 // hier wird er benotet und der Strike gezählt.
@@ -130,4 +130,10 @@ export function distanceOf(maxX: number, startX: number): number {
 /** Punkte eines Versuchs: 1 Punkt je Meter plus Style. */
 export function attemptPoints(distance: number, st: Style): number {
   return distance + st.points;
+}
+
+/** Ergebnis eines Versuchs aus der weitesten Stelle und dem Style-Stand (Form von game.ts `Attempt`). */
+export function attemptOf(maxX: number, startX: number, st: Style): { distance: number; style: number; points: number; bestStrike: number } {
+  const distance = distanceOf(maxX, startX);
+  return { distance, style: st.points, points: attemptPoints(distance, st), bestStrike: st.bestStrike };
 }

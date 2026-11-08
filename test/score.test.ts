@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createState, noSideWalls, stationAt, step, STRENGTH, tap, TUNING, type State } from '../src/physics';
 import {
-  angleGrade, attemptPoints, breakStrike, createStyle, distanceOf, gradeSwing, isStrike, jerkGrade, multiplier,
+  angleGrade, attemptOf, attemptPoints, breakStrike, createStyle, distanceOf, gradeSwing, isStrike, jerkGrade, multiplier,
   rateSwing, releaseAngle, STYLE, type SwingEnd,
 } from '../src/score';
 import type { Hold } from '../src/world';
 
-// Wertung: Distanz plus Style, Strike (B-neu-1)
+// Wertung: Distanz plus Style, Strike (B5)
 
 const wall: Hold[] = [{ kind: 'rect', x: -500, y: 0, w: 2000, h: 300 }];
 const g = TUNING.gravity;
@@ -144,6 +144,20 @@ describe('Style im Spiel', () => {
     expect(s.style.points).toBeGreaterThan(0); // Punkte bleiben bis zur Wertung
     tap(s, { x: 0, y: 0 }, wall, noSideWalls);
     expect(s.style.points).toBe(0);
+  });
+});
+
+describe('Versuch aus dem Spielstand', () => {
+  it('Meter ab der weitesten Stelle, Style-Punkte und bester Strike', () => {
+    const s = createState();
+    smoothSwing(s, 0, 35);
+    smoothSwing(s, 0, 35);
+    s.maxX = TUNING.startPos.x + 50.7;
+    const a = attemptOf(s.maxX, TUNING.startPos.x, s.style);
+    expect(a.distance).toBe(50);
+    expect(a.style).toBe(s.style.points);
+    expect(a.points).toBe(50 + s.style.points);
+    expect(a.bestStrike).toBe(2);
   });
 });
 

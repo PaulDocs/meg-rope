@@ -5,7 +5,7 @@ erstellt: 2026-11-09
 stand: 2026-11-09
 datum: 2026-11-09
 ---
-# 09.11.2026 – Wertung mit Style und Strike, Einzelspiel und Challenge (B-neu-1)
+# 09.11.2026 – Wertung mit Style und Strike, Einzelspiel und Challenge (B5)
 
 - Pascal: Score für Einzel- und Challenge-Modus, «wer kommt weiter», gespeichert,
   Spielername zu Beginn, Style und Flugzeitpunkte zählen, Strike mit
@@ -24,3 +24,9 @@ datum: 2026-11-09
   Werten und Bestleistung, Challenge mit zwei Spielern, Ergebnisse im
   Browser-Speicher und im Startmenü; keine Fehler in der Konsole. Neuladen
   der Seite nicht im Skript geprüft. Auf dem iPad ungetestet.
+- Gegenlesen (Sicherheit, Architektur, Tests): Strike-Abbruch bei Kraft 0
+  jetzt getestet; doppelte Namen (auch mit anderen Leerzeichen) abgelehnt;
+  `bonusFor(0)` gibt 0; Ranglisten-Reihenfolge an einer Stelle (`byRank`);
+  Ablauf nach dem Versuch vereinfacht; Kommentar zu `spendJerk` korrigiert.
+  Offen gelassen: Einstellung liest `main.ts` weiter direkt aus dem Speicher
+  (älterer Code, nicht Teil dieses Auftrags).

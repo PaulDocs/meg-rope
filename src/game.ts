@@ -1,7 +1,9 @@
-// Ablauf einer Runde im Einzelspiel und in der Challenge (B-neu-1).
+// Ablauf einer Runde im Einzelspiel und in der Challenge (B5).
 // Reine Rechnung ohne Bildschirm: Wer ist dran, welcher Versuch, wie viele
 // Punkte. Die Challenge läuft vorerst auf einem Gerät: Die Spieler geben das
 // iPad nacheinander weiter. Übers Heimnetz kommt sie mit dem Server (Etappe 3).
+
+import type { Setting } from './physics';
 
 /** Einzelspiel oder Challenge (mindestens zwei Spieler, nacheinander). */
 export type Mode = 'single' | 'challenge';
@@ -34,7 +36,7 @@ export interface Turn {
 export interface Round {
   id: string;
   mode: Mode;
-  setting: string; // Name der Einstellung (physics.ts SETTINGS)
+  setting: Setting['name']; // Name der Einstellung (physics.ts SETTINGS)
   turns: Turn[];
   current: number; // Index des Spielers, der dran ist (turns.length: alle fertig)
 }
@@ -44,13 +46,14 @@ export function cleanName(raw: string): string {
   return raw.replace(/\s+/g, ' ').trim().slice(0, ROUND.maxName);
 }
 
-export function createRound(mode: Mode, names: string[], setting: string, id: string): Round {
+export function createRound(mode: Mode, names: string[], setting: Setting['name'], id: string): Round {
   const list = names.map(cleanName).filter((n) => n !== '');
   if (list.length === 0) throw new Error('Runde ohne Spieler');
   if (mode === 'single' && list.length !== 1) throw new Error('Einzelspiel hat genau einen Spieler');
   if (mode === 'challenge' && (list.length < ROUND.minPlayers || list.length > ROUND.maxPlayers)) {
     throw new Error(`Challenge braucht ${ROUND.minPlayers}–${ROUND.maxPlayers} Spieler`);
   }
+  if (new Set(list).size !== list.length) throw new Error('Jeder Name nur einmal');
   return { id, mode, setting, turns: list.map((name) => ({ name, attempts: [], done: false })), current: 0 };
 }
 
@@ -96,7 +99,8 @@ export function bestAttempt(t: Turn): Attempt | null {
 
 /** Bonus-Anteil für so viele gebrauchte Versuche. */
 export function bonusFor(used: number): number {
-  return ROUND.bonus[Math.max(0, Math.min(ROUND.bonus.length, used) - 1)] ?? 0;
+  if (used < 1) return 0;
+  return ROUND.bonus[Math.min(ROUND.bonus.length, used) - 1] ?? 0;
 }
 
 /** Wertung eines Spielers: bester Versuch × (1 + Bonus für die gebrauchten Versuche). */
@@ -113,9 +117,14 @@ export interface Rank {
   attempts: number;
 }
 
-/** Rangliste: mehr Punkte vorne, bei Gleichstand die weitere Distanz. */
+/** Reihenfolge in Ranglisten: mehr Punkte vorne, bei Gleichstand die weitere Distanz. */
+export function byRank(a: { score: number; distance: number }, b: { score: number; distance: number }): number {
+  return b.score - a.score || b.distance - a.distance;
+}
+
+/** Rangliste einer Runde. */
 export function ranking(r: Round): Rank[] {
   return r.turns
     .map((t) => ({ name: t.name, score: turnScore(t), distance: bestAttempt(t)?.distance ?? 0, attempts: t.attempts.length }))
-    .sort((a, b) => b.score - a.score || b.distance - a.distance);
+    .sort(byRank);
 }

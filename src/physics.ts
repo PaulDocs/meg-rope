@@ -3,7 +3,7 @@
 // Häuser, Kräne und Ballone sind Kulisse: Man fliegt davor durch und hakt
 // genau dort ein, wo man tippt (docs/entscheide/2026-11-08-haeuser-kulisse.md).
 
-import { breakStrike, createStyle, rateSwing, type Style } from './score';
+import { breakStrike, createStyle, rateSwing, type Style, type SwingEnd } from './score';
 import { isOnHold, type Hold } from './world';
 
 export interface Vec {
@@ -298,7 +298,7 @@ export function jerkCost(dv: number): number {
   return STRENGTH.fullJerkCost * Math.min(1, (dv - STRENGTH.jerkFrom) / (STRENGTH.fullJerk - STRENGTH.jerkFrom));
 }
 
-/** Ruck von der Kraft abziehen (nur in der Variante «free»). */
+/** Ruck verbuchen: grössten Ruck am Seil merken (Style, jede Variante); im Freien Schwung zusätzlich Kraft abziehen. */
 function spendJerk(s: State, dv: number): void {
   if (s.rope) s.rope.jerk = Math.max(s.rope.jerk, dv);
   if (s.variant !== 'free') return;
@@ -314,7 +314,7 @@ export function isGoodSwing(s: State): boolean {
 }
 
 /** Messwerte des Schwungs am aktuellen Seil, kurz vor dem Lösen (für die Style-Wertung). */
-function swingEnd(s: State): { jerk: number; hold: number; vx: number; vy: number; loops: number } {
+function swingEnd(s: State): SwingEnd {
   return { jerk: s.rope!.jerk, hold: s.rope!.age, vx: s.vel.x, vy: s.vel.y, loops: turnsOnRope(s) };
 }
 

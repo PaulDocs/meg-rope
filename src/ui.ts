@@ -1,9 +1,9 @@
-// Menüs über dem Spiel (B-neu-1): Startmenü mit Spielername und Einstellung,
+// Menüs über dem Spiel (B5): Startmenü mit Spielername und Einstellung,
 // Challenge-Spieler, Zwischenstand nach jedem Versuch, Wertung und Ranglisten.
 // Nur Darstellung und Buttons; was passiert, entscheidet main.ts.
 // Namen kommen nur als Text ins Bild (textContent), nie als HTML.
 
-import { attemptNumber, bonusFor, ranking, ROUND, turnScore, type Attempt, type Round, type Turn } from './game';
+import { attemptNumber, bestAttempt, bonusFor, cleanName, ranking, ROUND, turnScore, type Attempt, type Round, type Turn } from './game';
 import { SETTINGS, type Setting } from './physics';
 import type { Result } from './store';
 
@@ -142,7 +142,7 @@ export class Menu {
     add('');
     const warn = el('p', 'warn');
     const start = () => {
-      const names = [...list.querySelectorAll('input')].map((i) => i.value.trim()).filter((n) => n !== '');
+      const names = [...list.querySelectorAll('input')].map((i) => cleanName(i.value)).filter((n) => n !== ''); // wie createRound
       if (names.length < ROUND.minPlayers) {
         warn.textContent = `Eine Challenge braucht mindestens ${ROUND.minPlayers} Spieler.`;
         return;
@@ -180,7 +180,7 @@ export class Menu {
     const t = o.turn;
     const used = t.attempts.length;
     const over = t.done;
-    const best = Math.max(...t.attempts.map((a) => a.points));
+    const best = bestAttempt(t)!.points;
     this.show(
       el('h1', '', `Versuch ${used}/${ROUND.attempts}: ${o.attempt.points}`),
       el('p', '', `${o.attempt.distance} m + Style ${o.attempt.style} · bester Strike ${o.attempt.bestStrike}`),

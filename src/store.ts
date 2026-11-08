@@ -1,8 +1,8 @@
-// Gespeicherte Ergebnisse und Spielernamen (B-neu-1). Der Browser des Geräts
+// Gespeicherte Ergebnisse und Spielernamen (B5). Der Browser des Geräts
 // hält sie (localStorage); fehlt der Speicher (privates Fenster), gilt alles
 // nur bis zum Neuladen. Gelesenes wird geprüft: Kaputtes fällt weg.
 
-import { bestAttempt, turnScore, type Mode, type Round } from './game';
+import { bestAttempt, byRank, turnScore, type Mode, type Round } from './game';
 
 /** Ein gewertetes Ergebnis eines Spielers in einer Runde. */
 export interface Result {
@@ -26,6 +26,7 @@ export interface KeyValue {
 
 export const KEYS = { results: 'meg-rope.results', names: 'meg-rope.names' };
 export const MAX_RESULTS = 300; // ältere fallen weg
+export const MAX_NAMES = 12;
 
 function read(kv: KeyValue | null, key: string): unknown {
   if (!kv) return null;
@@ -102,7 +103,7 @@ export function recentChallenges(all: Result[], n = 5): { round: string; setting
       round,
       setting: list[0]!.setting,
       date: list[0]!.date,
-      ranks: [...list].sort((a, b) => b.score - a.score || b.distance - a.distance),
+      ranks: [...list].sort(byRank),
     }))
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, n);
@@ -111,11 +112,11 @@ export function recentChallenges(all: Result[], n = 5): { round: string; setting
 /** Gemerkte Spielernamen (der erste ist der zuletzt gewählte). */
 export function loadNames(kv: KeyValue | null): string[] {
   const raw = read(kv, KEYS.names);
-  return Array.isArray(raw) ? raw.filter(str).slice(0, 12) : [];
+  return Array.isArray(raw) ? raw.filter(str).slice(0, MAX_NAMES) : [];
 }
 
 export function saveNames(kv: KeyValue | null, names: string[]): void {
   const seen = new Set<string>();
   const list = names.filter((n) => n !== '' && !seen.has(n) && seen.add(n));
-  write(kv, KEYS.names, [...list, ...loadNames(kv).filter((n) => !seen.has(n))].slice(0, 12));
+  write(kv, KEYS.names, [...list, ...loadNames(kv).filter((n) => !seen.has(n))].slice(0, MAX_NAMES));
 }

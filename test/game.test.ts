@@ -5,7 +5,7 @@ import {
 } from '../src/game';
 import { bestSingles, KEYS, loadNames, loadResults, MAX_RESULTS, personalBest, recentChallenges, saveNames, saveRound, type KeyValue } from '../src/store';
 
-// Runde, Challenge, Speicher (B-neu-1)
+// Runde, Challenge, Speicher (B5)
 
 const att = (points: number, distance = points): Attempt => ({ distance, style: points - distance, points, bestStrike: 0 });
 
@@ -21,9 +21,17 @@ describe('Runde', () => {
     expect(() => createRound('single', ['  '], 'normal', 'r')).toThrow();
   });
 
-  it('Challenge braucht mindestens zwei Spieler', () => {
+  it('Challenge braucht 2 bis 6 Spieler, Einzelspiel genau einen', () => {
     expect(() => createRound('challenge', ['Anna'], 'normal', 'r')).toThrow();
     expect(createRound('challenge', ['Anna', 'Ben'], 'normal', 'r').turns).toHaveLength(2);
+    const six = ['A', 'B', 'C', 'D', 'E', 'F'];
+    expect(createRound('challenge', six, 'normal', 'r').turns).toHaveLength(6);
+    expect(() => createRound('challenge', [...six, 'G'], 'normal', 'r')).toThrow();
+    expect(() => createRound('single', ['Anna', 'Ben'], 'normal', 'r')).toThrow();
+  });
+
+  it('derselbe Name zweimal geht nicht, auch mit anderen Leerzeichen', () => {
+    expect(() => createRound('challenge', ['Anna  Lena', 'Anna Lena'], 'normal', 'r')).toThrow();
   });
 
   it('nach dem dritten Versuch ist der nächste Spieler dran', () => {
@@ -42,6 +50,8 @@ describe('Runde', () => {
     expect(bonusFor(1)).toBe(0.5);
     expect(bonusFor(2)).toBe(0.25);
     expect(bonusFor(3)).toBe(0);
+    expect(bonusFor(0)).toBe(0);
+    expect(turnScore({ name: 'A', attempts: [], done: false })).toBe(0);
     const r = createRound('challenge', ['Anna', 'Ben'], 'normal', 'r');
     endAttempt(r, att(400));
     stopTurn(r);
@@ -87,6 +97,18 @@ describe('Speicher', () => {
     expect(personalBest(all, 'Anna', 'normal')?.score).toBe(400);
     expect(personalBest(all, 'Anna', 'free-hard')?.score).toBe(900);
     expect(personalBest(all, 'Cleo', 'normal')).toBeNull();
+  });
+
+  it('Bestenliste: bei gleichen Punkten liegt das ältere Ergebnis vorne', () => {
+    const kv = memory();
+    for (const [name, iso] of [['Ben', '2026-11-08T23:30:00Z'], ['Anna', '2026-11-09T00:30:00Z']] as const) {
+      const r = createRound('single', [name], 'normal', name);
+      endAttempt(r, att(500));
+      endAttempt(r, att(1));
+      endAttempt(r, att(1));
+      saveRound(kv, r, new Date(iso));
+    }
+    expect(bestSingles(loadResults(kv), 'normal').map((x) => x.name)).toEqual(['Ben', 'Anna']);
   });
 
   it('Challenge: alle Spieler einer Runde zusammen, neueste zuerst', () => {

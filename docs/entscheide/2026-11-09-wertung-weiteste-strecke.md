@@ -9,7 +9,7 @@ status: abgeleitet aus Pascals Auftrag vom 09.11.2026, Bestätigung bei der Abna
 
 **Entscheid:** Solange die Welt die endlose Strasse ohne Ziel ist, zählt ein
 Versuch **Meter plus Style-Punkte** (Übergänge mit Note, Strike mit Faktor,
-siehe `docs/arbeit/B-neu-1-wertung-style.md`). Je Spieler und Runde zählt der
+siehe `docs/arbeit/B5-wertung-style.md`). Je Spieler und Runde zählt der
 **beste von höchstens drei Versuchen**; wer früher werten lässt, bekommt
 **+ 50 %** (nach dem 1.) bzw. **+ 25 %** (nach dem 2. Versuch). Rangliste:
 mehr Punkte vorne, bei Gleichstand die weitere Strecke.

@@ -5,7 +5,7 @@ erstellt: 2026-11-09
 stand: 2026-11-09
 status: abnahme
 ---
-# B-neu-1 – Wertung mit Style und Strike, Spielername, Einzelspiel und Challenge
+# B5 – Wertung mit Style und Strike, Spielername, Einzelspiel und Challenge
 
 BAU FREI von Pascal am 09.11.2026 (Auftrag aus dem Hauptfenster).
 
