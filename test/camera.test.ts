@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { tap, createState } from '../src/physics';
-import { CAMERA_FOLLOW, FIGURE_AT, onSideWall, screenToWorld, updateCamera } from '../src/render';
+import { CAMERA_FOLLOW, FIGURE_AT, FIGURE_Y_RANGE, onSideWall, screenToWorld, updateCamera } from '../src/render';
 import type { World } from '../src/world';
 
 describe('Tipp auf dem Bildschirm → Ort in der Welt', () => {
@@ -70,7 +70,7 @@ describe('Kamera folgt wie im Vorbild', () => {
     s.phase = 'flying';
     s.pos = { x: 500, y: 150 };
     const cam = { x: 0, y: 0, scale: 1 };
-    for (let i = 0; i < 60; i++) updateCamera(cam, s, 1000, 700, 1 / 60);
+    for (let i = 0; i < 400; i++) updateCamera(cam, s, 1000, 700, 1 / 60);
     const viewW = 1000 / cam.scale;
     const viewH = 700 / cam.scale;
     expect((s.pos.x - cam.x) / viewW).toBeCloseTo(FIGURE_AT.x, 2);
@@ -82,12 +82,31 @@ describe('Kamera folgt wie im Vorbild', () => {
     s.phase = 'flying';
     s.pos = { x: 50, y: 5 };
     const cam = { x: 0, y: 0, scale: 1 };
-    for (let i = 0; i < 60; i++) updateCamera(cam, s, 1000, 700, 1 / 60);
+    for (let i = 0; i < 400; i++) updateCamera(cam, s, 1000, 700, 1 / 60);
     expect(cam.y).toBeCloseTo(-8, 2); // Untergrenze: Boden knapp über dem unteren Rand
     // etwas höher greift die Untergrenze nicht mehr
     s.pos = { x: 50, y: 50 };
-    for (let i = 0; i < 60; i++) updateCamera(cam, s, 1000, 700, 1 / 60);
+    for (let i = 0; i < 400; i++) updateCamera(cam, s, 1000, 700, 1 / 60);
     expect(cam.y).toBeCloseTo(50 - 70 * (1 - FIGURE_AT.y), 2); // Bild 70 m hoch
+  });
+
+  it('senkrecht ruhig: ein Schwung bewegt die Welt kaum, das Männchen bleibt aber im Bild', () => {
+    const s = createState();
+    s.phase = 'flying';
+    s.pos = { x: 500, y: 100 };
+    const cam = { x: 0, y: 0, scale: 1 };
+    for (let i = 0; i < 400; i++) updateCamera(cam, s, 1000, 700, 1 / 60);
+    const y0 = cam.y;
+    s.pos = { x: 500, y: 110 }; // 10 m höher im Schwung, eine Zehntelsekunde
+    for (let i = 0; i < 6; i++) updateCamera(cam, s, 1000, 700, 1 / 60);
+    expect(cam.y - y0).toBeLessThan(4); // die Welt springt nicht mit
+    s.pos = { x: 500, y: 200 }; // weit nach oben geworfen
+    updateCamera(cam, s, 1000, 700, 1 / 60);
+    const fromTop = 1 - (s.pos.y - cam.y) / 70;
+    expect(fromTop).toBeGreaterThanOrEqual(FIGURE_Y_RANGE.top - 1e-9);
+    s.pos = { x: 500, y: 20 }; // weit hinunter
+    updateCamera(cam, s, 1000, 700, 1 / 60);
+    expect(1 - (s.pos.y - cam.y) / 70).toBeLessThanOrEqual(FIGURE_Y_RANGE.bottom + 1e-9);
   });
 
   it('zieht eng nach, bei 60 und 120 Bildern pro Sekunde gleich', () => {
@@ -102,6 +121,15 @@ describe('Kamera folgt wie im Vorbild', () => {
     updateCamera(b, s, 1000, 700, 1 / 120);
     updateCamera(b, s, 1000, 700, 1 / 120);
     expect(b.x).toBeCloseTo(a.x, 6);
+    // senkrecht ebenso (Kamera so, dass FIGURE_Y_RANGE nicht greift)
+    s.pos = { x: 500, y: 110 };
+    const c = { x: 0, y: 50, scale: 1 };
+    const d = { x: 0, y: 50, scale: 1 };
+    updateCamera(c, s, 1000, 700, 1 / 60);
+    updateCamera(d, s, 1000, 700, 1 / 120);
+    updateCamera(d, s, 1000, 700, 1 / 120);
+    expect(c.y).not.toBe(50);
+    expect(d.y).toBeCloseTo(c.y, 6);
   });
 
   it('springt beim Neustart sofort an den Platz', () => {

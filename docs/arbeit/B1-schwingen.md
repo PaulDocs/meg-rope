@@ -318,6 +318,39 @@ Umgesetzt:
   `isDropIn()` bis zum ersten Einhaken; Bot hakt erst nach 1,3 s Fallen ein
   (Reaktionszeit wie im Video); Bot-Suche in `candidates`/`pickDistinct`.
 
+## Rückmeldung Pascal 08.11.2026: kaum spielbar, stockt, Häuser zum Teil zu tief, Welt bewegt sich zu fest
+
+Pascal: fällt zu schnell ins Seil; beim Schwung holen fällt er immer am
+gleichen Punkt; Häuser zum Teil zu tief; die Welt bewegt sich zu fest
+(mit der Maus schwieriger als mit dem Finger?).
+
+Gemessen: Mit Schwung holen 8 und Schwerkraft 40 wuchsen die Schwünge nur
+bis knapp über die Hakenhöhe. Dort wird das Seil locker, er fällt zurück
+ins Seil (Ruck) und verliert den Schwung – immer an derselben Stelle. Mit
+16 klappte es meistens, mit 22 ohne lockeres Seil: Looping nach 2–4 s.
+
+Umgesetzt:
+- **Schwung holen 8 → 22**: Die Schwünge wachsen ohne Stocken bis zum
+  Looping. In den ersten 3 Umdrehungen ist es oben darum fast so schnell
+  wie unten; danach (ohne Schwung holen) wieder deutlich langsamer.
+  **Hebt «Weniger Hilfe» (oben) auf**: Looping aus dem Stand ist jetzt
+  möglich (nach 2–4 s). Frage an Pascal bei der Abnahme: so gewollt?
+- **Häuser höher**: alle rund +10 m, die kurzen am meisten (kurz 20–35,
+  doppelt 38–62, gestuft 52–88, Scheibe 58–94, Nadel 75–110 m); erster
+  Turm 60 m, Start 72 m. Spielentscheid über der Video-Messung (dort bis
+  1,3 Bildhöhen ≈ 90 m).
+- **Kamera senkrecht ruhiger** (`CAMERA_FOLLOW_Y` 0,06): folgt dem Auf und
+  Ab der Schwünge nur weich, hält das Männchen aber immer zwischen 12 % und
+  60 % von oben (`FIGURE_Y_RANGE`). Waagrecht bleibt sie eng. Im Video
+  bewegt sich die Welt auch stark (Männchen fast fest im Bild); mit dem
+  Finger trifft man bewegte Ziele leichter als mit der Maus.
+- Schwerkraft bleibt 40 (Video-Messung); der Ruck beim Einhaken kommt vom
+  Tempo beim Fallen. Rückmeldung abwarten.
+- Gegenlesen: Tests ohne Abschalten von Schwung holen (Boden, Pendeln),
+  «oben langsamer» ohne Luft genau nachgerechnet, Looping aus dem Stand
+  frühestens nach 1,5 s und ohne lockeres Seil, Kamera senkrecht auch bei
+  120 Hz gleich, Häuser mindestens 20 m.
+
 ## Testanleitung für Pascal
 
 Testlink (privat): https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW

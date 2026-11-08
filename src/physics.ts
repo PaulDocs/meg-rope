@@ -19,10 +19,12 @@ export const TUNING = {
   // einer Schaukel und beschleunigt in Schwungrichtung – auch oben im Looping.
   // Es holt aber nur Schwung, solange seine Energie unter einer Grenze liegt
   // (Tempo auf Hakenhöhe höchstens swingSpeedAtHookHeight): oben im Kreis ist es so
-  // immer langsamer als unten, wie bei einer echten Schaukel. Und es holt nur
+  // langsamer als unten, wie bei einer echten Schaukel. Bei pump 22 ist der
+  // Unterschied in den ersten maxPumpTurns Umdrehungen klein – gewollt (Pascal
+  // 08.11.: sonst stockt das Schwung holen); danach wieder voll. Und es holt nur
   // während der ersten maxPumpTurns Umdrehungen um einen Haken Schwung, danach
   // dreht es mit dem gewonnenen Tempo weiter.
-  pump: 8, // m/s²
+  pump: 22, // m/s² – stark genug, dass die Schwünge über die Hakenhöhe weiter wachsen bis zum Looping (mit 8 stockten sie bei g 40 immer an derselben Stelle)
   swingSpeedAtHookHeight: 80, // m/s – Energiegrenze als Tempo auf Hakenhöhe: steil gelöst rund 80 m Wurfhöhe (v²/2g); unten je nach Seillänge schneller
   maxPumpTurns: 3, // so viele volle Umdrehungen lang wird das Kreisen schneller
   loopBoost: 1.1, // nach jeder dieser Umdrehungen ein spürbarer Schub: Tempo × loopBoost (pump 0 schaltet ihn ab)
@@ -36,8 +38,8 @@ export const TUNING = {
   spinDamping: 0.6, // Anteil Drehung, den das Männchen im freien Flug pro Sekunde behält
   // Start wie im Vorbild (IMG_185322): Das Männchen erscheint in der Luft vor
   // dem ersten Turm und fällt gerade herunter – kein Sprung nach vorne. Man
-  // muss einhaken, bevor es unten ist (aus 62 m rund 1,8 s).
-  startPos: { x: -24, y: 62 } as Vec,
+  // muss einhaken, bevor es unten ist (aus 72 m rund 1,9 s).
+  startPos: { x: -24, y: 72 } as Vec,
   dropInDelay: 0.5, // s – so lange schwebt es zu Beginn, dann fällt es (Tippen hakt schon vorher ein)
 };
 

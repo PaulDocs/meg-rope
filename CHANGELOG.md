@@ -5,6 +5,7 @@ sammelt «Unveröffentlicht».
 
 ## [Unveröffentlicht]
 
+- 08.11.2026 · B1: Schwung holen 22 (stockt nicht mehr, Looping aus dem Stand), alle Häuser rund 10 m höher, Kamera senkrecht ruhiger.
 - 08.11.2026 · B1: Einflug wie im Vorbild – Männchen fällt vor dem ersten Turm gerade herunter, kein Sprung nach vorne.
 - 08.11.2026 · B1: Fehler behoben – Männchen blieb schräg am Seil hängen; Häuser rund 0,6 × so hoch wie im Video.
 - 08.11.2026 · B1: Video IMG_185322 ausgemessen (Fallen passt zu g 40); Kamera hält das Männchen oben links wie im Vorbild.

@@ -11,9 +11,16 @@ export interface Camera {
 const VIEW_HEIGHT = 70; // (Häuserhöhen in world.ts TOWER_STYLES sind darauf geeicht) so viele Meter sieht man in der Höhe – nah dran wie im Vorbild, Türme ragen oben hinaus
 // Wo das Männchen im Bild steht (Anteil von links / von oben). Im Vorbild-Video
 // (IMG_185322) bleibt es fast fest oben links unter der Sonne; die Welt zieht
-// vorbei, beim Fallen kommen Häuser und Boden von unten herauf.
+// vorbei, beim Fallen kommen Häuser und Boden von unten herauf. Waagrecht steht
+// es fest bei FIGURE_AT.x; senkrecht ist FIGURE_AT.y nur das Ziel, das Männchen
+// darf weich zwischen FIGURE_Y_RANGE wandern (CAMERA_FOLLOW_Y).
 export const FIGURE_AT = { x: 0.3, y: 0.25 };
-export const CAMERA_FOLLOW = 0.35; // pro 1/60 s so viel des Abstands nachziehen – eng wie im Vorbild
+export const CAMERA_FOLLOW = 0.35; // waagrecht: pro 1/60 s so viel des Abstands nachziehen – eng wie im Vorbild
+// Senkrecht ruhiger (Pascal: «die Welt bewegt sich zu fest», mit der Maus schwer
+// zu treffen): Die Kamera folgt dem Auf und Ab der Schwünge nur weich, hält das
+// Männchen aber immer zwischen diesen Anteilen von oben im Bild.
+export const CAMERA_FOLLOW_Y = 0.06;
+export const FIGURE_Y_RANGE = { top: 0.12, bottom: 0.6 };
 const FIGURE_SCALE = 1.6; // Figur so viel grösser zeichnen als in echt, damit man sie sieht
 const DEPTH = 9; // m – so tief sind Türme
 const PERSPECTIVE = 0.07; // wie stark man die Seiten sieht, je weiter ein Turm von der Bildmitte steht
@@ -62,9 +69,14 @@ export function updateCamera(cam: Camera, s: State, w: number, h: number, dt: nu
   const viewW = w / cam.scale;
   const targetX = s.pos.x - viewW * FIGURE_AT.x;
   const targetY = Math.max(-8, s.pos.y - VIEW_HEIGHT * (1 - FIGURE_AT.y)); // Boden sichtbar, wenn es tief ist
-  const k = s.phase === 'dropIn' ? 1 : 1 - Math.pow(1 - CAMERA_FOLLOW, dt * 60); // beim Neustart springen
-  cam.x += (targetX - cam.x) * k;
-  cam.y += (targetY - cam.y) * k;
+  const jump = s.phase === 'dropIn'; // beim Neustart springen
+  const follow = (f: number) => (jump ? 1 : 1 - Math.pow(1 - f, dt * 60));
+  cam.x += (targetX - cam.x) * follow(CAMERA_FOLLOW);
+  cam.y += (targetY - cam.y) * follow(CAMERA_FOLLOW_Y);
+  // nie aus dem Bild: Männchen zwischen FIGURE_Y_RANGE.top und .bottom (Anteil von oben)
+  const minY = s.pos.y - VIEW_HEIGHT * (1 - FIGURE_Y_RANGE.top); // tiefer: Männchen oben aus dem Bild
+  const maxY = s.pos.y - VIEW_HEIGHT * (1 - FIGURE_Y_RANGE.bottom); // höher: Männchen unten aus dem Bild
+  cam.y = Math.max(-8, Math.min(Math.max(cam.y, minY), maxY));
 }
 
 /**

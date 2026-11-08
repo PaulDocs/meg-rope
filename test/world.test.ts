@@ -97,9 +97,10 @@ describe('Strasse', () => {
   it('Höhen wechseln stark: kurze und sehr hohe Häuser', () => {
     const heights = towers.map(roofHeight);
     expect(Math.min(...heights)).toBeLessThan(27);
+    expect(Math.min(...heights)).toBeGreaterThanOrEqual(20); // Pascal 08.11.: nicht zu tief
     expect(Math.max(...heights)).toBeGreaterThan(80);
-    // nicht zu hoch (Pascal): Türme höchstens 1,5 Bildhöhen (70 m), wie im Video
-    expect(Math.max(...heights)).toBeLessThanOrEqual(105);
+    // nicht zu hoch: Video 0,5–1,3 Bildhöhen (70 m); Pascal 08.11. «zum Teil zu tief» → alle rund +10 m, Grenze 115 m
+    expect(Math.max(...heights)).toBeLessThanOrEqual(115);
     for (const p of street.props) {
       if (p.kind === 'crane' && p.base === 0) expect(p.h).toBeLessThanOrEqual(65);
       if (p.kind === 'balloon' || p.kind === 'airship') expect(p.y).toBeLessThanOrEqual(90);

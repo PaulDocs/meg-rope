@@ -138,16 +138,17 @@ export function isOnHold(pt: Vec, h: Hold, slack = GRAB_SLACK): boolean {
 
 /**
  * Breite und Höhe (m) je Gebäudeart, aus den Vorbild-Videos geschätzt. Höhen
- * nach IMG_185322 rund 0,6 × der ersten Schätzung: Türme reichen dort etwa
- * 0,5–1,3 Bildhöhen hoch (unsere Bildhöhe: 70 m), das Männchen fliegt oft
- * über den Dächern.
+ * nach IMG_185322 rund 0,6 × der ersten Schätzung (Türme reichen dort etwa
+ * 0,5–1,3 Bildhöhen hoch, unsere Bildhöhe: 70 m). Danach alle um rund 10 m
+ * angehoben, die kurzen um 8–15 m (Pascal 08.11.: «zum Teil zu tief») – ein
+ * Spielentscheid, die Nadel reicht jetzt bis gut 1,5 Bildhöhen.
  */
 export const TOWER_STYLES: Record<TowerStyle, { w: [number, number]; h: [number, number] }> = {
-  needle: { w: [6, 9], h: [65, 100] }, // sehr hoch und schlank, lange Spitze
-  setback: { w: [10, 15], h: [42, 78] }, // nach oben in Stufen schmaler
-  twin: { w: [18, 26], h: [28, 52] }, // breiter Sockel mit zwei Kronen
-  stub: { w: [8, 14], h: [12, 27] }, // kurz und gedrungen
-  slab: { w: [9, 13], h: [48, 84] }, // schlichte hohe Scheibe
+  needle: { w: [6, 9], h: [75, 110] }, // sehr hoch und schlank, lange Spitze
+  setback: { w: [10, 15], h: [52, 88] }, // nach oben in Stufen schmaler
+  twin: { w: [18, 26], h: [38, 62] }, // breiter Sockel mit zwei Kronen
+  stub: { w: [8, 14], h: [20, 35] }, // kurz und gedrungen
+  slab: { w: [9, 13], h: [58, 94] }, // schlichte hohe Scheibe
 };
 
 /**
@@ -276,7 +277,7 @@ export function createStreet(seed = 7): Street {
     return { kind: 'airship', x: mid, y: between(50, 90), len: Math.min(between(22, 30), (b - a) * 0.6) };
   };
 
-  const first: Prop = { kind: 'tower', style: 'slab', color: 0, blocks: [{ x: -14, y: 0, w: 14, h: 50 }] };
+  const first: Prop = { kind: 'tower', style: 'slab', color: 0, blocks: [{ x: -14, y: 0, w: 14, h: 60 }] };
   const props: Prop[] = [first];
   const holds: Hold[] = holdsOf(first);
   let length = 0; // rechte Kante des letzten Teils am Boden
