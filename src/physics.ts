@@ -3,6 +3,7 @@
 // Häuser, Kräne und Ballone sind Kulisse: Man fliegt davor durch und hakt
 // genau dort ein, wo man tippt (docs/entscheide/2026-11-08-haeuser-kulisse.md).
 
+import { breakStrike, createStyle, rateSwing, type Style } from './score';
 import { isOnHold, type Hold } from './world';
 
 export interface Vec {
@@ -82,7 +83,15 @@ export const STRENGTH = {
   goodSwingSpeed: 15, // m/s
   streakFrom: 2, // ab dem wievielten guten Schwung in Folge es Kraft zurückgibt
   gain: { easy: 0.25, medium: 0.18, hard: 0.1 }, // Anteil je gutem Schwung, nach Stufe (Pascal 09.11.: merkbar; schwer = vorher leicht)
+  // Kraftstation (Pascal 09.11., Prinzip Tankstelle): alle stationEvery Meter ab
+  // dem Start; wer daran vorbeifliegt, hat wieder volle Kraft.
+  stationEvery: 300, // m
 };
+
+/** Stelle (x, m) der k-ten Kraftstation (k ab 1). */
+export function stationAt(k: number): number {
+  return TUNING.startPos.x + k * STRENGTH.stationEvery;
+}
 
 /** Stufe im Freien Schwung: wie schnell die Kraft mit guten Schwüngen zurückkommt. */
 export type Level = keyof typeof STRENGTH.gain;
@@ -125,6 +134,7 @@ export interface Rope {
   pumpLimit: number | null; // Energie, bis zu der es Schwung holt (pumpLimitFor); null, bis das Seil zum ersten Mal zieht (ropePulls)
   age: number; // s seit dem Einhaken
   clean: boolean; // an diesem Seil noch kein Ruck, weder beim Einhaken noch danach (für den guten Schwung)
+  jerk: number; // m/s – grösster Ruck an diesem Seil (für die Style-Wertung, in jeder Variante)
 }
 
 /** Ein gelöstes Seil, das herunterfällt und dann verschwindet. */
@@ -146,6 +156,8 @@ export interface State {
   level: Level; // Stufe (zählt nur in der Variante «free»)
   strength: number; // Kraft 0 … 1 (nur in der Variante «free» unter 1)
   goodSwings: number; // gute Schwünge in Folge
+  stations: number; // Kraftstationen, an denen es schon vorbei ist
+  style: Style; // Style-Wertung dieses Versuchs (score.ts)
   // Wie das Männchen gedreht ist (nur Darstellung, Bogenmass; 0 = Kopf oben)
   angle: number;
   spin: number; // rad/s
@@ -165,6 +177,8 @@ export function createState(variant: Variant = 'normal', level: Level = DEFAULT_
     level,
     strength: 1,
     goodSwings: 0,
+    stations: 0,
+    style: createStyle(),
     angle: 0,
     spin: 0,
   };
@@ -184,8 +198,8 @@ export function resetState(s: State, variant: Variant = s.variant, level: Level 
 }
 
 /**
- * Einstellungen zum Durchtippen am Schalter: Normal, dann Freier Schwung in
- * drei Stufen. Der Name dient auch zum Merken im Browser.
+ * Einstellungen, wie sie das Startmenü anbietet: Normal, dann Freier Schwung in
+ * drei Stufen. Der Name dient auch zum Merken im Browser und in den Ergebnissen.
  */
 export const SETTINGS = [
   { name: 'normal', variant: 'normal', level: DEFAULT_LEVEL },
@@ -205,19 +219,9 @@ export function settingOf(s: State): Setting {
   return SETTINGS.find((x) => x.variant === s.variant && (s.variant === 'normal' || x.level === s.level)) ?? SETTINGS[0];
 }
 
-/** Die nächste Einstellung beim Tippen auf den Schalter (am Ende wieder von vorn). */
-export function nextSetting(s: State): Setting {
-  return SETTINGS[(SETTINGS.indexOf(settingOf(s)) + 1) % SETTINGS.length]!;
-}
-
 /** Zu wenig Kraft zum Einhaken? (Nur im Freien Schwung kann sie sinken.) */
 export function tooWeakToHook(s: State): boolean {
   return s.strength < STRENGTH.toHook;
-}
-
-/** Die Spielvariante lässt sich nur vor dem ersten Einhaken und am Boden wechseln. */
-export function canSwitchVariant(s: State): boolean {
-  return isDropIn(s) || s.phase === 'down';
 }
 
 /**
@@ -238,6 +242,7 @@ export function tap(
   }
   if (s.rope) {
     countSwing(s);
+    rateSwing(s.style, swingEnd(s), s.time);
     releaseRope(s);
     return 'released';
   }
@@ -262,6 +267,7 @@ export function tap(
     pumpLimit: null,
     age: 0,
     clean: true,
+    jerk: 0,
   };
   spendJerk(s, catchJerk(s));
   return 'attached';
@@ -294,6 +300,7 @@ export function jerkCost(dv: number): number {
 
 /** Ruck von der Kraft abziehen (nur in der Variante «free»). */
 function spendJerk(s: State, dv: number): void {
+  if (s.rope) s.rope.jerk = Math.max(s.rope.jerk, dv);
   if (s.variant !== 'free') return;
   const cost = jerkCost(dv);
   if (cost > 0 && s.rope) s.rope.clean = false;
@@ -304,6 +311,11 @@ function spendJerk(s: State, dv: number): void {
 export function isGoodSwing(s: State): boolean {
   if (!s.rope) return false;
   return s.rope.clean && s.rope.age >= STRENGTH.goodSwingTime && Math.hypot(s.vel.x, s.vel.y) >= STRENGTH.goodSwingSpeed;
+}
+
+/** Messwerte des Schwungs am aktuellen Seil, kurz vor dem Lösen (für die Style-Wertung). */
+function swingEnd(s: State): { jerk: number; hold: number; vx: number; vy: number; loops: number } {
+  return { jerk: s.rope!.jerk, hold: s.rope!.age, vx: s.vel.x, vy: s.vel.y, loops: turnsOnRope(s) };
 }
 
 /**
@@ -343,7 +355,16 @@ function updateStrength(s: State, dt: number): void {
   }
   if (s.strength <= 0) {
     s.goodSwings = 0;
+    breakStrike(s.style); // losgelassen ohne Übergang: nicht im Schwung
     releaseRope(s);
+  }
+}
+
+/** An einer Kraftstation vorbei: wieder volle Kraft (nur im Freien Schwung). */
+function passStations(s: State): void {
+  while (s.pos.x >= stationAt(s.stations + 1)) {
+    s.stations++;
+    if (s.variant === 'free') s.strength = 1;
   }
 }
 
@@ -431,11 +452,13 @@ export function step(s: State, dt = STEP): void {
   turnBody(s, dt);
 
   if (s.pos.x > s.maxX) s.maxX = s.pos.x;
+  passStations(s);
 
   if (s.pos.y - TUNING.bodyRadius <= 0) {
     s.pos.y = TUNING.bodyRadius;
     s.vel = { x: 0, y: 0 };
     releaseRope(s);
+    breakStrike(s.style);
     s.phase = 'down';
   }
 }

@@ -1,4 +1,5 @@
-import { canSwitchVariant, isDropIn, pumpShare, settingOf, tooWeakToHook, TUNING, type State, type Vec } from './physics';
+import { isDropIn, pumpShare, stationAt, STRENGTH, tooWeakToHook, TUNING, type State, type Vec } from './physics';
+import { attemptPoints, distanceOf, isStrike, multiplier, STYLE, type Grade } from './score';
 import { containerOf, extentOf, GRAB_SLACK, roofHeight, SHAPE, type Prop, type World } from './world';
 
 /** Kamera: welcher Weltausschnitt auf dem Bildschirm liegt. */
@@ -52,6 +53,10 @@ const C = {
   airshipDark: '#6f7984',
   eye: '#ffffff',
   towerRib: 'rgba(40, 56, 78, 0.18)',
+  strike: '#c8452f', // Strike-Anzeige
+  station: 'rgba(46, 160, 92, 0.22)', // Lichtsäule der Kraftstation
+  stationSign: '#2ea05c',
+  stationDone: 'rgba(120, 130, 140, 0.25)', // schon vorbei
 };
 // Türme: drei nahe Töne derselben Familie (Front, Seite, Dach)
 const TOWER = [
@@ -119,7 +124,7 @@ export function screenToWorld(cam: Camera, h: number, sx: number, sy: number): V
 
 type Proj = { X: (x: number) => number; Y: (y: number) => number; m: number; mid: number };
 
-export function draw(ctx: CanvasRenderingContext2D, s: State, world: World, cam: Camera, w: number, h: number): void {
+export function draw(ctx: CanvasRenderingContext2D, s: State, world: World, cam: Camera, w: number, h: number, hud: HudInfo | null): void {
   const viewW = w / cam.scale;
   const P: Proj = {
     X: (x) => (x - cam.x) * cam.scale,
@@ -139,6 +144,7 @@ export function draw(ctx: CanvasRenderingContext2D, s: State, world: World, cam:
   // Weiter von der Bildmitte zuerst, damit nähere Seiten darüber liegen
   const order = [...visible].sort((a, b) => Math.abs(centerOf(b) - P.mid) - Math.abs(centerOf(a) - P.mid));
   for (const p of order) drawProp(ctx, p, P);
+  drawStations(ctx, s, cam, P, w, h);
 
   for (const r of s.looseRopes) drawRope(ctx, r.chain.points, P, 1 - r.age / TUNING.looseRopeTime);
   if (s.rope) {
@@ -147,7 +153,7 @@ export function draw(ctx: CanvasRenderingContext2D, s: State, world: World, cam:
     circle(ctx, P.X(s.rope.anchor.x), P.Y(s.rope.anchor.y), Math.max(1.5, 0.3 * P.m));
   }
   drawStickman(ctx, s, P);
-  drawHud(ctx, s, w, h);
+  if (hud) drawHud(ctx, s, w, h, hud); // ohne Runde (Startmenü): keine Anzeige
 }
 
 function centerOf(p: Prop): number {
@@ -167,60 +173,73 @@ export interface ScreenBox {
   h: number;
 }
 
-/** Schalter für die Spielvariante oben links. */
-export function variantButton(h: number): ScreenBox {
+/** Platz oben links für den Kraftbalken. */
+export function strengthBox(h: number): ScreenBox {
   return { x: h * 0.03, y: h * 0.025, w: h * 0.36, h: h * 0.065 };
 }
 
-/** Liegt der Punkt (Bildschirm-Pixel) auf dem Varianten-Schalter? */
-export function onVariantButton(s: State, h: number, sx: number, sy: number): boolean {
-  if (!canSwitchVariant(s)) return false;
-  const b = variantButton(h);
-  return sx >= b.x && sx <= b.x + b.w && sy >= b.y && sy <= b.y + b.h;
+/** Was die Anzeige über die Runde wissen muss (main.ts). */
+export interface HudInfo {
+  name: string;
+  attempt: number; // 1 … attempts
+  attempts: number;
 }
 
-const SETTING_LABEL = {
-  normal: 'Normal',
-  'free-easy': 'Frei · leicht',
-  'free-medium': 'Frei · mittel',
-  'free-hard': 'Frei · schwer',
-} as const;
+export const GRADE_LABEL: Record<Grade, string> = {
+  perfect: 'Perfekt',
+  good: 'Gut',
+  ok: 'Knapp',
+  out: 'Nicht im Schwung',
+};
 
-function drawHud(ctx: CanvasRenderingContext2D, s: State, w: number, h: number): void {
-  const b = variantButton(h);
-  if (canSwitchVariant(s)) {
-    ctx.strokeStyle = C.ink;
-    ctx.lineWidth = Math.max(1, h * 0.003);
-    ctx.strokeRect(b.x, b.y, b.w, b.h);
-    ctx.fillStyle = C.ink;
-    ctx.font = font(h * 0.028);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`${SETTING_LABEL[settingOf(s).name]} ⇄`, b.x + b.w / 2, b.y + b.h / 2);
-  } else if (s.variant === 'free') {
-    drawStrength(ctx, s, b);
-  }
+function drawHud(ctx: CanvasRenderingContext2D, s: State, w: number, h: number, hud: HudInfo): void {
+  if (s.variant === 'free') drawStrength(ctx, s, strengthBox(h));
+  const dist = distanceOf(s.maxX, TUNING.startPos.x);
+  const right = w - h * 0.03;
   ctx.fillStyle = C.ink;
-  ctx.font = font(h * 0.04);
-  ctx.textBaseline = 'top';
   ctx.textAlign = 'right';
-  const dist = Math.max(0, s.maxX - TUNING.startPos.x);
-  ctx.fillText(`${dist.toFixed(0)}`, w - h * 0.03, h * 0.025);
+  ctx.textBaseline = 'top';
+  ctx.font = font(h * 0.045);
+  ctx.fillText(`${attemptPoints(dist, s.style)}`, right, h * 0.022);
+  ctx.font = font(h * 0.022);
+  ctx.fillText(`${dist} m · Style ${s.style.points}`, right, h * 0.075);
+  ctx.fillText(`${hud.name} · Versuch ${hud.attempt}/${hud.attempts}`, right, h * 0.105);
+  drawStyle(ctx, s, w, h);
 
   const weak = s.variant === 'free' && !s.rope && s.phase === 'flying' && tooWeakToHook(s);
   const msg = isDropIn(s)
     ? 'Tippe auf ein Haus, einen Kran, einen Ballon oder ein Luftschiff'
-    : s.phase === 'down'
-      ? 'Am Boden – tippen für neuen Versuch'
-      : weak
-        ? 'Keine Kraft mehr zum Einhaken'
-        : '';
+    : weak
+      ? 'Keine Kraft mehr zum Einhaken'
+      : '';
   if (msg) {
+    ctx.fillStyle = C.ink;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = font(h * 0.032);
     ctx.fillText(msg, w / 2, h * 0.16);
   }
+}
+
+/** Übergänge in Folge (ab strikeFrom «Strike» mit Faktor) und kurz die Note des letzten. */
+function drawStyle(ctx: CanvasRenderingContext2D, s: State, w: number, h: number): void {
+  const st = s.style;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  if (st.strike > 0) {
+    const strike = isStrike(st);
+    ctx.fillStyle = strike ? C.strike : C.ink;
+    ctx.font = font(h * (strike ? 0.036 : 0.026));
+    const factor = multiplier(st.strike).toFixed(2).replace('.', ',');
+    ctx.fillText(strike ? `STRIKE ${st.strike} · ×${factor}` : `${st.strike} in Folge`, w / 2, h * 0.05);
+  }
+  const last = st.last;
+  if (!last || s.time - last.at > STYLE.showFor) return;
+  ctx.globalAlpha = 1 - (s.time - last.at) / STYLE.showFor;
+  ctx.fillStyle = last.grade === 'out' ? C.weak : C.ink;
+  ctx.font = font(h * 0.034);
+  ctx.fillText(last.grade === 'out' ? GRADE_LABEL.out : `${GRADE_LABEL[last.grade]} +${last.points}`, w / 2, h * 0.1);
+  ctx.globalAlpha = 1;
 }
 
 /** Kraftbalken (Variante «Freier Schwung»); rot, solange es nicht einhaken kann; daneben die Serie guter Schwünge. */
@@ -242,6 +261,40 @@ function drawStrength(ctx: CanvasRenderingContext2D, s: State, b: ScreenBox): vo
   if (s.goodSwings > 0) {
     ctx.fillStyle = C.ink;
     ctx.fillText(`Serie ${s.goodSwings}`, b.x + b.w + b.h * 0.4, b.y + b.h / 2);
+  }
+  // wie weit bis zur nächsten Kraftstation
+  ctx.font = font(b.h * 0.34);
+  ctx.fillText(`Station in ${Math.max(0, Math.ceil(stationAt(s.stations + 1) - s.pos.x))} m`, b.x, b.y + b.h * 1.35);
+}
+
+/**
+ * Kraftstationen (nur im Freien Schwung): eine hohe, grüne Lichtsäule quer
+ * durchs Bild mit einem Blitz oben. Vorbeifliegen füllt die Kraft (physics.ts).
+ */
+function drawStations(ctx: CanvasRenderingContext2D, s: State, cam: Camera, P: Proj, w: number, h: number): void {
+  if (s.variant !== 'free') return;
+  const viewW = w / cam.scale;
+  const first = Math.max(1, Math.floor((cam.x - TUNING.startPos.x) / STRENGTH.stationEvery));
+  for (let k = first; stationAt(k) < cam.x + viewW + 4; k++) {
+    const x = P.X(stationAt(k));
+    const passed = k <= s.stations;
+    const half = Math.max(3, 0.8 * P.m);
+    ctx.fillStyle = passed ? C.stationDone : C.station;
+    ctx.fillRect(x - half, 0, half * 2, h);
+    // Blitz-Schild oben
+    const r = Math.max(12, 2.2 * P.m);
+    const cy = h * 0.3;
+    ctx.fillStyle = passed ? C.stationDone : C.stationSign;
+    circle(ctx, x, cy, r);
+    ctx.fillStyle = C.eye;
+    poly(ctx, [
+      [x + r * 0.15, cy - r * 0.7],
+      [x - r * 0.4, cy + r * 0.1],
+      [x - r * 0.02, cy + r * 0.1],
+      [x - r * 0.15, cy + r * 0.7],
+      [x + r * 0.4, cy - r * 0.1],
+      [x + r * 0.02, cy - r * 0.1],
+    ]);
   }
 }
 

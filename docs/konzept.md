@@ -2,7 +2,7 @@
 objekt: konzept
 bereich: meg-rope
 erstellt: 2026-11-08
-stand: 2026-11-08
+stand: 2026-11-09
 status: abgenommen
 ---
 # Konzept – Meg Rope
@@ -131,3 +131,8 @@ geben mehr Bonus. Dazu gilt:
 
 - **Gleichstand** (gleich viele Punkte): Die schnellere Zeit liegt vorne.
 - **Gesamtwertung**: Punkte aller Runden zusammengezählt.
+
+**Ergänzt am 09.11.2026:** Auf der endlosen Strasse ohne Ziel gilt «wer kommt
+weiter»: Meter plus Style, bester von drei Versuchen, + 50 % / + 25 % fürs
+frühe Werten. «Freies Spiel» heisst jetzt Einzelspiel. Siehe
+`docs/entscheide/2026-11-09-wertung-weiteste-strecke.md`.

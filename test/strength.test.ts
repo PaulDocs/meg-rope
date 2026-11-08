@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createState, isGoodSwing, isTaut, jerkCost, nextSetting, noSideWalls, resetState, ropeLoad, settingByName, settingOf, SETTINGS, step, STRENGTH, tap, TUNING, turnsOnRope, type Level, type State } from '../src/physics';
-import { onVariantButton, variantButton } from '../src/render';
+import { createState, isGoodSwing, isTaut, jerkCost, noSideWalls, resetState, ropeLoad, settingByName, settingOf, SETTINGS, step, STRENGTH, tap, TUNING, turnsOnRope, type Level, type State } from '../src/physics';
 import type { Hold } from '../src/world';
 
 // Variante «Freier Schwung» mit Kraft (B4)
@@ -69,32 +68,17 @@ describe('Variante «Freier Schwung»', () => {
     expect(s.strength).toBe(1);
   });
 
-  it('Schalter oben links nur vor dem ersten Einhaken und am Boden', () => {
-    const h = 800;
-    const b = variantButton(h);
-    const cx = b.x + b.w / 2;
-    const cy = b.y + b.h / 2;
-    const s = createState('free');
-    expect(onVariantButton(s, h, cx, cy)).toBe(true);
-    expect(onVariantButton(s, h, b.x + b.w + 5, cy)).toBe(false);
-    s.phase = 'flying';
-    expect(tap(s, { x: s.pos.x + 5, y: s.pos.y + 5 }, wall, noSideWalls)).toBe('attached');
-    expect(onVariantButton(s, h, cx, cy)).toBe(false);
-    s.phase = 'down';
-    expect(onVariantButton(s, h, cx, cy)).toBe(true);
-  });
 });
 
 describe('Einstellungen', () => {
-  it('Schalter geht Normal → leicht → mittel → schwer → Normal, neuer Versuch behält sie', () => {
+  it('Startmenü bietet Normal, leicht, mittel, schwer; neuer Versuch behält die Einstellung', () => {
     const s = createState();
     const seen: string[] = [];
-    for (let i = 0; i < SETTINGS.length; i++) {
-      const next = nextSetting(s);
-      resetState(s, next.variant, next.level);
+    for (const x of SETTINGS) {
+      resetState(s, x.variant, x.level);
       seen.push(settingOf(s).name);
     }
-    expect(seen).toEqual(['free-easy', 'free-medium', 'free-hard', 'normal']);
+    expect(seen).toEqual(['normal', 'free-easy', 'free-medium', 'free-hard']);
     resetState(s, 'free', 'hard');
     s.phase = 'down';
     tap(s, { x: 0, y: 0 }, wall, noSideWalls);

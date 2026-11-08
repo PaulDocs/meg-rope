@@ -12,10 +12,37 @@
       html, body { margin: 0; height: 100%; overflow: hidden; background: #dfe7ee; }
       canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none;
                -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+      /* Menüs über dem Spiel (src/ui.ts) */
+      #menu { position: fixed; inset: 0; display: flex; align-items: flex-start; justify-content: center;
+              overflow-y: auto; background: rgba(228, 232, 236, 0.82); padding: 4vh 16px;
+              box-sizing: border-box; font: 17px/1.4 -apple-system, system-ui, sans-serif; color: #262a31; }
+      #menu[hidden] { display: none; }
+      #menu .card { background: #fff; border-radius: 14px; padding: 20px 22px; width: 100%; max-width: 520px;
+                    box-shadow: 0 6px 24px rgba(40, 56, 78, 0.18); }
+      #menu h1 { margin: 0 0 12px; font-size: 28px; }
+      #menu h2 { margin: 22px 0 6px; font-size: 18px; }
+      #menu p { margin: 6px 0; }
+      #menu .quiet, #menu .label { color: #6f7984; }
+      #menu .warn { color: #c8452f; min-height: 1.4em; }
+      #menu .news { color: #2ea05c; font-weight: 700; }
+      #menu label { display: block; font-weight: 600; }
+      #menu input { display: block; width: 100%; box-sizing: border-box; margin: 6px 0; padding: 10px 12px;
+                    font-size: 18px; border: 1px solid #c4ccd6; border-radius: 8px; }
+      #menu .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+      #menu .row.big button { flex: 1; min-height: 52px; font-size: 19px; }
+      #menu button { padding: 9px 14px; font-size: 16px; border-radius: 8px; border: 1px solid #262a31;
+                     background: #fff; color: #262a31; font-weight: 600; touch-action: manipulation; }
+      #menu button.chosen, #menu button.main { background: #262a31; color: #fff; }
+      #menu button.small { font-size: 15px; padding: 6px 10px; }
+      #menu table { width: 100%; border-collapse: collapse; font-size: 16px; }
+      #menu th, #menu td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #e9ecef; }
+      #menu th { color: #6f7984; font-weight: 600; }
+      #menu .challenge { margin-top: 10px; }
     </style>
   </head>
   <body>
     <canvas id="game"></canvas>
+    <div id="menu" hidden></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

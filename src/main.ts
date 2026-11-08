@@ -1,5 +1,9 @@
-import { createState, nextSetting, resetState, settingByName, STEP, step, tap, type Setting } from './physics';
-import { draw, onSideWall, onVariantButton, screenToWorld, updateCamera, type Camera } from './render';
+import { attemptNumber, createRound, currentTurn, endAttempt, isRoundOver, ROUND, stopTurn, type Mode, type Round } from './game';
+import { createState, resetState, settingByName, STEP, step, tap, TUNING, type Setting } from './physics';
+import { draw, onSideWall, screenToWorld, updateCamera, type Camera } from './render';
+import { attemptPoints, distanceOf } from './score';
+import { bestSingles, loadNames, loadResults, personalBest, recentChallenges, saveNames, saveRound, type KeyValue } from './store';
+import { Menu } from './ui';
 import { createStreet } from './world';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -27,9 +31,18 @@ function saveSetting(x: Setting): void {
     // ohne Speicher gilt die Wahl nur bis zum Neuladen
   }
 }
-const start = loadSetting();
-const state = createState(start.variant, start.level);
+let setting = loadSetting();
+const state = createState(setting.variant, setting.level);
 const cam: Camera = { x: 0, y: 0, scale: 1 };
+const menu = new Menu(document.getElementById('menu')!);
+function storage(): KeyValue | null {
+  try {
+    return localStorage;
+  } catch {
+    return null;
+  }
+}
+const kv = storage();
 
 let width = 0;
 let height = 0;
@@ -45,17 +58,94 @@ function resize(): void {
 window.addEventListener('resize', resize);
 resize();
 
+// Ablauf: Startmenü → (Challenge: Spieler) → je Spieler bis 3 Versuche → Wertung
+let round: Round | null = null;
+let downFor = 0; // s am Boden, bevor der Zwischenstand kommt
+const DOWN_PAUSE = 0.8; // s – kurz zeigen, wo es gelandet ist
+
+function newAttempt(): void {
+  resetState(state, setting.variant, setting.level);
+  downFor = 0;
+  menu.hide();
+}
+
+function showStart(name = loadNames(kv)[0] ?? ''): void {
+  round = null;
+  resetState(state, setting.variant, setting.level);
+  const all = loadResults(kv);
+  menu.start({
+    name,
+    setting,
+    results: { best: bestSingles(all, setting.name), challenges: recentChallenges(all, 3) },
+    onSetting: (x, typed) => {
+      setting = x;
+      saveSetting(x);
+      showStart(typed); // eingetippter Name bleibt stehen
+    },
+    onSingle: (name) => begin('single', [name]),
+    onChallenge: (name) =>
+      menu.players({
+        first: name.trim(),
+        known: loadNames(kv),
+        setting,
+        onStart: (names) => begin('challenge', names),
+        onBack: () => showStart(),
+      }),
+  });
+}
+
+function begin(mode: Mode, names: string[]): void {
+  round = createRound(mode, names, setting.name, `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`);
+  saveNames(kv, round.turns.map((t) => t.name));
+  showReady();
+}
+
+function showReady(): void {
+  const r = round!;
+  const turn = currentTurn(r);
+  if (!turn) return showResult();
+  menu.ready({ r, turn, onGo: newAttempt });
+}
+
+function showResult(): void {
+  const r = round!;
+  const all = saveRound(kv, r, new Date());
+  const me = r.turns[0]!.name;
+  menu.result({
+    r,
+    best: bestSingles(all, r.setting),
+    personal: r.mode === 'single' ? personalBest(all, me, r.setting) : null,
+    onAgain: () => begin(r.mode, r.turns.map((t) => t.name)),
+    onMenu: () => showStart(),
+  });
+}
+
+/** Am Boden: Versuch werten, dann Zwischenstand mit «weiter» oder «werten». */
+function attemptOver(): void {
+  const r = round!;
+  const turn = currentTurn(r)!;
+  const distance = distanceOf(state.maxX, TUNING.startPos.x);
+  const attempt = { distance, style: state.style.points, points: attemptPoints(distance, state.style), bestStrike: state.style.bestStrike };
+  endAttempt(r, attempt);
+  menu.afterAttempt({
+    r,
+    turn,
+    attempt,
+    onNext: () => (turn.done ? (isRoundOver(r) ? showResult() : showReady()) : newAttempt()),
+    onStop: () => {
+      stopTurn(r);
+      if (isRoundOver(r)) showResult();
+      else showReady();
+    },
+  });
+}
+
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
+  if (menu.open || !round || state.phase === 'down') return; // am Boden kommt gleich der Zwischenstand
   const rect = canvas.getBoundingClientRect();
   const sx = e.clientX - rect.left;
   const sy = e.clientY - rect.top;
-  if (onVariantButton(state, height, sx, sy)) {
-    const next = nextSetting(state);
-    saveSetting(next);
-    resetState(state, next.variant, next.level); // neuer Versuch mit der nächsten Einstellung
-    return;
-  }
   const target = screenToWorld(cam, height, sx, sy);
   tap(state, target, street.holds, (p) => onSideWall(street, cam, width, p));
 });
@@ -72,12 +162,18 @@ function frame(now: number): void {
   acc += dt;
   last = now;
   while (acc >= STEP) {
-    step(state);
+    if (!menu.open) step(state); // hinter dem Menü steht das Spiel still
     acc -= STEP;
+  }
+  if (round && !menu.open && state.phase === 'down') {
+    downFor += dt;
+    if (downFor >= DOWN_PAUSE) attemptOver();
   }
   street.extendTo(state.pos.x + AHEAD);
   updateCamera(cam, state, width, height, dt);
-  draw(ctx, state, street, cam, width, height);
+  const turn = round ? currentTurn(round) : null;
+  draw(ctx, state, street, cam, width, height, turn && { name: turn.name, attempt: attemptNumber(turn), attempts: ROUND.attempts });
   requestAnimationFrame(frame);
 }
+showStart();
 requestAnimationFrame(frame);
