@@ -16,3 +16,4 @@ datum: 2026-11-09
 - Gegenlesen: Tests für Ruck, Zug über 4 g, zu langsam/zu kurz und normales
   Spiel ergänzt; Regel «zu schwach zum Einhaken» an einer Stelle; gemerkte
   alte Wahl «Freier Schwung» wird zu «Frei · mittel».
+- Pascal: Kraft geht zu schnell weg, Looping im Normalspiel zu schwer, Anlauf nach Fall ins Seil unnatürlich. Aufladen 25/18/10 %, Loopings ab 6 g und halb so teuer, Flug-Schwelle 0,2, Schwung holen läuft mit dem Schwung an, Beine in Schwungrichtung.

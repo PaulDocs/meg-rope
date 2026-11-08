@@ -5,6 +5,7 @@ sammelt «Unveröffentlicht».
 
 ## [Unveröffentlicht]
 
+- 09.11.2026 · B1/B4: Schwung holen läuft sacht an (Beine), Looping vom Flug leichter; Kraft lädt merkbar (leicht 25/mittel 18/schwer 10 %), Loopings kosten weniger.
 - 09.11.2026 · B4: Kraft lädt nur noch mit guten Schwüngen nacheinander, drei Stufen (leicht/mittel/schwer).
 - 08.11.2026 · B4: Spielvariante «Freier Schwung» (Looping aus dem Stand) mit Kraft – Rucke und Loopings kosten Kraft, bei 0 lässt das Männchen los.
 - 08.11.2026 · B1: kein Looping aus dem Stand – Schwung holen reicht dort nur bis auf Hakenhöhe; Loopings nur mit Tempo vom Flug; Ruck auch beim Einhaken im Wegfliegen und beim Fall ins Seil.

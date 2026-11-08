@@ -31,12 +31,18 @@ export const TUNING = {
   pump: 22, // m/s² – Schwünge erreichen rasch die Hakenhöhe (mit 8 stockten sie bei g 40 schon darunter)
   swingSpeedAtHookHeight: 80, // m/s – Energiegrenze als Tempo auf Hakenhöhe: steil gelöst rund 80 m Wurfhöhe (v²/2g); unten je nach Seillänge schneller
   // Ab dieser Energie über Hakenhöhe (Anteil von g·Seillänge) zählt es als «vom Flug».
-  // Nur fallen lassen und neu einhaken reicht nicht: das gibt nach dem Ruck
-  // höchstens rund 0,27·g·L (fällt es senkrecht ins Seil, sogar nichts).
-  flightEnergy: 0.5,
+  // Pascal 09.11.: 0,5 war zu schwer. Fallen lassen und neu einhaken gibt nach
+  // dem Ruck höchstens rund 0,27·g·L (senkrecht ins Seil: nichts); oben am
+  // Schwung gelöst und knapp darunter eingehakt bleibt es unter Hakenhöhe.
+  flightEnergy: 0.2,
   maxPumpTurns: 3, // so viele volle Umdrehungen lang wird das Kreisen schneller
   loopBoost: 1.1, // nach jeder dieser Umdrehungen ein spürbarer Schub: Tempo × loopBoost (pump 0 schaltet ihn ab)
   pumpStartSpeed: 0.3, // m/s – langsamer gilt als «hängt still», dann stösst es sich nach vorne ab
+  // Schwung holen läuft an wie auf einer Schaukel (Pascal 09.11.: natürlicher):
+  // kleine Schwünge wenig Kraft, grössere mehr – bis pumpFullSpeed voll.
+  pumpMinShare: 0.2, // Anteil von pump, wenn es still hängt
+  pumpFullSpeed: 10, // m/s – ab diesem Schwung (Tempo ganz unten) volles Schwung holen
+  pumpBottomSlope: 0.02, // so flach (Steigung der Kreisbahn) gilt «ganz unten» beim Abstossen aus dem Stillstand
   // Fliegt es schneller als das vom Haken weg oder darauf zu, kommt der Ruck
   // erst noch: kein Schwingen am gespannten Seil (step), Seil zieht noch nicht
   // (ropePulls). Im Schwung bleibt es darunter (Schwerkraft je Schritt 0,33 m/s).
@@ -67,15 +73,15 @@ export const STRENGTH = {
   jerkFrom: 10, // m/s – ein Ruck, der weniger wegnimmt, kostet nichts
   fullJerk: 30, // m/s – voller Ruck (rund 11 m freier Fall bei g 40) …
   fullJerkCost: 0.45, // … kostet so viel: zwei volle hintereinander lassen 10 %, der dritte leert die Kraft
-  loadFrom: 4, // g – mehr Zug im Seil strapaziert (ein Pendel von Hakenhöhe hat unten 3 g)
-  loadCost: 0.01, // Anteil je s und g über loadFrom (Looping am 5-m-Seil mit 85 m/s: rund 15 % je Umdrehung)
+  loadFrom: 6, // g – mehr Zug im Seil strapaziert (ein Pendel von Hakenhöhe hat unten 3 g, ein knapper Looping 6 g)
+  loadCost: 0.005, // Anteil je s und g über loadFrom (Looping am 5-m-Seil mit 85 m/s: rund 7 % je Umdrehung; Pascal 09.11.: ging zu schnell weg)
   toHook: 0.2, // so viel Kraft braucht es zum Einhaken
-  // Guter Schwung: am Seil keine Kraft verloren (kein Ruck, kein zu starker Zug),
-  // mindestens goodSwingTime gehalten und mit mindestens goodSwingSpeed gelöst.
+  // Guter Schwung: an diesem Seil kein Ruck (Loopings dürfen sein, sie kosten nur
+  // ihren Zug), mindestens goodSwingTime gehalten und mit goodSwingSpeed gelöst.
   goodSwingTime: 0.8, // s
   goodSwingSpeed: 15, // m/s
   streakFrom: 2, // ab dem wievielten guten Schwung in Folge es Kraft zurückgibt
-  gain: { easy: 0.1, medium: 0.05, hard: 0.02 }, // Anteil je gutem Schwung, nach Stufe
+  gain: { easy: 0.25, medium: 0.18, hard: 0.1 }, // Anteil je gutem Schwung, nach Stufe (Pascal 09.11.: merkbar; schwer = vorher leicht)
 };
 
 /** Stufe im Freien Schwung: wie schnell die Kraft mit guten Schwüngen zurückkommt. */
@@ -118,7 +124,7 @@ export interface Rope {
   lastPolar: number; // rad – letzter Winkel Haken → Männchen
   pumpLimit: number | null; // Energie, bis zu der es Schwung holt (pumpLimitFor); null, bis das Seil zum ersten Mal zieht (ropePulls)
   age: number; // s seit dem Einhaken
-  clean: boolean; // an diesem Seil noch keine Kraft verloren (für den guten Schwung)
+  clean: boolean; // an diesem Seil noch kein Ruck, weder beim Einhaken noch danach (für den guten Schwung)
 }
 
 /** Ein gelöstes Seil, das herunterfällt und dann verschwindet. */
@@ -326,16 +332,14 @@ export function ropeLoad(s: State): number {
 }
 
 /**
- * Kraft am Seil: Viel Zug strapaziert (und der Schwung zählt nicht mehr als
- * gut). Kraft 0: es lässt los und fliegt weiter. Zurück kommt sie nur beim
- * Lösen nach guten Schwüngen (countSwing).
+ * Kraft am Seil: Viel Zug strapaziert. Kraft 0: es lässt los und fliegt
+ * weiter. Zurück kommt sie nur beim Lösen nach guten Schwüngen (countSwing).
  */
 function updateStrength(s: State, dt: number): void {
   if (s.variant !== 'free' || !s.rope) return;
   const load = ropeLoad(s);
   if (load > STRENGTH.loadFrom) {
     s.strength = Math.max(0, s.strength - (load - STRENGTH.loadFrom) * STRENGTH.loadCost * dt);
-    s.rope.clean = false;
   }
   if (s.strength <= 0) {
     s.goodSwings = 0;
@@ -543,21 +547,40 @@ function tangent(s: State): Vec {
 }
 
 /**
+ * Wie stark es gerade Schwung holt (0 … 1): still hängend wenig, mit grösserem
+ * Schwung mehr. So wachsen die Schwünge erst sacht, dann immer schneller.
+ * Gemessen wird der Schwung als Tempo, das er ganz unten hätte – über den
+ * ganzen Schwung gleich, so holt es auch oben am Umkehrpunkt nicht weniger.
+ * 0, wenn es gerade keinen Schwung holt (auch für die Beine im Bild).
+ */
+export function pumpShare(s: State): number {
+  if (!isPumping(s)) return 0;
+  const atBottom = Math.sqrt(Math.max(0, 2 * (swingEnergy(s) + TUNING.gravity * s.rope!.length)));
+  return Math.min(1, Math.max(TUNING.pumpMinShare, atBottom / TUNING.pumpFullSpeed));
+}
+
+/**
  * Schwung holen wie auf einer Schaukel: immer in die Richtung, in die das
- * Männchen gerade schwingt. Hängt es fast still, stösst es sich nach vorne
- * (rechts) ab.
+ * Männchen gerade schwingt, je nach Schwung stärker (pumpShare). Hängt es
+ * fast still, stösst es sich ganz unten nach vorne (rechts) ab, am Umkehrpunkt
+ * schwingt es bergab mit.
  */
 function pump(s: State, dt: number): void {
-  if (!isPumping(s)) return;
+  const share = pumpShare(s);
+  if (share === 0) return;
   let t = tangent(s);
   const vt = s.vel.x * t.x + s.vel.y * t.y;
   if (Math.abs(vt) < TUNING.pumpStartSpeed) {
-    if (t.x < 0) t = { x: -t.x, y: -t.y };
+    // fast still: ganz unten nach vorne abstossen, sonst bergab mitschwingen
+    // (sonst hielte schwaches Schwung holen es schräg fest gegen die Schwerkraft)
+    const atBottom = Math.abs(t.y) < TUNING.pumpBottomSlope;
+    const wrongWay = atBottom ? t.x < 0 : t.y > 0; // ganz unten: nach rechts; sonst: bergab
+    if (wrongWay) t = { x: -t.x, y: -t.y };
   } else if (vt < 0) {
     t = { x: -t.x, y: -t.y };
   }
-  s.vel.x += t.x * TUNING.pump * dt;
-  s.vel.y += t.y * TUNING.pump * dt;
+  s.vel.x += t.x * TUNING.pump * share * dt;
+  s.vel.y += t.y * TUNING.pump * share * dt;
 }
 
 /**

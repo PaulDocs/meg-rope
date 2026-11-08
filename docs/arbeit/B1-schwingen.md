@@ -385,6 +385,35 @@ Umgesetzt:
   Seil: schwieriger, aber möglich, und der Looping ist schneller (bis rund
   120 statt 85 m/s). Pascal hält den Rest der Rückmeldung als Variante fest → B4.
 
+## Rückmeldung Pascal 09.11.2026: Looping zu schwer, Anlauf unnatürlich
+
+> beim normalmodus finde ich die schwünge fast etwas zu schwer, also es ist zu
+> schwer wieder schwung zu bekommen um einen looping machen zu können.
+> Gleichzeitig ist das schwungholen nach einem fall ins Seil sehr
+> unnatürlich, wenn das seil nicht mehr schwing soll das männchen schon ganz
+> von anfang an schwung holen müssen. kann auch mit den beinen animiert
+> werden. der schwung kann sich dann schon schneller als normal erhöhen aber
+> der anfang sollte einfach etwas "natürlicher" wirken.
+
+Umgesetzt:
+- **Looping vom Flug leichter**: zählt schon ab 0,2 · g · Seillänge über
+  Hakenhöhe als Flug (vorher 0,5). Tempo ganz unten, ab dem Schwung holen
+  bis zum Looping reicht: 10 m 31 m/s (vorher 35), 20 m 44 (49), 30 m 54 (60).
+  Aus dem Stand weiterhin kein Looping; oben gelöst und knapp darunter neu
+  eingehakt bleibt es unter Hakenhöhe (Test). Offen (Frage an Pascal): Wer
+  still über der Hakenhöhe hängt und im ungünstigsten Winkel schräg ins Seil
+  fällt, behält nach dem Ruck rund 0,27 · g · L – das zählt jetzt knapp als
+  Flug (Test festgehalten).
+- **Natürlicher Anlauf** (`pumpShare`): Hängt es still, holt es nur 20 % so
+  stark Schwung; mit grösserem Schwung mehr, ab 10 m/s (ganz unten gemessen)
+  voll. Die Schwünge wachsen so erst sacht, dann immer schneller. Gemessen
+  wird über den ganzen Schwung gleich, damit es am Umkehrpunkt nicht stockt.
+  Fast still stösst es sich ganz unten nach vorne ab, sonst schwingt es bergab
+  mit (vorher hielt schwaches Schwung holen es sonst schräg fest).
+  Hakenhöhe aus dem Stand: 3 m / 5 m 2,5 s, 10 m 4 s, 20 m 5 s, 30 m 6 s.
+- **Beine**: strecken sich beim Schwung holen in die Schwungrichtung, bei
+  kleinen Schwüngen sacht, bei grossen kräftig.
+
 ## Testanleitung für Pascal
 
 Testlink (privat): https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW
@@ -395,11 +424,15 @@ Neu erzeugen: `npm run einzelseite -- ‹ziel.html›`, dann veröffentlichen.
 2. Auf ein Haus, einen Kran, einen Ballon oder ein Luftschiff tippen: Das
    Seil hakt dort ein, auch an der sichtbaren Seitenwand eines Turms. In den
    Himmel oder aufs Dach tippen: nichts. Tippen löst das Seil.
-3. Hängen lassen: Das Männchen holt mit den Beinen Schwung, die Schwünge
-   werden grösser, aber höchstens bis auf Hakenhöhe – aus dem Stand kein
-   Looping. Am Boden: tippen startet neu.
-4. Schnell am kurzen Seil einhaken (z. B. an einem Kranausleger): Nach jedem
-   der ersten 3 Loopings ein spürbarer Schub, danach nicht mehr.
+3. Hängen lassen (z. B. nach einem Fall ins Seil): Das Männchen holt mit den
+   Beinen Schwung – erst sacht, die Beine strecken sich in die
+   Schwungrichtung, dann immer kräftiger. Die Schwünge werden grösser, aber
+   höchstens bis auf Hakenhöhe – aus dem Stand kein Looping. Am Boden:
+   tippen startet neu.
+4. Schnell am kurzen Seil einhaken (z. B. an einem Kranausleger): Looping
+   schon mit etwas weniger Tempo als vorher (10-m-Seil: rund 31 m/s ganz
+   unten). Nach jedem der ersten 3 Loopings ein spürbarer Schub, danach
+   nicht mehr.
 5. Mit vollem Schwung steil oben lösen: rund 80 m hoch? Fällt er danach
    schwer genug? Unten gelöst flacher und schneller.
 6. Erste 1,5 km: Wechseln Gebäudearten, Höhen und Abstände wie im Video?

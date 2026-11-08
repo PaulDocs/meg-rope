@@ -48,6 +48,7 @@ describe('Variante «Freier Schwung»', () => {
     for (const L of [5, 10, 20]) {
       const free = hangStill('free', L);
       let looped = false;
+      // sachter Anlauf (09.11.): gemessen 5 m 4,3 s, 10 m 5,7 s, 20 m 6,9 s
       for (let i = 0; i < 120 * 8 && !looped; i++) {
         step(free);
         looped = free.rope !== null && turnsOnRope(free) >= 1;
@@ -214,22 +215,22 @@ describe('Kraft', () => {
     expect(s.strength).toBe(before);
   });
 
-  it('über 4 g am Seil: kein guter Schwung', () => {
+  it('Loopings kosten Kraft, der Schwung bleibt trotzdem gut', () => {
     const s = createState('free', 'easy');
-    s.strength = 0.8;
+    s.strength = 0.5;
     goodSwing(s);
-    // 5-m-Seil mit 40 m/s quer: unten 9 g
+    // 5-m-Seil mit 40 m/s quer, ohne Ruck: unten 9 g, über loadFrom
     s.pos = { x: 0, y: 145 };
     s.vel = { x: 40, y: 0 };
     expect(tap(s, { x: 0, y: 150 }, wall, noSideWalls)).toBe('attached');
-    step(s);
-    expect(s.rope!.clean).toBe(false);
-    for (let i = 0; i < 120 && Math.hypot(s.vel.x, s.vel.y) < STRENGTH.goodSwingSpeed; i++) step(s);
     run(s, 1);
+    expect(s.rope!.clean).toBe(true);
+    expect(s.strength).toBeLessThan(0.5);
     const before = s.strength;
+    expect(isGoodSwing(s)).toBe(true);
     tap(s, s.pos, wall, noSideWalls);
-    expect(s.goodSwings).toBe(0);
-    expect(s.strength).toBe(before);
+    expect(s.goodSwings).toBe(2);
+    expect(s.strength).toBeCloseTo(before + STRENGTH.gain.easy, 9);
   });
 
   it('zu langsam gelöst oder zu kurz gehalten: kein guter Schwung', () => {
@@ -281,7 +282,7 @@ describe('Kraft', () => {
     for (let i = 0; i < 120 && !isTaut(s); i++) step(s);
     step(s);
     expect(s.strength).toBeCloseTo(1 - STRENGTH.fullJerkCost, 1);
-    // gespannt mit 60 m/s im Kreis: kostet nur den Zug (rund 19 g → 15 %/s), keine ganzen Rucke
+    // gespannt mit 60 m/s im Kreis: kostet nur den Zug (rund 19 g → rund 6,5 %/s bei loadFrom 6, loadCost 0,005), keine ganzen Rucke
     const pump = TUNING.pump;
     TUNING.pump = 0;
     try {
@@ -308,6 +309,35 @@ describe('Kraft', () => {
     fast.vel = { x: 40, y: 0 };
     tap(fast, { x: 0, y: 150 }, wall, noSideWalls);
     expect(ropeLoad(fast)).toBeCloseTo((40 * 40) / 10 / g + 1, 9);
+  });
+
+  it('Loopings kosten massvoll: rund 7 % je Umdrehung am 5-m-Seil, unter 6 g nichts', () => {
+    // Pascal 09.11.: ging zu schnell weg
+    const pump = TUNING.pump;
+    TUNING.pump = 0;
+    try {
+      const s = createState('free');
+      s.phase = 'flying';
+      s.pos = { x: 0, y: 145 };
+      s.vel = { x: 85, y: 0 };
+      tap(s, { x: 0, y: 150 }, wall, noSideWalls);
+      for (let i = 0; i < 120 * 2 && turnsOnRope(s) < 1; i++) step(s);
+      expect(turnsOnRope(s)).toBe(1);
+      expect(1 - s.strength).toBeGreaterThan(0.04);
+      expect(1 - s.strength).toBeLessThan(0.1);
+      // knapp unter loadFrom: ganz unten 5,5 g bei 10 m Seil → v² = 4,5·g·L
+      const calm = createState('free');
+      calm.phase = 'flying';
+      calm.pos = { x: 0, y: 140 };
+      calm.vel = { x: Math.sqrt(4.5 * g * 10), y: 0 };
+      tap(calm, { x: 0, y: 150 }, wall, noSideWalls);
+      expect(ropeLoad(calm)).toBeCloseTo(5.5, 5);
+      run(calm, 0.1); // unten durch, Zug bleibt unter 6 g (danach würde es übers Seil fallen – das wäre ein Ruck)
+      expect(ropeLoad(calm)).toBeGreaterThan(5);
+      expect(calm.strength).toBe(1);
+    } finally {
+      TUNING.pump = pump;
+    }
   });
 
   it('Loopings strapazieren: am kurzen Seil ist die Kraft nach einigen Umdrehungen weg', () => {

@@ -1,4 +1,4 @@
-import { canSwitchVariant, isDropIn, isPumping, settingOf, tooWeakToHook, TUNING, type State, type Vec } from './physics';
+import { canSwitchVariant, isDropIn, pumpShare, settingOf, tooWeakToHook, TUNING, type State, type Vec } from './physics';
 import { containerOf, extentOf, GRAB_SLACK, roofHeight, SHAPE, type Prop, type World } from './world';
 
 /** Kamera: welcher Weltausschnitt auf dem Bildschirm liegt. */
@@ -21,6 +21,7 @@ export const CAMERA_FOLLOW = 0.35; // waagrecht: pro 1/60 s so viel des Abstands
 // Männchen aber immer zwischen diesen Anteilen von oben im Bild.
 export const CAMERA_FOLLOW_Y = 0.06;
 export const FIGURE_Y_RANGE = { top: 0.12, bottom: 0.6 };
+const LEG_FULL_SPEED = 4; // m/s quer zum Körper: ab diesem Tempo sind die Beine beim Schwung holen ganz gestreckt
 const FIGURE_SCALE = 1.6; // Figur so viel grösser zeichnen als in echt, damit man sie sieht
 const DEPTH = 9; // m – so tief sind Türme
 const PERSPECTIVE = 0.07; // wie stark man die Seiten sieht, je weiter ein Turm von der Bildmitte steht
@@ -538,8 +539,11 @@ function drawStickman(ctx: CanvasRenderingContext2D, s: State, P: Proj): void {
   ctx.fillStyle = C.eye;
   circle(ctx, P.X(head.x + px * 0.1 * k * Math.sign(s.vel.x || 1)), P.Y(head.y + py * 0.1 * k), 0.09 * m);
 
-  // Beine: beim Schwungholen kräftig vor und zurück, sonst leicht pendeln
-  const kick = isPumping(s) ? Math.sin(s.time * 9) * 0.6 : Math.sin(s.time * 6) * 0.15;
+  // Beine: beim Schwungholen in die Schwungrichtung gestreckt wie auf einer
+  // Schaukel – bei kleinen Schwüngen sacht, bei grossen kräftig; sonst leicht pendeln
+  const share = pumpShare(s);
+  const across = s.vel.x * px + s.vel.y * py;
+  const kick = share > 0 ? Math.max(-1, Math.min(1, across / LEG_FULL_SPEED)) * (0.2 + 0.5 * share) : Math.sin(s.time * 6) * 0.15;
   for (const side of [-1, 1]) {
     const spread = (side * 0.22 + kick) * k;
     line(ctx, P.X(hip.x), P.Y(hip.y), P.X(hip.x - ux * 0.8 * k + px * spread), P.Y(hip.y - uy * 0.8 * k + py * spread));

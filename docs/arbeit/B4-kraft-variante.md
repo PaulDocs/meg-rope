@@ -38,8 +38,8 @@ Die Kraft geht von 100 % bis 0 %. Sie steht als Balken im Bild.
 | Was | Physikalischer Wert | Abzug |
 |---|---|---|
 | **Ruck** (zu fest ins Seil fallen) | Tempo, das der Ruck wegnimmt (m/s, `removeOutwardSpeed`) | ab 10 m/s; ein **voller Ruck** ab 30 m/s (rund 11 m freier Fall bei g 40) kostet 45 % |
-| **Looping / schnelles Drehen** | Zug im Seil in g: v²/(g·L) + Anteil Schwerkraft | über 4 g: je Sekunde (g − 4) × 1 % (Looping am 5-m-Seil rund 15 % je Umdrehung) |
-| **Erholung** | gute Schwünge in Folge (siehe unten) | nur beim Lösen, ab dem 2. guten Schwung in Folge, nach Stufe |
+| **Looping / schnelles Drehen** | Zug im Seil in g: v²/(g·L) + Anteil Schwerkraft | über 6 g: je Sekunde (g − 6) × 0,5 % (Looping am 5-m-Seil rund 7 % je Umdrehung) |
+| **Erholung** | gute Schwünge in Folge (siehe unten) | nur beim Lösen, ab dem 2. guten Schwung in Folge: leicht 25 %, mittel 18 %, schwer 10 % |
 
 - Zwei volle Rucke hintereinander lassen 10 % übrig, der dritte leert die
   Kraft. «Hintereinander» heisst: ohne Erholung dazwischen.
@@ -73,15 +73,29 @@ Umgesetzt:
 - Folge: Unter 20 % Kraft ohne Seil kommt keine Kraft mehr zurück – es fällt
   bis zum Boden («Keine Kraft mehr zum Einhaken»).
 
+## Rückmeldung Pascal 09.11.2026 (zweite): Kraft geht zu schnell weg
+
+> im Kraft modus geht die kraft nun viel zu schnell weg. es sollte sich schon
+> merkbar aufladen, leicht könnte aktuell schwer sein.
+
+Umgesetzt:
+- **Aufladen** je gutem Schwung (ab dem 2. in Folge): leicht 25 %, mittel
+  18 %, schwer 10 % (schwer = vorher leicht).
+- **Loopings kosten weniger**: erst ab 6 g (ein knapper Looping hat unten
+  6 g), halb so viel je g (`loadCost` 0,005): am 5-m-Seil rund 7 % je
+  Umdrehung statt 15 %.
+- **Loopings dürfen in einem guten Schwung sein**: gut heisst jetzt ohne Ruck
+  eingehakt, 0,8 s gehalten, mit 15 m/s gelöst. Der Zug kostet nur Kraft.
+- Rucke unverändert (zwei volle hintereinander bleibt die Grenze).
+
 ## Gemessen
 
 - Senkrecht ins Seil nach 11 m Fall: 56 % übrig; 45° schräg: 75 %.
-- Aus dem Stand: Looping am 5-m-Seil nach 3 s, Kraft leer nach 7 s (lässt
-  los); 10 m: 4 s / 10,5 s; 20 m: 6 s / 24 s; 30 m: Looping nach 7 s, die
-  Kraft sinkt nur noch langsam (36 % nach 30 s).
+- Aus dem Stand (09.11., sachter Anlauf, Loopings ab 6 g halb so teuer):
+  Looping am 5-m-Seil nach 4,3 s, Kraft leer nach 13,7 s (lässt los); 10 m:
+  Looping nach 5,7 s, nach 40 s noch 2 %; 20 m: 6,9 s, nach 40 s noch 67 %;
+  30 m: 8,2 s, nach 40 s noch 84 %.
 - Ruhiges Pendeln bis knapp unter Hakenhöhe (unten 3 g) kostet nichts.
-- Am 09.11. ohne Erholung von selbst nachgemessen: dieselben Zeiten (beim
-  Kreisen lag der Zug nie unter 2 g, die alte Erholung griff dort nicht).
 
 ## Testanleitung für Pascal
 
@@ -95,7 +109,8 @@ Link: https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW
    Zweimal hintereinander so – beim dritten Mal hakt es nicht mehr ein
    (Balken rot, «Keine Kraft mehr zum Einhaken»).
 4. Saubere Schwünge (quer einhaken, nicht ins Seil fallen, schnell lösen):
-   «Serie» zählt hoch, ab der zweiten wächst der Balken ein wenig – auf
-   leicht mehr, auf schwer kaum.
+   «Serie» zählt hoch, ab der zweiten wächst der Balken merkbar: leicht
+   25 %, mittel 18 %, schwer 10 % je Schwung. Loopings dazwischen sind
+   erlaubt, sie kosten nur etwas Kraft.
 5. Am Boden: Schalter zurück auf «Normal» – kein Balken, aus dem Stand kein
    Looping.
