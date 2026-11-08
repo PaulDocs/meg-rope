@@ -25,6 +25,7 @@ sondern in `GLOSSAR.md` auf der Wurzel von ClaudeWork.
 | Freies Spiel | Allein auf der Welt üben, ohne Rangliste | `freePlay` | Challenge |
 | Gastgeber | Spieler, der eine Challenge anlegt und schliesst | `host` | Server |
 | Kulisse / feste Häuser | Kulisse: Häuser sind Hintergrund, man fliegt davor durch. Fest: Häuser sind Hindernisse. Pascal entscheidet nach dem iPad-Test | `TUNING.solidBuildings` | – |
-| Seil einziehen | Das Seil wird beim Hängen langsam kürzer, so gewinnt man Schwung | `reelSpeed` | – |
+| Schwung holen | Das Männchen bewegt am gespannten Seil die Beine wie auf einer Schaukel und beschleunigt in Schwungrichtung | `pump()`, `TUNING.pump` | – |
+| Seil-Glieder | Kette, die zeigt, wie das Seil durchhängt oder fällt; die Länge des Seils bleibt fest | `Chain` (in `Rope.chain`, `LooseRope.chain`) | Seillänge (`Rope.length`) |
 | Übungsstrasse | Feste Türme für Etappe 1, ohne Ziel | `PRACTICE_STREET` | Welt |
 | Einhaken / Lösen | Tippen hängt das Seil an die getippte Stelle eines Gebäudes bzw. löst es wieder | `tap()` → `'attached'` / `'released'` | – |

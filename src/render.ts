@@ -1,4 +1,4 @@
-import { TUNING, type Building, type State, type Vec } from './physics';
+import { isPumping, TUNING, type Building, type State, type Vec } from './physics';
 
 /** Kamera: welcher Weltausschnitt auf dem Bildschirm liegt. */
 export interface Camera {
@@ -69,14 +69,10 @@ export function draw(ctx: CanvasRenderingContext2D, s: State, buildings: Buildin
   ctx.fillStyle = '#15111f';
   ctx.fillRect(0, Y(0), w, h);
 
-  // Seil
+  // Seil: durchhängende Glieder, gelöste Seile blassen beim Fallen aus
+  for (const r of s.looseRopes) drawRope(ctx, r.chain.points, X, Y, m, 1 - r.age / TUNING.looseRopeTime);
   if (s.rope) {
-    ctx.strokeStyle = '#f5f0e6';
-    ctx.lineWidth = Math.max(1.5, 0.08 * m);
-    ctx.beginPath();
-    ctx.moveTo(X(s.pos.x), Y(s.pos.y + 0.4));
-    ctx.lineTo(X(s.rope.anchor.x), Y(s.rope.anchor.y));
-    ctx.stroke();
+    drawRope(ctx, s.rope.chain.points, X, Y, m, 1);
     ctx.fillStyle = '#f5f0e6';
     ctx.beginPath();
     ctx.arc(X(s.rope.anchor.x), Y(s.rope.anchor.y), 0.25 * m, 0, Math.PI * 2);
@@ -114,6 +110,37 @@ export function draw(ctx: CanvasRenderingContext2D, s: State, buildings: Buildin
     ctx.fillStyle = '#ffffff';
     ctx.fillText(msg, w / 2, h * 0.2);
   }
+}
+
+/** Seil als gedrehte Schnur: helle Linie mit dunklen Streifen. */
+function drawRope(
+  ctx: CanvasRenderingContext2D,
+  pts: Vec[],
+  X: (x: number) => number,
+  Y: (y: number) => number,
+  m: number,
+  alpha: number,
+): void {
+  if (pts.length < 2 || alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  const path = () => {
+    ctx.beginPath();
+    ctx.moveTo(X(pts[0]!.x), Y(pts[0]!.y));
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(X(pts[i]!.x), Y(pts[i]!.y));
+  };
+  ctx.lineWidth = Math.max(2, 0.14 * m);
+  ctx.strokeStyle = '#f5f0e6';
+  path();
+  ctx.stroke();
+  ctx.lineWidth = Math.max(1, 0.07 * m);
+  ctx.strokeStyle = '#3a3346';
+  ctx.setLineDash([Math.max(2, 0.12 * m), Math.max(2, 0.12 * m)]);
+  path();
+  ctx.stroke();
+  ctx.restore();
 }
 
 /** Wo der Umschalter für die Wände liegt (oben rechts). */
@@ -173,8 +200,10 @@ function drawStickman(
   line(ctx, X(hip.x), Y(hip.y), X(neck.x), Y(neck.y));
   circle(ctx, X(head.x), Y(head.y), 0.28 * m);
 
-  // Beine schwingen leicht mit dem Tempo
-  const swing = Math.sin(s.time * 8) * Math.min(0.4, Math.hypot(s.vel.x, s.vel.y) * 0.02);
+  // Beine: am gespannten Seil kräftig pumpen (Schwung holen), sonst leicht pendeln
+  const swing = isPumping(s)
+    ? Math.sin(s.time * 6) * 0.55
+    : Math.sin(s.time * 8) * Math.min(0.4, Math.hypot(s.vel.x, s.vel.y) * 0.02);
   for (const side of [-1, 1]) {
     const spread = side * (0.25 + swing * side) * k;
     line(ctx, X(hip.x), Y(hip.y), X(hip.x - ux * 0.75 * k + px * spread), Y(hip.y - uy * 0.75 * k + py * spread));

@@ -47,11 +47,25 @@ Nicht dabei: Ziel, drei Versuche, Zeit, Punkte, Server (Etappen 2–3).
   - Grund: Mit festen Häusern zieht jeder Schwung an ein Haus in dessen Wand.
     Ein Test-Bot kam damit nicht über 40 m hinaus, mit Kulisse bis ans Ende
     der Strasse (430 m).
-- **Seil zieht sich ein** (4 m/s, bis 2 m), sonst verliert man bei jedem
-  Schwung Höhe.
+- ~~Seil zieht sich ein~~ – nach Pascals erstem iPad-Test (08.11.2026)
+  ersetzt durch:
+  - **Seil bleibt immer gleich lang.** Es hängt durch und fällt zusammen,
+    wenn der Schwung nicht reicht (Glieder-Kette, nur Darstellung; für das
+    Männchen gilt die feste Länge).
+  - **Gelöstes Seil fällt** herunter und verschwindet nach 1,5 s.
+  - **Schwung holen:** Am gespannten Seil bewegt das Männchen die Beine wie
+    auf einer Schaukel und beschleunigt in Schwungrichtung (2,2 m/s²). Es
+    hängt nie einfach still. Test-Bot: ganze Strasse geschafft.
+  - Vorbild laut Pascals Fotos und Videos: Häuser sind Kulisse.
 - Kriterium 1 und das Gefühl auf dem iPad: **ungetestet**. Im Browser
   (Chrome, Testlauf) geprüft: Einhaken, Seil sichtbar, Lösen, Weiterfliegen,
   keine JS-Fehler.
+
+## Rückmeldung Pascal 08.11.2026 (erster Test)
+
+«Noch überhaupt nicht, was ich mir vorstelle»: Seil soll immer gleich lang
+sein, nach der Physik schwingen und ohne Schwung zusammenfallen; das Männchen
+holt immer Schwung. Fotos und Videos des Vorbilds geschickt.
 
 ## Testanleitung für Pascal
 
@@ -59,7 +73,8 @@ Testlink (privat): https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW
 Neu erzeugen: `npm run einzelseite -- ‹ziel.html›`, dann veröffentlichen.
 
 1. Link auf dem iPad in Safari öffnen, iPad quer halten.
-2. Auf einen Turm tippen: Das Seil hakt dort ein, das Männchen schwingt.
+2. Auf einen Turm tippen: Das Seil hakt dort ein. Ist es locker, hängt es
+   durch; gespannt schwingt das Männchen und holt mit den Beinen Schwung.
 3. Nochmals irgendwo tippen: Das Seil löst sich, das Männchen fliegt weiter.
 4. Ein paar Türme weit schwingen. Die Meter oben links zählen mit.
 5. In den Himmel tippen: Es passiert nichts.

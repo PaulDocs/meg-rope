@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createState, findAnchor, step, tap, TUNING, type Building } from '../src/physics';
+import { createState, findAnchor, isTaut, step, tap, TUNING, type Building } from '../src/physics';
 
 const tower: Building = { x: 10, width: 6, height: 30 };
 const world = [tower];
@@ -77,16 +77,126 @@ describe('Schwingen', () => {
     expect(s.phase).toBe('flying');
   });
 
-  it('Das Seil zieht sich ein, aber nie unter die Mindestlänge', () => {
+  it('Das Seil bleibt immer gleich lang', () => {
     const s = createState();
     s.pos = { x: 0, y: 40 };
     const b: Building[] = [{ x: 20, width: 2, height: 41 }];
     expect(tap(s, { x: 20, y: 40 }, b)).toBe('attached');
     expect(s.rope?.length).toBeCloseTo(20);
+    const seg = s.rope!.chain.seg;
+    for (let i = 0; i < 120 * 5; i++) {
+      step(s, b);
+      const pts = s.rope!.chain.points;
+      for (let k = 0; k < pts.length - 1; k++) {
+        expect(Math.hypot(pts[k + 1]!.x - pts[k]!.x, pts[k + 1]!.y - pts[k]!.y)).toBeLessThan(seg * 1.1);
+      }
+    }
+    expect(s.rope?.length).toBeCloseTo(20);
+    const pts = s.rope!.chain.points;
+    let total = 0;
+    for (let k = 0; k < pts.length - 1; k++) total += Math.hypot(pts[k + 1]!.x - pts[k]!.x, pts[k + 1]!.y - pts[k]!.y);
+    expect(Math.abs(total - 20)).toBeLessThan(1); // sichtbare Kette höchstens 5 % daneben
+  });
+
+  it('Tippt man ganz nah, bekommt das Seil die Mindestlänge und rechnet sauber', () => {
+    const s = createState();
+    const b: Building[] = [{ x: 10, width: 2, height: 41 }];
+    s.pos = { x: 10, y: 30 };
+    expect(tap(s, { x: 10.3, y: 30 }, b)).toBe('attached');
+    expect(s.rope!.length).toBe(TUNING.minRopeLength);
+    expect(s.rope!.chain.points).toHaveLength(5);
     run(s, b, 1);
-    expect(s.rope?.length).toBeCloseTo(20 - TUNING.reelSpeed, 1);
-    run(s, b, 10);
-    expect(s.rope?.length).toBe(TUNING.minRopeLength);
+    expect(s.rope!.chain.points.every((p) => Number.isFinite(p.x) && Number.isFinite(p.y))).toBe(true);
+  });
+
+  it('Ohne Schwung fällt das Seil zusammen: Männchen kommt näher als die Seillänge', () => {
+    const s = createState();
+    s.pos = { x: 0, y: 20 };
+    const b: Building[] = [{ x: 0, width: 2, height: 41 }];
+    tap(s, { x: 1, y: 30 }, b); // Haken 10 m darüber
+    s.vel = { x: 0, y: 12 }; // nach oben geworfen, auf den Haken zu
+    let closest = Infinity;
+    for (let i = 0; i < 60; i++) {
+      step(s, b);
+      closest = Math.min(closest, Math.hypot(s.pos.x - 1, s.pos.y - 30));
+    }
+    expect(closest).toBeLessThan(s.rope!.length - 3); // Seil hängt durch, zieht nicht
+    expect(isTaut(s)).toBe(false);
+    // Die Glieder hängen sichtbar durch: Mitte liegt unter der Geraden Haken–Männchen
+    const pts = s.rope!.chain.points;
+    const mid = pts[pts.length >> 1]!;
+    expect(mid.y).toBeLessThan((30 + s.pos.y) / 2 - 1);
+  });
+
+  it('Am lockeren Seil und über dem Haken holt es keinen Schwung', () => {
+    const b: Building[] = [{ x: 0, width: 2, height: 41 }];
+    const runWith = (pump: number, pos: { x: number; y: number }, vel: { x: number; y: number }) => {
+      const old = TUNING.pump;
+      TUNING.pump = pump;
+      const s = createState();
+      s.pos = { ...pos };
+      tap(s, { x: 1, y: 30 }, b);
+      s.vel = { ...vel };
+      run(s, b, 0.3);
+      TUNING.pump = old;
+      return s.vel;
+    };
+    // locker: fliegt auf den Haken zu
+    expect(runWith(2.2, { x: 1, y: 20 }, { x: 0, y: 12 })).toEqual(runWith(0, { x: 1, y: 20 }, { x: 0, y: 12 }));
+    // gespannt, aber über dem Haken
+    expect(runWith(2.2, { x: 1, y: 40 }, { x: 3, y: 0 })).toEqual(runWith(0, { x: 1, y: 40 }, { x: 3, y: 0 }));
+  });
+
+  it('Das Männchen holt am Seil selbst Schwung – es hängt nie einfach still', () => {
+    const s = createState();
+    const b: Building[] = [{ x: 0, width: 20, height: 41 }];
+    s.pos = { x: 10, y: 30 };
+    tap(s, { x: 10, y: 40 }, b); // genau darunter, Seil 10 m
+    s.vel = { x: 0, y: 0 };
+    let farthest = 0;
+    for (let i = 0; i < 120 * 10; i++) {
+      step(s, b);
+      farthest = Math.max(farthest, Math.abs(s.pos.x - 10));
+    }
+    expect(farthest).toBeGreaterThan(5); // nach 10 s schwingt es kräftig
+  });
+
+  it('Schwung holen geht allmählich: nach 3 s noch unter dem Haken', () => {
+    const s = createState();
+    const b: Building[] = [{ x: 0, width: 20, height: 41 }];
+    s.pos = { x: 10, y: 30 };
+    tap(s, { x: 10, y: 40 }, b);
+    s.vel = { x: 0, y: 0 };
+    for (let i = 0; i < 120 * 3; i++) {
+      step(s, b);
+      expect(s.pos.y).toBeLessThan(40);
+    }
+  });
+
+  it('Die Seil-Glieder hängen am Haken und am Männchen', () => {
+    const s = createState();
+    s.pos = { x: 0, y: 40 };
+    const b: Building[] = [{ x: 20, width: 2, height: 41 }];
+    tap(s, { x: 20, y: 40 }, b);
+    run(s, b, 1);
+    const pts = s.rope!.chain.points;
+    expect(pts[0]).toEqual(s.rope!.anchor);
+    expect(pts[pts.length - 1]).toEqual(s.pos);
+  });
+
+  it('Ein gelöstes Seil fällt herunter und verschwindet', () => {
+    const s = createState();
+    s.pos = { x: 0, y: 40 };
+    const b: Building[] = [{ x: 20, width: 2, height: 41 }];
+    tap(s, { x: 20, y: 40 }, b);
+    run(s, b, 0.3);
+    tap(s, { x: 0, y: 0 }, b);
+    expect(s.looseRopes).toHaveLength(1);
+    const y0 = s.looseRopes[0]!.chain.points[0]!.y;
+    run(s, b, 0.5);
+    expect(s.looseRopes[0]!.chain.points[0]!.y).toBeLessThan(y0);
+    run(s, b, TUNING.looseRopeTime);
+    expect(s.looseRopes).toHaveLength(0);
   });
 
   it('Lösen behält den Schwung, danach fliegt es im Bogen weiter', () => {
@@ -195,6 +305,23 @@ describe('Häuser als Kulisse', () => {
 });
 
 describe('Boden', () => {
+  it('Landet es eingehakt, fällt das Seil weiter und verschwindet', () => {
+    const s = createState();
+    const b: Building[] = [{ x: 0, width: 2, height: 41 }];
+    s.pos = { x: 4, y: 3 };
+    tap(s, { x: 1, y: 2 }, b); // Seil lang genug bis unter den Boden
+    s.vel = { x: 0, y: -20 };
+    run(s, b, 0.5);
+    expect(s.phase).toBe('down');
+    expect(s.rope).toBeNull();
+    expect(s.looseRopes).toHaveLength(1);
+    const y0 = s.looseRopes[0]!.chain.points[0]!.y;
+    run(s, b, 0.2);
+    expect(s.looseRopes[0]!.chain.points[0]!.y).toBeLessThan(y0); // fällt auch nach der Landung
+    run(s, b, TUNING.looseRopeTime);
+    expect(s.looseRopes).toHaveLength(0);
+  });
+
   it('Am Boden ist der Versuch vorbei, Tippen startet neu', () => {
     const s = createState();
     s.phase = 'flying';

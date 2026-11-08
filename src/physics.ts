@@ -21,8 +21,15 @@ export const TUNING = {
   solidBuildings: false,
   gravity: 22, // m/s² – stärker als echt (9.81), damit es zackig wirkt
   bodyRadius: 0.45, // Kollisionskreis des Männchens
-  reelSpeed: 4, // m/s – so schnell zieht sich das Seil ein, solange man hängt
-  minRopeLength: 2, // kürzer wird das Seil nie
+  minRopeLength: 1, // kürzer wird ein Seil nie, auch wenn man ganz nah tippt
+  // Schwung holen: Hängt das Männchen am gespannten Seil, bewegt es die Beine
+  // wie auf einer Schaukel. Das gibt eine kleine Beschleunigung in Schwungrichtung.
+  pump: 2.2, // m/s²
+  pumpStartSpeed: 0.3, // m/s – langsamer gilt als «hängt still», dann stösst es sich nach vorne ab
+  tautTolerance: 0.02, // m – so knapp unter der Seillänge gilt das Seil als gespannt
+  ropeDamping: 0.995, // Anteil Tempo, den ein Seil-Glied pro Schritt behält
+  ropeSegment: 0.8, // m – Länge eines Seil-Glieds (nur für die Darstellung)
+  looseRopeTime: 1.5, // s – so lange fällt ein gelöstes Seil, bevor es verschwindet
   bounce: 0.35, // 0 = klebt an der Wand, 1 = prallt voll zurück
   wallFriction: 0.9, // Anteil Tempo entlang der Wand pro Aufprall
   airDrag: 0.02, // Luftwiderstand pro Sekunde (Anteil)
@@ -35,9 +42,32 @@ export const STEP = 1 / 120; // feste Zeitschritte: überall gleiche Ergebnisse
 
 export type Phase = 'ready' | 'flying' | 'down';
 
+/**
+ * Glieder-Kette, die zeigt, wie ein Seil durchhängt oder fällt.
+ * Nur Darstellung: Sie läuft im Physik-Takt mit, damit sie ruhig aussieht,
+ * beeinflusst das Männchen aber nicht und gehört nicht zum Spielstand
+ * (Distanz, Versuche, Punkte). Für einen Vergleich übers Netz weglassen.
+ */
+export interface Chain {
+  points: Vec[]; // vom Haken (0) bis zum Männchen (letztes)
+  prev: Vec[]; // Stellen im letzten Schritt (Verlet)
+  seg: number; // Länge eines Glieds
+}
+
+/**
+ * Ein Seil hat eine feste Länge. Es kann durchhängen, aber nie länger werden.
+ * Für das Männchen zählt nur die Länge (masseloses Seil).
+ */
 export interface Rope {
   anchor: Vec;
   length: number;
+  chain: Chain;
+}
+
+/** Ein gelöstes Seil, das herunterfällt und dann verschwindet. */
+export interface LooseRope {
+  chain: Chain;
+  age: number;
 }
 
 export interface State {
@@ -45,6 +75,7 @@ export interface State {
   pos: Vec;
   vel: Vec;
   rope: Rope | null;
+  looseRopes: LooseRope[];
   maxX: number; // weiteste erreichte Stelle
   time: number;
 }
@@ -55,6 +86,7 @@ export function createState(): State {
     pos: { ...TUNING.startPos },
     vel: { x: 0, y: 0 },
     rope: null,
+    looseRopes: [],
     maxX: TUNING.startPos.x,
     time: 0,
   };
@@ -129,7 +161,7 @@ export function tap(s: State, target: Vec, buildings: Building[]): 'attached' | 
     return 'restart';
   }
   if (s.rope) {
-    s.rope = null;
+    releaseRope(s);
     return 'released';
   }
   const anchor = pickAnchor(s.pos, target, buildings);
@@ -138,12 +170,36 @@ export function tap(s: State, target: Vec, buildings: Building[]): 'attached' | 
     s.phase = 'flying';
     s.vel = { ...TUNING.startVel };
   }
-  s.rope = { anchor, length: Math.max(TUNING.minRopeLength, Math.hypot(s.pos.x - anchor.x, s.pos.y - anchor.y)) };
+  const length = Math.max(TUNING.minRopeLength, Math.hypot(s.pos.x - anchor.x, s.pos.y - anchor.y));
+  const n = Math.max(4, Math.round(length / TUNING.ropeSegment));
+  const points: Vec[] = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    points.push({ x: anchor.x + (s.pos.x - anchor.x) * t, y: anchor.y + (s.pos.y - anchor.y) * t });
+  }
+  s.rope = { anchor, length, chain: { points, prev: points.map((p) => ({ ...p })), seg: length / n } };
   return 'attached';
+}
+
+/** Das Seil löst sich am Haken und fällt mit dem Schwung herunter. */
+function releaseRope(s: State): void {
+  if (!s.rope) return;
+  s.looseRopes.push({ chain: s.rope.chain, age: 0 });
+  s.rope = null;
+}
+
+/** Gelöste Seile fallen weiter, auch wenn der Versuch schon vorbei ist. */
+function stepLooseRopes(s: State, dt: number): void {
+  for (const r of s.looseRopes) {
+    r.age += dt;
+    stepChain(r.chain, dt, null, null);
+  }
+  s.looseRopes = s.looseRopes.filter((r) => r.age < TUNING.looseRopeTime);
 }
 
 /** Einen festen Zeitschritt weiterrechnen. */
 export function step(s: State, buildings: Building[], dt = STEP): void {
+  stepLooseRopes(s, dt);
   if (s.phase !== 'flying') return;
   s.time += dt;
 
@@ -162,8 +218,7 @@ export function step(s: State, buildings: Building[], dt = STEP): void {
   s.pos.x += s.vel.x * dt;
   s.pos.y += s.vel.y * dt;
 
-  // Seil einziehen (kann durchhängen, aber nicht dehnen)
-  if (s.rope) s.rope.length = Math.max(TUNING.minRopeLength, s.rope.length - TUNING.reelSpeed * dt);
+  if (s.rope) pump(s, dt);
 
   // Seil und Gebäude ziehen gegeneinander, wenn das Männchen an einer Wand
   // hängt. Ein paar Durchgänge, damit beide Bedingungen fast genau stimmen.
@@ -172,14 +227,88 @@ export function step(s: State, buildings: Building[], dt = STEP): void {
     if (TUNING.solidBuildings) for (const b of buildings) collide(s, b);
   }
 
+  if (s.rope) stepChain(s.rope.chain, dt, s.rope.anchor, s.pos);
+
   if (s.pos.x > s.maxX) s.maxX = s.pos.x;
 
   if (s.pos.y - TUNING.bodyRadius <= 0) {
     s.pos.y = TUNING.bodyRadius;
     s.vel = { x: 0, y: 0 };
-    s.rope = null;
+    releaseRope(s);
     s.phase = 'down';
   }
+}
+
+/** Ist das Seil gespannt (Männchen am äussersten Punkt)? */
+export function isTaut(s: State): boolean {
+  if (!s.rope) return false;
+  return Math.hypot(s.pos.x - s.rope.anchor.x, s.pos.y - s.rope.anchor.y) >= s.rope.length - TUNING.tautTolerance;
+}
+
+/** Holt das Männchen gerade Schwung? Nur am gespannten Seil, unterhalb des Hakens. */
+export function isPumping(s: State): boolean {
+  return s.rope !== null && isTaut(s) && s.pos.y < s.rope.anchor.y;
+}
+
+/**
+ * Schwung holen wie auf einer Schaukel: Nur am gespannten Seil und unterhalb
+ * des Hakens, immer in die Richtung, in die das Männchen gerade schwingt.
+ * Hängt es fast still, stösst es sich nach vorne (rechts) ab.
+ */
+function pump(s: State, dt: number): void {
+  if (!s.rope || !isPumping(s)) return;
+  const dx = s.pos.x - s.rope.anchor.x;
+  const dy = s.pos.y - s.rope.anchor.y;
+  const d = Math.hypot(dx, dy);
+  // Tangente an den Kreis um den Haken, zeigt nach rechts unten/oben
+  let tx = -dy / d;
+  let ty = dx / d;
+  if (tx < 0) [tx, ty] = [-tx, -ty];
+  const vt = s.vel.x * tx + s.vel.y * ty;
+  const dir = Math.abs(vt) < TUNING.pumpStartSpeed ? 1 : Math.sign(vt);
+  s.vel.x += tx * dir * TUNING.pump * dt;
+  s.vel.y += ty * dir * TUNING.pump * dt;
+}
+
+/**
+ * Seil-Glieder als Kette weiterrechnen (Verlet). Sie fallen mit der
+ * Schwerkraft und halten den Abstand zueinander. Anfang und Ende hängen am
+ * Haken und am Männchen, wenn angegeben.
+ */
+const CHAIN_ITERATIONS = 12; // Durchgänge pro Schritt, damit die Glieder ihren Abstand halten
+
+function stepChain(chain: Chain, dt: number, start: Vec | null, end: Vec | null): void {
+  const { points: pts, prev, seg } = chain;
+  const g = TUNING.gravity * dt * dt;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i]!;
+    const q = prev[i]!;
+    const vx = (p.x - q.x) * TUNING.ropeDamping;
+    const vy = (p.y - q.y) * TUNING.ropeDamping;
+    q.x = p.x;
+    q.y = p.y;
+    p.x += vx;
+    p.y += vy - g;
+  }
+  for (let k = 0; k < CHAIN_ITERATIONS; k++) {
+    if (start) Object.assign(pts[0]!, start);
+    if (end) Object.assign(pts[pts.length - 1]!, end);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i]!;
+      const b = pts[i + 1]!;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const d = Math.hypot(dx, dy) || 1e-9;
+      const diff = (d - seg) / d / 2;
+      a.x += dx * diff;
+      a.y += dy * diff;
+      b.x -= dx * diff;
+      b.y -= dy * diff;
+    }
+  }
+  if (start) Object.assign(pts[0]!, start);
+  if (end) Object.assign(pts[pts.length - 1]!, end);
+  for (const p of pts) if (p.y < 0) p.y = 0; // liegt auf dem Boden
 }
 
 /** Seil-Länge erzwingen: zurück auf den Kreis, Tempo nach aussen wegnehmen. */

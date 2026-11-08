@@ -19,7 +19,7 @@ stand: 2026-11-08
 ### Entscheid Pascal
 
 - Häuser als **Kulisse** oder **fest**? Beides ist im Spiel umschaltbar.
-- Spielgefühl: Schwerkraft, Seil-Einzug, Tempo (Werte in `src/physics.ts`, `TUNING`).
+- Spielgefühl nach dem Umbau (festes Seil, Schwung holen): Stärke des Schwungholens, Schwerkraft, Tempo (Werte in `src/physics.ts`, `TUNING`).
 - GitHub-Push: erster Commit liegt lokal, Push nach `PaulDocs/meg-rope` auf dein Wort.
 
 ### Später

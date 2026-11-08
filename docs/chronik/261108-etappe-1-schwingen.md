@@ -16,3 +16,7 @@ datum: 2026-11-08
 - Fund beim Abstimmen: Mit festen Häusern kommt man kaum vorwärts (Test-Bot
   ~40 m), als Kulisse bis ans Ende (430 m). Beides umschaltbar, Pascal entscheidet.
 - Testlink für das iPad als privates Artifact veröffentlicht.
+- Erster iPad-Test von Pascal: passt noch nicht. Seil muss immer gleich lang
+  sein, durchhängen und ohne Schwung zusammenfallen; das Männchen holt
+  selbst Schwung. Umgebaut: Glieder-Kette fürs Seil, Schwungholen, kein
+  Einzug mehr. Vorbild-Fotos zeigen: Häuser sind Kulisse.

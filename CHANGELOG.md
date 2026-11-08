@@ -5,6 +5,7 @@ sammelt «Unveröffentlicht».
 
 ## [Unveröffentlicht]
 
+- 08.11.2026 · B1 nach Pascals Test: Seil immer gleich lang, hängt durch und fällt, Männchen holt selbst Schwung; Seil-Einzug entfernt.
 - 08.11.2026 · Etappe 1 «Schwingen» (B1): Seil, Pendel, Kulisse/feste Häuser, Übungsstrasse, Tests.
 - 08.11.2026 · Konzept abgenommen (`docs/konzept.md`).
 - 08.11.2026 · Projekt aus der Vorlage `20-Infra/projekt-vorlage/` angelegt.
