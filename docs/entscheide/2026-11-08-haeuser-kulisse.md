@@ -20,4 +20,7 @@ Spiel umschaltbar; mit festen Häusern kam ein Test-Bot kaum vorwärts (rund
 **Folgen:** Abprallen, Strahl-Test fürs Einhaken und der Umschalter sind
 entfernt (zweiter B1-Umbau). Das Konzept ist nachgezogen.
 
-**Offen:** Pascal bestätigt beim nächsten Test.
+**Ergänzung 08.11.2026 (Pascal):** Durch die Perspektive sieht man auch die
+Seite eines Turms. Greifbar ist nur die Front; Seite und Dach sind Kulisse.
+
+**Offen:** Pascal bestätigt beim nächsten Test, dass Häuser nur Kulisse sind.

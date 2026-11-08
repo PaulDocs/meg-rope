@@ -117,7 +117,8 @@ Aus dem Video (richtig gedreht) abgeleitet und umgesetzt:
 - Eigene Farben und Formen; nichts aus dem Vorbild kopiert.
 - Bekannt: Tippt man auf die sichtbare Seite eines Turms (nicht die Front),
   hakt das Seil nur in der Nähe der Front-Kante ein (0,8 m Spielraum). Das
-  Leitwerk des Luftschiffs ist nur Kulisse. Entscheid Pascal, ob greifbar.
+  Leitwerk des Luftschiffs ist nur Kulisse. **Entscheid Pascal 08.11.2026:
+  nur die Front ist greifbar**, Seite und Dach bleiben Kulisse.
 - Gegenlesen: zweiter Turm-Absatz und Luftschiff-Hülle (jetzt Ellipse)
   greifen wie gezeichnet; Dachkräne und Startpunkt mit Tests abgesichert.
 

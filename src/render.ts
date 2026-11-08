@@ -200,7 +200,7 @@ function drawProp(ctx: CanvasRenderingContext2D, p: Prop, P: Proj): void {
  * verschoben und etwas angehoben. So sieht man bei Türmen rechts der Mitte
  * die linke Seite, links der Mitte die rechte – wie mit einer echten Kamera.
  * Seite und Dach sind nur Kulisse: greifbar ist die Front (Haltepunkte in
- * world.ts). Ob die Seite greifbar sein soll, entscheidet Pascal.
+ * world.ts). So entschieden von Pascal am 08.11.2026.
  */
 function box(ctx: CanvasRenderingContext2D, P: Proj, x: number, y: number, w: number, h: number, col: (typeof TOWER)[number]): void {
   const dx = -(x + w / 2 - P.mid) * PERSPECTIVE;
