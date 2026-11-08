@@ -12,6 +12,7 @@ stand: 2026-11-08
 
 ### Dringend
 
+- **B4 «Freier Schwung» mit Kraft testen**: Testanleitung in `docs/arbeit/B4-kraft-variante.md`.
 - **B1 auf dem iPad testen**: Testanleitung in `docs/arbeit/B1-schwingen.md`,
   privater Link https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW.
 - **Projekt schärfen**: harte Regeln in `AGENTS.md`.

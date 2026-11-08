@@ -1,5 +1,5 @@
-import { createState, STEP, step, tap } from './physics';
-import { draw, onSideWall, screenToWorld, updateCamera, type Camera } from './render';
+import { createState, resetState, STEP, step, tap, type Variant } from './physics';
+import { draw, onSideWall, onVariantButton, screenToWorld, updateCamera, type Camera } from './render';
 import { createStreet } from './world';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -7,7 +7,23 @@ const ctx = canvas.getContext('2d')!;
 const street = createStreet(); // Etappe 1: endlose Übungsstrasse ohne Ziel
 const AHEAD = 600; // m – so weit voraus ist die Strasse immer schon gebaut
 street.extendTo(AHEAD);
-const state = createState();
+// Gewählte Spielvariante merkt sich der Browser (darf fehlen, z. B. im privaten Fenster)
+const VARIANT_KEY = 'meg-rope.variant';
+function loadVariant(): Variant {
+  try {
+    return localStorage.getItem(VARIANT_KEY) === 'free' ? 'free' : 'normal';
+  } catch {
+    return 'normal';
+  }
+}
+function saveVariant(v: Variant): void {
+  try {
+    localStorage.setItem(VARIANT_KEY, v);
+  } catch {
+    // ohne Speicher gilt die Wahl nur bis zum Neuladen
+  }
+}
+const state = createState(loadVariant());
 const cam: Camera = { x: 0, y: 0, scale: 1 };
 
 let width = 0;
@@ -27,7 +43,15 @@ resize();
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   const rect = canvas.getBoundingClientRect();
-  const target = screenToWorld(cam, height, e.clientX - rect.left, e.clientY - rect.top);
+  const sx = e.clientX - rect.left;
+  const sy = e.clientY - rect.top;
+  if (onVariantButton(state, height, sx, sy)) {
+    const next: Variant = state.variant === 'free' ? 'normal' : 'free';
+    saveVariant(next);
+    resetState(state, next); // neuer Versuch in der anderen Variante
+    return;
+  }
+  const target = screenToWorld(cam, height, sx, sy);
   tap(state, target, street.holds, (p) => onSideWall(street, cam, width, p));
 });
 // iPad: kein Zoomen, Scrollen oder Kontextmenü

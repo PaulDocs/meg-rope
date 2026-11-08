@@ -1,4 +1,4 @@
-import { isDropIn, isPumping, TUNING, type State, type Vec } from './physics';
+import { canSwitchVariant, isDropIn, isPumping, STRENGTH, TUNING, type State, type Vec } from './physics';
 import { containerOf, extentOf, GRAB_SLACK, roofHeight, SHAPE, type Prop, type World } from './world';
 
 /** Kamera: welcher Weltausschnitt auf dem Bildschirm liegt. */
@@ -42,6 +42,7 @@ const C = {
   crane: '#e0b13a',
   craneDark: '#b0841f',
   hook: '#c8452f',
+  weak: '#c8452f', // Kraftbalken, solange Einhaken nicht geht
   container: '#c8452f',
   containerRib: 'rgba(80, 20, 10, 0.35)',
   basket: '#8a5a33',
@@ -157,7 +158,42 @@ function font(px: number): string {
   return `700 ${Math.round(px)}px -apple-system, system-ui, sans-serif`;
 }
 
+/** Rechteck in Bildschirm-Pixeln (Bedienelemente). */
+export interface ScreenBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** Schalter für die Spielvariante oben links. */
+export function variantButton(h: number): ScreenBox {
+  return { x: h * 0.03, y: h * 0.025, w: h * 0.36, h: h * 0.065 };
+}
+
+/** Liegt der Punkt (Bildschirm-Pixel) auf dem Varianten-Schalter? */
+export function onVariantButton(s: State, h: number, sx: number, sy: number): boolean {
+  if (!canSwitchVariant(s)) return false;
+  const b = variantButton(h);
+  return sx >= b.x && sx <= b.x + b.w && sy >= b.y && sy <= b.y + b.h;
+}
+
+const VARIANT_NAME = { normal: 'Normal', free: 'Freier Schwung' } as const;
+
 function drawHud(ctx: CanvasRenderingContext2D, s: State, w: number, h: number): void {
+  const b = variantButton(h);
+  if (canSwitchVariant(s)) {
+    ctx.strokeStyle = C.ink;
+    ctx.lineWidth = Math.max(1, h * 0.003);
+    ctx.strokeRect(b.x, b.y, b.w, b.h);
+    ctx.fillStyle = C.ink;
+    ctx.font = font(h * 0.028);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${VARIANT_NAME[s.variant]} ⇄`, b.x + b.w / 2, b.y + b.h / 2);
+  } else if (s.variant === 'free') {
+    drawStrength(ctx, s, b);
+  }
   ctx.fillStyle = C.ink;
   ctx.font = font(h * 0.04);
   ctx.textBaseline = 'top';
@@ -172,6 +208,23 @@ function drawHud(ctx: CanvasRenderingContext2D, s: State, w: number, h: number):
     ctx.font = font(h * 0.032);
     ctx.fillText(msg, w / 2, h * 0.16);
   }
+}
+
+/** Kraftbalken (Variante «Freier Schwung»); rot, solange es nicht einhaken kann. */
+function drawStrength(ctx: CanvasRenderingContext2D, s: State, b: ScreenBox): void {
+  const barH = b.h * 0.45;
+  const y = b.y + (b.h - barH) / 2;
+  ctx.fillStyle = C.ink;
+  ctx.font = font(b.h * 0.42);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Kraft', b.x, b.y + b.h / 2);
+  const x = b.x + b.h * 1.3;
+  const bw = b.w - b.h * 1.3;
+  ctx.fillStyle = C.shadow;
+  ctx.fillRect(x, y, bw, barH);
+  ctx.fillStyle = s.strength < STRENGTH.toHook ? C.weak : C.ink;
+  ctx.fillRect(x, y, bw * s.strength, barH);
 }
 
 /** Heller Himmel und Wolken (ziehen langsamer vorbei). */

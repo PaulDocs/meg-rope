@@ -20,7 +20,8 @@ export const TUNING = {
   // Es holt aber nur Schwung, solange seine Energie unter einer Grenze liegt
   // (pumpLimitFor, festgelegt, sobald das Seil zum ersten Mal zieht):
   // - Aus dem Stand höchstens bis auf Hakenhöhe – kein Looping aus dem Stand
-  //   (Pascal 08.11.). Bis dorthin bleibt das Seil gespannt, es fällt also
+  //   (Pascal 08.11.; in der Spielvariante «Freier Schwung» bis zur
+  //   Energiegrenze, siehe standingLimit()). Bis dorthin bleibt das Seil gespannt, es fällt also
   //   nicht zurück ins Seil und stockt nicht.
   // - Mit Tempo vom Flug (Energie über flightEnergy) bis swingSpeedAtHookHeight:
   //   daraus werden Loopings. Oben im Kreis ist es langsamer als unten, wie bei
@@ -53,6 +54,26 @@ export const TUNING = {
   startPos: { x: -24, y: 72 } as Vec,
   dropInDelay: 0.5, // s – so lange schwebt es zu Beginn, dann fällt es (Tippen hakt schon vorher ein)
 };
+
+/**
+ * Kraft – nur in der Variante «Freier Schwung» (B4, Pascal 08.11.). Angelehnt
+ * an die Physik: Ein Ruck kostet nach dem Tempo, das er wegnimmt; Loopings und
+ * schnelles Drehen nach dem Zug im Seil, gemessen in g (Vielfache des eigenen
+ * Gewichts bei der Spiel-Schwerkraft). Kraft 0: Das Männchen lässt los.
+ */
+export const STRENGTH = {
+  jerkFrom: 10, // m/s – ein Ruck, der weniger wegnimmt, kostet nichts
+  fullJerk: 30, // m/s – voller Ruck (rund 11 m freier Fall bei g 40) …
+  fullJerkCost: 0.45, // … kostet so viel: zwei volle hintereinander lassen 10 %, der dritte leert die Kraft
+  loadFrom: 4, // g – mehr Zug im Seil strapaziert (ein Pendel von Hakenhöhe hat unten 3 g)
+  loadCost: 0.01, // Anteil je s und g über loadFrom (Looping am 5-m-Seil mit 85 m/s: rund 15 % je Umdrehung)
+  calmLoad: 2, // g – darunter erholt es sich auch am Seil
+  recover: 0.15, // Anteil je s im freien Flug und bei wenig Zug
+  toHook: 0.2, // so viel Kraft braucht es zum Einhaken
+};
+
+/** Spielvariante: «normal» (aus dem Stand kein Looping) oder «free» = Freier Schwung mit Kraft. */
+export type Variant = 'normal' | 'free';
 
 export const STEP = 1 / 120; // feste Zeitschritte: überall gleiche Ergebnisse
 
@@ -103,12 +124,14 @@ export interface State {
   maxX: number; // weiteste erreichte Stelle
   time: number; // s seit Beginn des Versuchs, inklusive Einflug
   hooked: boolean; // in diesem Versuch schon einmal eingehakt
+  variant: Variant;
+  strength: number; // Kraft 0 … 1 (nur in der Variante «free» unter 1)
   // Wie das Männchen gedreht ist (nur Darstellung, Bogenmass; 0 = Kopf oben)
   angle: number;
   spin: number; // rad/s
 }
 
-export function createState(): State {
+export function createState(variant: Variant = 'normal'): State {
   return {
     phase: 'dropIn',
     pos: { ...TUNING.startPos },
@@ -118,6 +141,8 @@ export function createState(): State {
     maxX: TUNING.startPos.x,
     time: 0,
     hooked: false,
+    variant,
+    strength: 1,
     angle: 0,
     spin: 0,
   };
@@ -131,9 +156,14 @@ export function isDropIn(s: State): boolean {
   return s.phase === 'dropIn' || (s.phase === 'flying' && !s.hooked);
 }
 
-/** Alles auf den Anfang: neuer Versuch. */
-export function resetState(s: State): void {
-  Object.assign(s, createState());
+/** Alles auf den Anfang: neuer Versuch (in derselben oder einer anderen Spielvariante). */
+export function resetState(s: State, variant: Variant = s.variant): void {
+  Object.assign(s, createState(variant));
+}
+
+/** Die Spielvariante lässt sich nur vor dem ersten Einhaken und am Boden wechseln. */
+export function canSwitchVariant(s: State): boolean {
+  return isDropIn(s) || s.phase === 'down';
 }
 
 /**
@@ -147,7 +177,7 @@ export function tap(
   target: Vec,
   holds: Hold[],
   grabbable: (p: Vec) => boolean,
-): 'attached' | 'released' | 'missed' | 'restart' {
+): 'attached' | 'released' | 'missed' | 'restart' | 'weak' {
   if (s.phase === 'down') {
     resetState(s);
     return 'restart';
@@ -157,6 +187,7 @@ export function tap(
     return 'released';
   }
   if (!holds.some((h) => isOnHold(target, h)) && !grabbable(target)) return 'missed';
+  if (s.strength < STRENGTH.toHook) return 'weak';
   const anchor = { ...target };
   if (s.phase === 'dropIn') s.phase = 'flying'; // ohne Schub: Tempo bleibt 0
   s.hooked = true;
@@ -175,7 +206,7 @@ export function tap(
     lastPolar: polarAngle(s.pos, anchor),
     pumpLimit: null,
   };
-  catchJerk(s);
+  spendJerk(s, catchJerk(s));
   return 'attached';
 }
 
@@ -185,16 +216,57 @@ export function tap(
  * wie in echt. (Früher machte der erste Schritt daraus Tempo quer zum Seil:
  * oben loslassen und knapp darunter neu einhaken gab so einen Looping.)
  */
-function catchJerk(s: State): void {
-  removeOutwardSpeed(s, outward(s));
+function catchJerk(s: State): number {
+  return removeOutwardSpeed(s, outward(s));
 }
 
-/** Der Ruck selbst: Tempo vom Haken weg (Richtung n) fällt weg. */
-function removeOutwardSpeed(s: State, n: Vec): void {
+/** Der Ruck selbst: Tempo vom Haken weg (Richtung n) fällt weg. Gibt zurück, wie viel (m/s). */
+function removeOutwardSpeed(s: State, n: Vec): number {
   const radial = s.vel.x * n.x + s.vel.y * n.y;
-  if (radial <= 0) return;
+  if (radial <= 0) return 0;
   s.vel.x -= radial * n.x;
   s.vel.y -= radial * n.y;
+  return radial;
+}
+
+/** Was ein Ruck an Kraft kostet (Anteil), nach dem Tempo, das er wegnimmt. */
+export function jerkCost(dv: number): number {
+  if (dv <= STRENGTH.jerkFrom) return 0;
+  return STRENGTH.fullJerkCost * Math.min(1, (dv - STRENGTH.jerkFrom) / (STRENGTH.fullJerk - STRENGTH.jerkFrom));
+}
+
+/** Ruck von der Kraft abziehen (nur in der Variante «free»). */
+function spendJerk(s: State, dv: number): void {
+  if (s.variant !== 'free') return;
+  s.strength = Math.max(0, s.strength - jerkCost(dv));
+}
+
+/**
+ * Zug im gespannten Seil in g (Vielfache des eigenen Gewichts): Fliehkraft
+ * v²/L plus der Teil der Schwerkraft entlang des Seils. Ganz unten v²/L + g,
+ * ganz oben v²/L − g. Locker oder ohne Seil: 0.
+ */
+export function ropeLoad(s: State): number {
+  if (!s.rope || !isTaut(s)) return 0;
+  const v2 = s.vel.x ** 2 + s.vel.y ** 2;
+  return (v2 / s.rope.length - TUNING.gravity * outward(s).y) / TUNING.gravity;
+}
+
+/**
+ * Kraft im Lauf der Zeit: Viel Zug im Seil strapaziert, im freien Flug und bei
+ * wenig Zug erholt es sich. Kraft 0 am Seil: es lässt los und fliegt weiter.
+ */
+function updateStrength(s: State, dt: number): void {
+  if (s.variant !== 'free') return;
+  if (s.strength <= 0 && s.rope) {
+    releaseRope(s); // keine Kraft mehr: lässt los, bevor es sich erholt
+    return;
+  }
+  const load = ropeLoad(s);
+  if (load > STRENGTH.loadFrom) s.strength -= (load - STRENGTH.loadFrom) * STRENGTH.loadCost * dt;
+  else if (load < STRENGTH.calmLoad) s.strength += STRENGTH.recover * dt;
+  s.strength = Math.min(1, Math.max(0, s.strength));
+  if (s.strength <= 0 && s.rope) releaseRope(s);
 }
 
 /** Einheitsvektor Haken → Männchen. */
@@ -265,7 +337,8 @@ export function step(s: State, dt = STEP): void {
   const wasTaut = isTaut(s) && radialSpeed(s) < TUNING.jerkSpeed;
   s.pos.x += s.vel.x * dt;
   s.pos.y += s.vel.y * dt;
-  applyRope(s, wasTaut ? energyTarget : null);
+  const jerk = applyRope(s, wasTaut ? energyTarget : null);
+  if (!wasTaut) spendJerk(s, jerk); // gespannt geschwungen ist das Wegnehmen nur Rechen-Korrektur, kein Ruck
 
   if (s.rope) {
     if (s.rope.pumpLimit === null && ropePulls(s)) s.rope.pumpLimit = pumpLimitFor(s);
@@ -275,6 +348,7 @@ export function step(s: State, dt = STEP): void {
     if (shouldLoopBoost(s, before, after)) loopBoost(s);
     stepChain(s.rope.chain, dt, s.rope.anchor, s.pos);
   }
+  updateStrength(s, dt);
   turnBody(s, dt);
 
   if (s.pos.x > s.maxX) s.maxX = s.pos.x;
@@ -337,7 +411,7 @@ export function turnsOnRope(s: State): number {
  */
 export function isPumping(s: State): boolean {
   if (!s.rope || !isTaut(s) || turnsOnRope(s) >= TUNING.maxPumpTurns) return false;
-  return swingEnergy(s) < (s.rope.pumpLimit ?? standingLimit()); // bis das Seil zieht wie aus dem Stand
+  return swingEnergy(s) < (s.rope.pumpLimit ?? standingLimit(s)); // bis das Seil zieht wie aus dem Stand
 }
 
 /** Energiegrenze je kg fürs Schwung holen mit Tempo vom Flug. */
@@ -358,9 +432,12 @@ function ropePulls(s: State): boolean {
   return across ** 2 >= TUNING.gravity * (s.pos.y - s.rope.anchor.y);
 }
 
-/** Energiegrenze je kg fürs Schwung holen aus dem Stand: die Hakenhöhe. */
-export function standingLimit(): number {
-  return 0;
+/**
+ * Energiegrenze je kg fürs Schwung holen aus dem Stand: die Hakenhöhe. In der
+ * Variante «Freier Schwung» die volle Energiegrenze – Looping aus dem Stand.
+ */
+export function standingLimit(s: State): number {
+  return s.variant === 'free' ? energyLimit() : 0;
 }
 
 /**
@@ -370,7 +447,7 @@ export function standingLimit(): number {
  */
 function pumpLimitFor(s: State): number {
   const fromFlight = swingEnergy(s) > TUNING.flightEnergy * TUNING.gravity * s.rope!.length;
-  return fromFlight ? energyLimit() : standingLimit();
+  return fromFlight ? energyLimit() : standingLimit(s);
 }
 
 /**
@@ -409,7 +486,8 @@ function pump(s: State, dt: number): void {
 }
 
 /**
- * Seil-Länge erzwingen: zurück auf den Kreis, Tempo nach aussen wegnehmen.
+ * Seil-Länge erzwingen: zurück auf den Kreis, Tempo nach aussen wegnehmen
+ * (gibt zurück, wie viel, für die Kraft).
  * Spannt sich das Seil gerade erst (Ruck), geht dabei Schwung verloren – wie
  * in echt. War es schon gespannt und nicht gerade nach aussen
  * unterwegs (`energyTarget` gesetzt, sonst Ruck – siehe jerkSpeed), folgt das Tempo
@@ -418,17 +496,17 @@ function pump(s: State, dt: number): void {
  * Tempo erhalten; fast still wurde dann der Zug der Schwerkraft nach aussen
  * zu Tempo bergauf, und das Männchen blieb schräg hängen.)
  */
-function applyRope(s: State, energyTarget: number | null): void {
-  if (!s.rope) return;
+function applyRope(s: State, energyTarget: number | null): number {
+  if (!s.rope) return 0;
   const dx = s.pos.x - s.rope.anchor.x;
   const dy = s.pos.y - s.rope.anchor.y;
   const d = Math.hypot(dx, dy);
-  if (d <= s.rope.length) return;
+  if (d <= s.rope.length) return 0;
   const n = { x: dx / d, y: dy / d };
   s.pos.x = s.rope.anchor.x + n.x * s.rope.length;
   s.pos.y = s.rope.anchor.y + n.y * s.rope.length;
-  removeOutwardSpeed(s, n);
-  if (energyTarget === null) return;
+  const removed = removeOutwardSpeed(s, n);
+  if (energyTarget === null) return removed;
   const left = Math.hypot(s.vel.x, s.vel.y);
   const v2 = 2 * (energyTarget - TUNING.gravity * s.pos.y);
   if (left > 1e-6 && v2 > 0) {
@@ -436,6 +514,7 @@ function applyRope(s: State, energyTarget: number | null): void {
     s.vel.x *= k;
     s.vel.y *= k;
   }
+  return removed;
 }
 
 /**

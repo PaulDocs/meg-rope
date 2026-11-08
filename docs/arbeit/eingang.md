@@ -17,7 +17,7 @@ Format: `- **B‹n›** · ‹Bug|Unschön|Idee|Altlast› · Prio ‹hoch|mitte
 ## Offen
 
 - **B1** · Idee · Prio hoch · Etappe 1 «Schwingen» → `B1-schwingen.md`
-- **B4** · Idee · Prio mittel · Spielvariante «Freier Schwung» (Looping aus dem Stand) mit Kraftlevel → `B4-kraft-variante.md` (Konzept, Fragen an Pascal)
+- **B4** · Idee · Prio mittel · Spielvariante «Freier Schwung» (Looping aus dem Stand) mit Kraftlevel → `B4-kraft-variante.md` (gebaut, wartet auf Abnahme)
 
 ## Erledigt
 
