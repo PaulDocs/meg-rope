@@ -1,4 +1,4 @@
-import { canSwitchVariant, isDropIn, isPumping, STRENGTH, TUNING, type State, type Vec } from './physics';
+import { canSwitchVariant, isDropIn, isPumping, settingOf, tooWeakToHook, TUNING, type State, type Vec } from './physics';
 import { containerOf, extentOf, GRAB_SLACK, roofHeight, SHAPE, type Prop, type World } from './world';
 
 /** Kamera: welcher Weltausschnitt auf dem Bildschirm liegt. */
@@ -178,7 +178,12 @@ export function onVariantButton(s: State, h: number, sx: number, sy: number): bo
   return sx >= b.x && sx <= b.x + b.w && sy >= b.y && sy <= b.y + b.h;
 }
 
-const VARIANT_NAME = { normal: 'Normal', free: 'Freier Schwung' } as const;
+const SETTING_LABEL = {
+  normal: 'Normal',
+  'free-easy': 'Frei · leicht',
+  'free-medium': 'Frei · mittel',
+  'free-hard': 'Frei · schwer',
+} as const;
 
 function drawHud(ctx: CanvasRenderingContext2D, s: State, w: number, h: number): void {
   const b = variantButton(h);
@@ -190,7 +195,7 @@ function drawHud(ctx: CanvasRenderingContext2D, s: State, w: number, h: number):
     ctx.font = font(h * 0.028);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${VARIANT_NAME[s.variant]} ⇄`, b.x + b.w / 2, b.y + b.h / 2);
+    ctx.fillText(`${SETTING_LABEL[settingOf(s).name]} ⇄`, b.x + b.w / 2, b.y + b.h / 2);
   } else if (s.variant === 'free') {
     drawStrength(ctx, s, b);
   }
@@ -201,7 +206,14 @@ function drawHud(ctx: CanvasRenderingContext2D, s: State, w: number, h: number):
   const dist = Math.max(0, s.maxX - TUNING.startPos.x);
   ctx.fillText(`${dist.toFixed(0)}`, w - h * 0.03, h * 0.025);
 
-  const msg = isDropIn(s) ? 'Tippe auf ein Haus, einen Kran, einen Ballon oder ein Luftschiff' : s.phase === 'down' ? 'Am Boden – tippen für neuen Versuch' : '';
+  const weak = s.variant === 'free' && !s.rope && s.phase === 'flying' && tooWeakToHook(s);
+  const msg = isDropIn(s)
+    ? 'Tippe auf ein Haus, einen Kran, einen Ballon oder ein Luftschiff'
+    : s.phase === 'down'
+      ? 'Am Boden – tippen für neuen Versuch'
+      : weak
+        ? 'Keine Kraft mehr zum Einhaken'
+        : '';
   if (msg) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -210,7 +222,7 @@ function drawHud(ctx: CanvasRenderingContext2D, s: State, w: number, h: number):
   }
 }
 
-/** Kraftbalken (Variante «Freier Schwung»); rot, solange es nicht einhaken kann. */
+/** Kraftbalken (Variante «Freier Schwung»); rot, solange es nicht einhaken kann; daneben die Serie guter Schwünge. */
 function drawStrength(ctx: CanvasRenderingContext2D, s: State, b: ScreenBox): void {
   const barH = b.h * 0.45;
   const y = b.y + (b.h - barH) / 2;
@@ -223,8 +235,13 @@ function drawStrength(ctx: CanvasRenderingContext2D, s: State, b: ScreenBox): vo
   const bw = b.w - b.h * 1.3;
   ctx.fillStyle = C.shadow;
   ctx.fillRect(x, y, bw, barH);
-  ctx.fillStyle = s.strength < STRENGTH.toHook ? C.weak : C.ink;
+  ctx.fillStyle = tooWeakToHook(s) ? C.weak : C.ink;
   ctx.fillRect(x, y, bw * s.strength, barH);
+  // gute Schwünge in Folge: ab streakFrom gibt jeder Kraft zurück
+  if (s.goodSwings > 0) {
+    ctx.fillStyle = C.ink;
+    ctx.fillText(`Serie ${s.goodSwings}`, b.x + b.w + b.h * 0.4, b.y + b.h / 2);
+  }
 }
 
 /** Heller Himmel und Wolken (ziehen langsamer vorbei). */

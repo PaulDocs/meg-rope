@@ -1,4 +1,4 @@
-import { createState, resetState, STEP, step, tap, type Variant } from './physics';
+import { createState, nextSetting, resetState, settingByName, STEP, step, tap, type Setting } from './physics';
 import { draw, onSideWall, onVariantButton, screenToWorld, updateCamera, type Camera } from './render';
 import { createStreet } from './world';
 
@@ -7,23 +7,28 @@ const ctx = canvas.getContext('2d')!;
 const street = createStreet(); // Etappe 1: endlose Übungsstrasse ohne Ziel
 const AHEAD = 600; // m – so weit voraus ist die Strasse immer schon gebaut
 street.extendTo(AHEAD);
-// Gewählte Spielvariante merkt sich der Browser (darf fehlen, z. B. im privaten Fenster)
-const VARIANT_KEY = 'meg-rope.variant';
-function loadVariant(): Variant {
+// Gewählte Einstellung merkt sich der Browser (darf fehlen, z. B. im privaten Fenster)
+const SETTING_KEY = 'meg-rope.setting';
+const OLD_VARIANT_KEY = 'meg-rope.variant'; // bis 09.11.: nur «normal»/«free»
+function loadSetting(): Setting {
   try {
-    return localStorage.getItem(VARIANT_KEY) === 'free' ? 'free' : 'normal';
+    const saved = localStorage.getItem(SETTING_KEY);
+    if (saved === null && localStorage.getItem(OLD_VARIANT_KEY) === 'free') return settingByName('free-medium');
+    return settingByName(saved);
   } catch {
-    return 'normal';
+    return settingByName(null);
   }
 }
-function saveVariant(v: Variant): void {
+function saveSetting(x: Setting): void {
   try {
-    localStorage.setItem(VARIANT_KEY, v);
+    localStorage.setItem(SETTING_KEY, x.name);
+    localStorage.removeItem(OLD_VARIANT_KEY);
   } catch {
     // ohne Speicher gilt die Wahl nur bis zum Neuladen
   }
 }
-const state = createState(loadVariant());
+const start = loadSetting();
+const state = createState(start.variant, start.level);
 const cam: Camera = { x: 0, y: 0, scale: 1 };
 
 let width = 0;
@@ -46,9 +51,9 @@ canvas.addEventListener('pointerdown', (e) => {
   const sx = e.clientX - rect.left;
   const sy = e.clientY - rect.top;
   if (onVariantButton(state, height, sx, sy)) {
-    const next: Variant = state.variant === 'free' ? 'normal' : 'free';
-    saveVariant(next);
-    resetState(state, next); // neuer Versuch in der anderen Variante
+    const next = nextSetting(state);
+    saveSetting(next);
+    resetState(state, next.variant, next.level); // neuer Versuch mit der nächsten Einstellung
     return;
   }
   const target = screenToWorld(cam, height, sx, sy);

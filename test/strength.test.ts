@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createState, isTaut, jerkCost, noSideWalls, ropeLoad, step, STRENGTH, tap, TUNING, turnsOnRope, type State } from '../src/physics';
+import { createState, isGoodSwing, isTaut, jerkCost, nextSetting, noSideWalls, resetState, ropeLoad, settingByName, settingOf, SETTINGS, step, STRENGTH, tap, TUNING, turnsOnRope, type Level, type State } from '../src/physics';
 import { onVariantButton, variantButton } from '../src/render';
 import type { Hold } from '../src/world';
 
@@ -18,6 +18,20 @@ function fallIntoRope(s: State, h: number): ReturnType<typeof tap> {
   s.pos = { x: 0, y: 100 };
   s.vel = { x: 0, y: -Math.sqrt(2 * g * h) };
   return tap(s, { x: 0, y: 110 }, wall, noSideWalls);
+}
+
+/**
+ * Ein guter Schwung: quer zum Seil ohne Ruck einhaken (10-m-Seil, 20 m/s, unten 2 g),
+ * schwingen, bis er lang genug gehalten ist und wieder schnell ist, dann lösen.
+ */
+function goodSwing(s: State): void {
+  s.phase = 'flying';
+  s.pos = { x: 0, y: 140 };
+  s.vel = { x: 20, y: 0 };
+  expect(tap(s, { x: 0, y: 150 }, wall, noSideWalls)).toBe('attached');
+  for (let i = 0; i < 120 * 4 && !isGoodSwing(s); i++) step(s);
+  expect(isGoodSwing(s)).toBe(true);
+  expect(tap(s, s.pos, wall, noSideWalls)).toBe('released');
 }
 
 /** Hängt still am Seil der Länge L. */
@@ -70,6 +84,31 @@ describe('Variante «Freier Schwung»', () => {
   });
 });
 
+describe('Einstellungen', () => {
+  it('Schalter geht Normal → leicht → mittel → schwer → Normal, neuer Versuch behält sie', () => {
+    const s = createState();
+    const seen: string[] = [];
+    for (let i = 0; i < SETTINGS.length; i++) {
+      const next = nextSetting(s);
+      resetState(s, next.variant, next.level);
+      seen.push(settingOf(s).name);
+    }
+    expect(seen).toEqual(['free-easy', 'free-medium', 'free-hard', 'normal']);
+    resetState(s, 'free', 'hard');
+    s.phase = 'down';
+    tap(s, { x: 0, y: 0 }, wall, noSideWalls);
+    expect(settingOf(s).name).toBe('free-hard');
+  });
+
+  it('gemerkte Einstellung: Unbekanntes oder nichts gibt «normal»', () => {
+    expect(settingByName('free-easy')).toMatchObject({ variant: 'free', level: 'easy' });
+    expect(settingByName('free-hard')).toMatchObject({ variant: 'free', level: 'hard' });
+    expect(settingByName(null).name).toBe('normal');
+    expect(settingByName('free').name).toBe('normal');
+    expect(settingByName('xyz').name).toBe('normal');
+  });
+});
+
 describe('Kraft', () => {
   it('Ruck kostet nach dem Tempo, das er wegnimmt: ab 10 m/s, voll ab 30 m/s', () => {
     expect(jerkCost(0)).toBe(0);
@@ -102,54 +141,136 @@ describe('Kraft', () => {
   it('Kraft 0 am Seil: es lässt los und fliegt mit seinem Schwung weiter', () => {
     const s = createState('free');
     s.strength = 0.3;
+    s.goodSwings = 3;
     expect(fallIntoRope(s, 12)).toBe('attached'); // voller Ruck: 0,3 − 0,45 → 0
     expect(s.strength).toBe(0);
     s.vel = { x: 15, y: 0 };
     step(s);
     expect(s.rope).toBeNull();
     expect(s.looseRopes.length).toBe(1);
+    expect(s.goodSwings).toBe(0); // Serie vorbei
     expect(s.phase).toBe('flying');
     expect(s.vel.x).toBeGreaterThan(14);
   });
 
-  it('erholt sich im freien Flug, bis es wieder einhaken kann', () => {
-    const s = createState('free');
-    s.phase = 'flying';
-    s.pos = { x: 0, y: 250 };
-    s.strength = 0;
-    run(s, 1);
-    expect(s.strength).toBeCloseTo(STRENGTH.recover, 2);
-    run(s, 0.5);
-    expect(s.strength).toBeGreaterThanOrEqual(STRENGTH.toHook);
-    expect(tap(s, { x: s.pos.x, y: s.pos.y + 10 }, wall, noSideWalls)).toBe('attached');
-  });
-
-  it('erholt sich höchstens bis 100 %: danach wieder nur zwei volle Rucke', () => {
-    const s = createState('free');
-    s.phase = 'flying';
-    s.pos = { x: 0, y: 1000 };
-    s.strength = 0.95;
-    run(s, 2);
-    expect(s.strength).toBe(1);
-    expect(fallIntoRope(s, 12)).toBe('attached');
-    tap(s, s.pos, wall, noSideWalls);
-    expect(fallIntoRope(s, 12)).toBe('attached');
-    tap(s, s.pos, wall, noSideWalls);
-    expect(fallIntoRope(s, 12)).toBe('weak');
-  });
-
-  it('erholt sich auch ruhig am Seil (wenig Zug) und bleibt dabei hängen', () => {
+  it('erholt sich nicht von selbst: weder im Flug noch ruhig am Seil', () => {
+    const fly = createState('free');
+    fly.phase = 'flying';
+    fly.pos = { x: 0, y: 250 };
+    fly.strength = 0.1;
+    run(fly, 1);
+    expect(fly.strength).toBe(0.1);
+    expect(tap(fly, { x: fly.pos.x, y: fly.pos.y + 10 }, wall, noSideWalls)).toBe('weak');
     const pump = TUNING.pump;
-    TUNING.pump = 0; // sonst holt es Schwung
+    TUNING.pump = 0;
     try {
-      const s = hangStill('free', 10);
-      s.strength = 0.3;
-      run(s, 1);
-      expect(s.strength).toBeCloseTo(0.3 + STRENGTH.recover, 2);
-      expect(s.rope).not.toBeNull();
+      const hang = hangStill('free', 10);
+      hang.strength = 0.3;
+      run(hang, 3);
+      expect(hang.strength).toBe(0.3);
     } finally {
       TUNING.pump = pump;
     }
+  });
+
+  it('gute Schwünge nacheinander laden langsam auf: ab dem zweiten, je nach Stufe', () => {
+    const gained: Record<Level, number> = { easy: 0, medium: 0, hard: 0 };
+    for (const level of ['easy', 'medium', 'hard'] as const) {
+      const s = createState('free', level);
+      s.strength = 0.5;
+      goodSwing(s);
+      expect(s.goodSwings).toBe(1);
+      expect(s.strength).toBe(0.5); // der erste allein gibt nichts
+      goodSwing(s);
+      expect(s.strength).toBeCloseTo(0.5 + STRENGTH.gain[level], 9);
+      goodSwing(s);
+      expect(s.strength).toBeCloseTo(0.5 + 2 * STRENGTH.gain[level], 9);
+      gained[level] = s.strength - 0.5;
+    }
+    expect(gained.easy).toBeGreaterThan(gained.medium);
+    expect(gained.medium).toBeGreaterThan(gained.hard);
+    // höchstens bis 100 %
+    const full = createState('free', 'easy');
+    full.strength = 0.99;
+    goodSwing(full);
+    goodSwing(full);
+    expect(full.strength).toBe(1);
+  });
+
+  it('mit Ruck eingehakt: kein guter Schwung, die Folge beginnt neu', () => {
+    const s = createState('free', 'easy');
+    s.strength = 0.8;
+    goodSwing(s);
+    expect(s.goodSwings).toBe(1);
+    // quer wie beim guten Schwung, aber 15 m/s nach unten (vom Haken weg): Ruck über jerkFrom
+    s.pos = { x: 0, y: 140 };
+    s.vel = { x: 20, y: -15 };
+    expect(tap(s, { x: 0, y: 150 }, wall, noSideWalls)).toBe('attached');
+    expect(s.rope!.clean).toBe(false);
+    for (let i = 0; i < 120 * 4 && !(s.rope!.age >= STRENGTH.goodSwingTime && Math.hypot(s.vel.x, s.vel.y) >= STRENGTH.goodSwingSpeed); i++) step(s);
+    const before = s.strength;
+    tap(s, s.pos, wall, noSideWalls);
+    expect(s.goodSwings).toBe(0);
+    expect(s.strength).toBe(before);
+  });
+
+  it('über 4 g am Seil: kein guter Schwung', () => {
+    const s = createState('free', 'easy');
+    s.strength = 0.8;
+    goodSwing(s);
+    // 5-m-Seil mit 40 m/s quer: unten 9 g
+    s.pos = { x: 0, y: 145 };
+    s.vel = { x: 40, y: 0 };
+    expect(tap(s, { x: 0, y: 150 }, wall, noSideWalls)).toBe('attached');
+    step(s);
+    expect(s.rope!.clean).toBe(false);
+    for (let i = 0; i < 120 && Math.hypot(s.vel.x, s.vel.y) < STRENGTH.goodSwingSpeed; i++) step(s);
+    run(s, 1);
+    const before = s.strength;
+    tap(s, s.pos, wall, noSideWalls);
+    expect(s.goodSwings).toBe(0);
+    expect(s.strength).toBe(before);
+  });
+
+  it('zu langsam gelöst oder zu kurz gehalten: kein guter Schwung', () => {
+    const pump = TUNING.pump;
+    TUNING.pump = 0;
+    try {
+      const s = createState('free', 'easy');
+      s.goodSwings = 1;
+      s.phase = 'flying';
+      s.pos = { x: 0, y: 140 };
+      s.vel = { x: 12, y: 0 }; // ruckfrei, unten 1,4 g
+      tap(s, { x: 0, y: 150 }, wall, noSideWalls);
+      // bis zum Umkehrpunkt, dort ist es langsamer als goodSwingSpeed
+      for (let i = 0; i < 120 * 4 && !(s.rope!.age >= STRENGTH.goodSwingTime && Math.hypot(s.vel.x, s.vel.y) < 3); i++) step(s);
+      expect(s.rope!.clean).toBe(true);
+      expect(s.rope!.age).toBeGreaterThanOrEqual(STRENGTH.goodSwingTime);
+      expect(isGoodSwing(s)).toBe(false);
+      tap(s, s.pos, wall, noSideWalls);
+      expect(s.goodSwings).toBe(0);
+    } finally {
+      TUNING.pump = pump;
+    }
+    // sofort wieder lösen zählt nicht, auch wenn es schnell ist
+    const q = createState('free', 'easy');
+    q.goodSwings = 1;
+    q.phase = 'flying';
+    q.pos = { x: 0, y: 140 };
+    q.vel = { x: 20, y: 0 };
+    tap(q, { x: 0, y: 150 }, wall, noSideWalls);
+    run(q, 0.1);
+    expect(isGoodSwing(q)).toBe(false);
+    tap(q, q.pos, wall, noSideWalls);
+    expect(q.goodSwings).toBe(0);
+  });
+
+  it('im normalen Spiel zählt keine Serie', () => {
+    const s = createState('normal');
+    goodSwing(s);
+    goodSwing(s);
+    expect(s.goodSwings).toBe(0);
+    expect(s.strength).toBe(1);
   });
 
   it('Fall ins durchhängende Seil kostet Kraft, schnelles Kreisen am gespannten Seil ist kein Ruck', () => {

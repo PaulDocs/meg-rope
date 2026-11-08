@@ -60,6 +60,8 @@ export const TUNING = {
  * an die Physik: Ein Ruck kostet nach dem Tempo, das er wegnimmt; Loopings und
  * schnelles Drehen nach dem Zug im Seil, gemessen in g (Vielfache des eigenen
  * Gewichts bei der Spiel-Schwerkraft). Kraft 0: Das Männchen lässt los.
+ * Zurück kommt sie nur langsam und nur mit guten Schwüngen nacheinander
+ * (Pascal 09.11.), je nach Stufe mehr oder weniger.
  */
 export const STRENGTH = {
   jerkFrom: 10, // m/s – ein Ruck, der weniger wegnimmt, kostet nichts
@@ -67,10 +69,18 @@ export const STRENGTH = {
   fullJerkCost: 0.45, // … kostet so viel: zwei volle hintereinander lassen 10 %, der dritte leert die Kraft
   loadFrom: 4, // g – mehr Zug im Seil strapaziert (ein Pendel von Hakenhöhe hat unten 3 g)
   loadCost: 0.01, // Anteil je s und g über loadFrom (Looping am 5-m-Seil mit 85 m/s: rund 15 % je Umdrehung)
-  calmLoad: 2, // g – darunter erholt es sich auch am Seil
-  recover: 0.15, // Anteil je s im freien Flug und bei wenig Zug
   toHook: 0.2, // so viel Kraft braucht es zum Einhaken
+  // Guter Schwung: am Seil keine Kraft verloren (kein Ruck, kein zu starker Zug),
+  // mindestens goodSwingTime gehalten und mit mindestens goodSwingSpeed gelöst.
+  goodSwingTime: 0.8, // s
+  goodSwingSpeed: 15, // m/s
+  streakFrom: 2, // ab dem wievielten guten Schwung in Folge es Kraft zurückgibt
+  gain: { easy: 0.1, medium: 0.05, hard: 0.02 }, // Anteil je gutem Schwung, nach Stufe
 };
+
+/** Stufe im Freien Schwung: wie schnell die Kraft mit guten Schwüngen zurückkommt. */
+export type Level = keyof typeof STRENGTH.gain;
+export const DEFAULT_LEVEL: Level = 'medium';
 
 /** Spielvariante: «normal» (aus dem Stand kein Looping) oder «free» = Freier Schwung mit Kraft. */
 export type Variant = 'normal' | 'free';
@@ -107,6 +117,8 @@ export interface Rope {
   turned: number; // rad – Winkel um den Haken seit dem Einhaken, mit Vorzeichen (hin und her hebt sich auf)
   lastPolar: number; // rad – letzter Winkel Haken → Männchen
   pumpLimit: number | null; // Energie, bis zu der es Schwung holt (pumpLimitFor); null, bis das Seil zum ersten Mal zieht (ropePulls)
+  age: number; // s seit dem Einhaken
+  clean: boolean; // an diesem Seil noch keine Kraft verloren (für den guten Schwung)
 }
 
 /** Ein gelöstes Seil, das herunterfällt und dann verschwindet. */
@@ -125,13 +137,15 @@ export interface State {
   time: number; // s seit Beginn des Versuchs, inklusive Einflug
   hooked: boolean; // in diesem Versuch schon einmal eingehakt
   variant: Variant;
+  level: Level; // Stufe (zählt nur in der Variante «free»)
   strength: number; // Kraft 0 … 1 (nur in der Variante «free» unter 1)
+  goodSwings: number; // gute Schwünge in Folge
   // Wie das Männchen gedreht ist (nur Darstellung, Bogenmass; 0 = Kopf oben)
   angle: number;
   spin: number; // rad/s
 }
 
-export function createState(variant: Variant = 'normal'): State {
+export function createState(variant: Variant = 'normal', level: Level = DEFAULT_LEVEL): State {
   return {
     phase: 'dropIn',
     pos: { ...TUNING.startPos },
@@ -142,7 +156,9 @@ export function createState(variant: Variant = 'normal'): State {
     time: 0,
     hooked: false,
     variant,
+    level,
     strength: 1,
+    goodSwings: 0,
     angle: 0,
     spin: 0,
   };
@@ -156,9 +172,41 @@ export function isDropIn(s: State): boolean {
   return s.phase === 'dropIn' || (s.phase === 'flying' && !s.hooked);
 }
 
-/** Alles auf den Anfang: neuer Versuch (in derselben oder einer anderen Spielvariante). */
-export function resetState(s: State, variant: Variant = s.variant): void {
-  Object.assign(s, createState(variant));
+/** Alles auf den Anfang: neuer Versuch (in derselben oder einer anderen Spielvariante/Stufe). */
+export function resetState(s: State, variant: Variant = s.variant, level: Level = s.level): void {
+  Object.assign(s, createState(variant, level));
+}
+
+/**
+ * Einstellungen zum Durchtippen am Schalter: Normal, dann Freier Schwung in
+ * drei Stufen. Der Name dient auch zum Merken im Browser.
+ */
+export const SETTINGS = [
+  { name: 'normal', variant: 'normal', level: DEFAULT_LEVEL },
+  { name: 'free-easy', variant: 'free', level: 'easy' },
+  { name: 'free-medium', variant: 'free', level: 'medium' },
+  { name: 'free-hard', variant: 'free', level: 'hard' },
+] as const satisfies readonly { name: string; variant: Variant; level: Level }[];
+export type Setting = (typeof SETTINGS)[number];
+
+/** Einstellung zu einem gemerkten Namen; Unbekanntes gibt «normal». */
+export function settingByName(name: string | null): Setting {
+  return SETTINGS.find((x) => x.name === name) ?? SETTINGS[0];
+}
+
+/** Aktuelle Einstellung eines Zustands (im normalen Spiel zählt die Stufe nicht). */
+export function settingOf(s: State): Setting {
+  return SETTINGS.find((x) => x.variant === s.variant && (s.variant === 'normal' || x.level === s.level)) ?? SETTINGS[0];
+}
+
+/** Die nächste Einstellung beim Tippen auf den Schalter (am Ende wieder von vorn). */
+export function nextSetting(s: State): Setting {
+  return SETTINGS[(SETTINGS.indexOf(settingOf(s)) + 1) % SETTINGS.length]!;
+}
+
+/** Zu wenig Kraft zum Einhaken? (Nur im Freien Schwung kann sie sinken.) */
+export function tooWeakToHook(s: State): boolean {
+  return s.strength < STRENGTH.toHook;
 }
 
 /** Die Spielvariante lässt sich nur vor dem ersten Einhaken und am Boden wechseln. */
@@ -183,11 +231,12 @@ export function tap(
     return 'restart';
   }
   if (s.rope) {
+    countSwing(s);
     releaseRope(s);
     return 'released';
   }
   if (!holds.some((h) => isOnHold(target, h)) && !grabbable(target)) return 'missed';
-  if (s.strength < STRENGTH.toHook) return 'weak';
+  if (tooWeakToHook(s)) return 'weak';
   const anchor = { ...target };
   if (s.phase === 'dropIn') s.phase = 'flying'; // ohne Schub: Tempo bleibt 0
   s.hooked = true;
@@ -205,6 +254,8 @@ export function tap(
     turned: 0,
     lastPolar: polarAngle(s.pos, anchor),
     pumpLimit: null,
+    age: 0,
+    clean: true,
   };
   spendJerk(s, catchJerk(s));
   return 'attached';
@@ -238,7 +289,29 @@ export function jerkCost(dv: number): number {
 /** Ruck von der Kraft abziehen (nur in der Variante «free»). */
 function spendJerk(s: State, dv: number): void {
   if (s.variant !== 'free') return;
-  s.strength = Math.max(0, s.strength - jerkCost(dv));
+  const cost = jerkCost(dv);
+  if (cost > 0 && s.rope) s.rope.clean = false;
+  s.strength = Math.max(0, s.strength - cost);
+}
+
+/** War der Schwung an diesem Seil gut? (Zum Lösen, siehe STRENGTH.) */
+export function isGoodSwing(s: State): boolean {
+  if (!s.rope) return false;
+  return s.rope.clean && s.rope.age >= STRENGTH.goodSwingTime && Math.hypot(s.vel.x, s.vel.y) >= STRENGTH.goodSwingSpeed;
+}
+
+/**
+ * Beim Lösen: guter Schwung zählt weiter, sonst beginnt die Folge neu. Ab dem
+ * streakFrom-ten guten Schwung in Folge gibt jeder Kraft zurück (nach Stufe).
+ */
+function countSwing(s: State): void {
+  if (s.variant !== 'free') return;
+  if (!isGoodSwing(s)) {
+    s.goodSwings = 0;
+    return;
+  }
+  s.goodSwings++;
+  if (s.goodSwings >= STRENGTH.streakFrom) s.strength = Math.min(1, s.strength + STRENGTH.gain[s.level]);
 }
 
 /**
@@ -253,20 +326,21 @@ export function ropeLoad(s: State): number {
 }
 
 /**
- * Kraft im Lauf der Zeit: Viel Zug im Seil strapaziert, im freien Flug und bei
- * wenig Zug erholt es sich. Kraft 0 am Seil: es lässt los und fliegt weiter.
+ * Kraft am Seil: Viel Zug strapaziert (und der Schwung zählt nicht mehr als
+ * gut). Kraft 0: es lässt los und fliegt weiter. Zurück kommt sie nur beim
+ * Lösen nach guten Schwüngen (countSwing).
  */
 function updateStrength(s: State, dt: number): void {
-  if (s.variant !== 'free') return;
-  if (s.strength <= 0 && s.rope) {
-    releaseRope(s); // keine Kraft mehr: lässt los, bevor es sich erholt
-    return;
-  }
+  if (s.variant !== 'free' || !s.rope) return;
   const load = ropeLoad(s);
-  if (load > STRENGTH.loadFrom) s.strength -= (load - STRENGTH.loadFrom) * STRENGTH.loadCost * dt;
-  else if (load < STRENGTH.calmLoad) s.strength += STRENGTH.recover * dt;
-  s.strength = Math.min(1, Math.max(0, s.strength));
-  if (s.strength <= 0 && s.rope) releaseRope(s);
+  if (load > STRENGTH.loadFrom) {
+    s.strength = Math.max(0, s.strength - (load - STRENGTH.loadFrom) * STRENGTH.loadCost * dt);
+    s.rope.clean = false;
+  }
+  if (s.strength <= 0) {
+    s.goodSwings = 0;
+    releaseRope(s);
+  }
 }
 
 /** Einheitsvektor Haken → Männchen. */
@@ -341,6 +415,7 @@ export function step(s: State, dt = STEP): void {
   if (!wasTaut) spendJerk(s, jerk); // gespannt geschwungen ist das Wegnehmen nur Rechen-Korrektur, kein Ruck
 
   if (s.rope) {
+    s.rope.age += dt;
     if (s.rope.pumpLimit === null && ropePulls(s)) s.rope.pumpLimit = pumpLimitFor(s);
     const before = turnsOnRope(s);
     trackTurn(s.rope, s.pos);
