@@ -214,7 +214,7 @@ describe('Schwung holen und Loopings', () => {
     }
   });
 
-  it('festgehalten (Frage an Pascal offen): schräg fallen lassen und neu einhaken kann knapp als Flug zählen', () => {
+  it('entschieden (Pascal 09.11.: so lassen): schräg fallen lassen und neu einhaken kann knapp als Flug zählen', () => {
     // ungünstigster Winkel: still über der Hakenhöhe, sin θ = 1/√6 – nach dem Ruck rund 0,27·g·L > flightEnergy 0,2
     const L = 10;
     const sin = 1 / Math.sqrt(6);
