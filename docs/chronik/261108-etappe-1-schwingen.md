@@ -26,3 +26,6 @@ datum: 2026-11-08
 - Drittes Video (139 s) ausgewertet: Bilder mussten gedreht werden, das
   Spiel lief quer. Umgebung nachgebaut mit Boden, Perspektive, Schatten,
   Dachkränen und Luftschiffen. Video bleibt lokal (`.gitignore`).
+- Pascal: zu einfach, Welt zu kurz. Tempo im Video gemessen (rund 50 m/s im
+  Flug). Endlose Strasse mit wachsenden Lücken, schneller, Kamera näher.
+  Grafik verschoben auf später (Vorschlag three.js).

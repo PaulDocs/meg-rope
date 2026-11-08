@@ -24,4 +24,4 @@ stand: 2026-11-08
 
 ### Später
 
-- keine
+- Grafik in echtem 3D (three.js) – Vorschlag, Entscheid Pascal nach dem Physik-Test.

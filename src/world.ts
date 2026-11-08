@@ -115,12 +115,35 @@ function random(seed: number): () => number {
   };
 }
 
+// Schwierigkeit: Lücken (m) am Anfang und wie sie mit der Strecke wachsen.
+// Gehört zu den Stellschrauben fürs Spielgefühl (wie TUNING in physics.ts).
+export const DIFFICULTY = {
+  gapMin: 24,
+  gapMax: 42,
+  metersPerExtra: 100, // alle 100 m wird jede Lücke 1 m grösser …
+  maxExtra: 30, // … bis höchstens 30 m mehr (ab 3 km)
+};
+
+/** Wie gross die Lücke vor einem Teil ist: wächst mit der Strecke (schwerer, je weiter). */
+export function gapRange(x: number): [number, number] {
+  const extra = Math.min(DIFFICULTY.maxExtra, Math.max(0, x) / DIFFICULTY.metersPerExtra);
+  return [DIFFICULTY.gapMin + extra, DIFFICULTY.gapMax + extra];
+}
+
+/** Eine Strasse, die sich nach rechts weiterbauen lässt. */
+export interface Street extends World {
+  extendTo(x: number): void;
+}
+
 /**
- * Übungsstrasse für Etappe 1, nach dem Vorbild-Video: schlanke, hohe Türme
- * mit grossen Lücken, dazwischen Baukräne (auch auf Dächern), Heissluftballone
- * und Luftschiffe. Kein Ziel – das kommt in Etappe 2.
+ * Endlose Strasse nach dem Vorbild-Video: schlanke, hohe Türme mit grossen
+ * Lücken, dazwischen Baukräne (auch auf Dächern), Heissluftballone und
+ * Luftschiffe. Sie wird beim Fliegen laufend weitergebaut (`extendTo`) und
+ * sieht bei gleicher Startzahl immer gleich aus – dafür darf sich die
+ * Reihenfolge der Zufallszahlen in `nextProps` nicht ändern.
+ * Kein Ziel – das kommt in Etappe 2.
  */
-export function buildPracticeStreet(seed = 7, length = 1500): World {
+export function createStreet(seed = 7): Street {
   const rnd = random(seed);
   const between = (a: number, b: number) => a + (b - a) * rnd();
   const tops = ['flat', 'step', 'spire'] as const;
@@ -128,39 +151,61 @@ export function buildPracticeStreet(seed = 7, length = 1500): World {
     kind: 'tower',
     x,
     w: between(8, 14),
-    h: between(55, 110),
+    h: between(70, 150),
     top: tops[Math.floor(rnd() * 3)]!,
     color: Math.floor(rnd() * 3),
   });
-  const props: Prop[] = [{ kind: 'tower', x: -14, w: 14, h: 80, top: 'flat', color: 0 }];
-  // x: rechte Kante des letzten Teils. Jedes neue Teil beginnt mit seiner
-  // linken Kante 16–30 m dahinter – auch Kran-Ausleger überlappen nichts.
-  let x = 0;
-  while (x < length) {
-    x += between(16, 30); // Lücke
+
+  /** Das nächste Teil (oder Turm mit Dachkran), linke Kante bei x. */
+  const nextProps = (x: number): Prop[] => {
     const r = rnd();
-    let added: Prop[];
     if (r < 0.1) {
       const counter = between(5, 8);
-      added = [{ kind: 'crane', x: x + counter, base: 0, h: between(65, 90), jib: between(18, 26), counter }];
-    } else if (r < 0.22) {
+      return [{ kind: 'crane', x: x + counter, base: 0, h: between(70, 100), jib: between(18, 26), counter }];
+    }
+    if (r < 0.22) {
       // Turm mit Kran auf dem Dach (Dach flach, damit der Kran steht)
       const t = { ...tower(x), top: 'flat' as const };
       const counter = between(3, 5);
-      added = [t, { kind: 'crane', x: t.x + Math.max(counter, t.w * 0.3), base: t.h, h: between(10, 16), jib: between(14, 20), counter }];
-    } else if (r < 0.32) {
-      const radius = between(3.5, 5);
-      added = [{ kind: 'balloon', x: x + radius, y: between(60, 95), r: radius, color: Math.floor(rnd() * 3) }];
-    } else if (r < 0.38) {
-      const len = between(22, 30);
-      added = [{ kind: 'airship', x: x + len / 2, y: between(70, 100), len }];
-    } else {
-      added = [tower(x)];
+      return [t, { kind: 'crane', x: t.x + Math.max(counter, t.w * 0.3), base: t.h, h: between(10, 16), jib: between(14, 20), counter }];
     }
-    props.push(...added);
-    x = Math.max(...added.map((p) => extentOf(p).right));
-  }
-  return { props, holds: props.flatMap(holdsOf), length: x };
+    if (r < 0.32) {
+      const radius = between(3.5, 5);
+      return [{ kind: 'balloon', x: x + radius, y: between(70, 130), r: radius, color: Math.floor(rnd() * 3) }];
+    }
+    if (r < 0.38) {
+      const len = between(22, 30);
+      return [{ kind: 'airship', x: x + len / 2, y: between(90, 140), len }];
+    }
+    return [tower(x)];
+  };
+
+  const first: Prop = { kind: 'tower', x: -14, w: 14, h: 80, top: 'flat', color: 0 };
+  const props: Prop[] = [first];
+  const holds: Hold[] = holdsOf(first);
+  let length = 0; // rechte Kante des letzten Teils
+  return {
+    props,
+    holds,
+    get length() {
+      return length;
+    },
+    extendTo(target: number) {
+      while (length < target) {
+        // Jedes neue Teil beginnt mit seiner linken Kante eine Lücke hinter
+        // dem letzten – auch Kran-Ausleger überlappen nichts.
+        const added = nextProps(length + between(...gapRange(length)));
+        props.push(...added);
+        holds.push(...added.flatMap(holdsOf));
+        length = Math.max(...added.map((p) => extentOf(p).right));
+      }
+    },
+  };
 }
 
-export const PRACTICE_STREET = buildPracticeStreet();
+/** Ein fester Abschnitt der Strasse (für Tests und Messungen). */
+export function buildPracticeStreet(seed = 7, length = 1500): World {
+  const s = createStreet(seed);
+  s.extendTo(length);
+  return { props: s.props, holds: s.holds, length: s.length };
+}

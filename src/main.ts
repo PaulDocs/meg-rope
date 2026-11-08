@@ -1,10 +1,12 @@
 import { createState, STEP, step, tap } from './physics';
 import { draw, screenToWorld, updateCamera, type Camera } from './render';
-import { PRACTICE_STREET } from './world';
+import { createStreet } from './world';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
 const ctx = canvas.getContext('2d')!;
-const street = PRACTICE_STREET; // Etappe 1: Übungsstrasse ohne Ziel
+const street = createStreet(); // Etappe 1: endlose Übungsstrasse ohne Ziel
+const AHEAD = 600; // m – so weit voraus ist die Strasse immer schon gebaut
+street.extendTo(AHEAD);
 const state = createState();
 const cam: Camera = { x: 0, y: 0, scale: 1 };
 
@@ -42,6 +44,7 @@ function frame(now: number): void {
     step(state);
     acc -= STEP;
   }
+  street.extendTo(state.pos.x + AHEAD);
   updateCamera(cam, state, width, height);
   draw(ctx, state, street, cam, width, height);
   requestAnimationFrame(frame);

@@ -19,6 +19,19 @@ function hang(pos: { x: number; y: number }, hook: { x: number; y: number }, vel
   return s;
 }
 
+/** Wie oft das Männchen bei gespanntem Seil ganz oben über dem Haken durchgeht (= Loopings). */
+function countLoops(s: State, hook: { x: number; y: number }, seconds: number): number {
+  let loops = 0;
+  let onTop = false;
+  for (let i = 0; i < seconds * 120; i++) {
+    step(s);
+    const top = isTaut(s) && s.pos.y > hook.y + s.rope!.length - 0.1 && Math.abs(s.pos.x - hook.x) < 0.8;
+    if (top && !onTop) loops++;
+    onTop = top;
+  }
+  return loops;
+}
+
 const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
 
 describe('Einhaken', () => {
@@ -122,57 +135,43 @@ describe('Schwung holen und Loopings', () => {
     expect(farthest).toBeGreaterThan(5);
   });
 
-  it('wird allmählich schneller: nach 1 s weit unter dem Haken, nach 2 s noch kein Looping', () => {
+  it('wird allmählich schneller: nach 1 s weit unter dem Haken', () => {
     const s = hang({ x: 10, y: 30 }, { x: 10, y: 40 });
     for (let i = 0; i < 120; i++) {
       step(s);
       expect(s.pos.y).toBeLessThan(35);
     }
-    const k = hang({ x: 10, y: 50 }, { x: 10, y: 55 }); // kurzes Seil, Looping am leichtesten
-    const polar = () => Math.atan2(k.pos.y - 55, k.pos.x - 10);
-    let total = 0;
-    let last = polar();
-    for (let i = 0; i < 240; i++) {
-      step(k);
-      const a = polar();
-      total += Math.atan2(Math.sin(a - last), Math.cos(a - last));
-      last = a;
-    }
-    expect(Math.abs(total)).toBeLessThan(2 * Math.PI);
   });
 
-  it('macht mit genug Schwung Loopings, schnelle Loopings mit gespanntem Seil', () => {
-    const s = hang({ x: 10, y: 50 }, { x: 10, y: 55 }); // 5 m Seil
-    // Winkel des Männchens um den Haken, fortlaufend gezählt
-    const polar = () => Math.atan2(s.pos.y - 55, s.pos.x - 10);
-    let total = 0;
-    let last = polar();
-    const tautOnTop: boolean[] = [];
-    let onTop = false;
-    for (let i = 0; i < 120 * 15 && Math.abs(total) < 3 * 2 * Math.PI; i++) {
-      step(s);
-      const a = polar();
-      total += Math.atan2(Math.sin(a - last), Math.cos(a - last));
-      last = a;
-      const top = s.pos.y > 55 && Math.abs(s.pos.x - 10) < 0.5;
-      if (top && !onTop) tautOnTop.push(isTaut(s));
-      onTop = top;
-    }
-    expect(Math.abs(total)).toBeGreaterThanOrEqual(3 * 2 * Math.PI); // dreimal ganz um den Haken
-    // Der erste Looping darf knapp sein (Seil kurz locker), mit mehr Tempo bleibt es oben gespannt
-    expect(tautOnTop.at(-1)).toBe(true);
+  it('aus dem Stand gibt es keinen Looping, auch nicht nach 15 s', () => {
+    const s = hang({ x: 10, y: 50 }, { x: 10, y: 55 }); // kurzes Seil, Looping am leichtesten
+    expect(countLoops(s, { x: 10, y: 55 }, 15)).toBe(0);
+  });
+
+  it('kommt es mit Tempo vom Flug, macht Schwung holen daraus Loopings', () => {
+    // √(4·g·L) reicht allein nicht über den Haken (dafür braucht es √(5·g·L))
+    const entry = { x: Math.sqrt(4 * TUNING.gravity * 5), y: 0 };
+    const withPump = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, entry);
+    expect(countLoops(withPump, { x: 10, y: 55 }, 15)).toBeGreaterThanOrEqual(3);
+    const old = TUNING.pump;
+    TUNING.pump = 0;
+    const without = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, entry);
+    const loops = countLoops(without, { x: 10, y: 55 }, 15);
+    TUNING.pump = old;
+    expect(loops).toBe(0);
   });
 
   it('Drehungen werden nur bis zu einer Grenze schneller', () => {
-    const s = hang({ x: 10, y: 50 }, { x: 10, y: 55 });
+    const s = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: Math.sqrt(5 * TUNING.gravity * 5) + 1, y: 0 });
     let fastest = 0;
     for (let i = 0; i < 120 * 30; i++) {
       step(s);
       fastest = Math.max(fastest, Math.hypot(s.vel.x, s.vel.y));
     }
-    // Schwung holen bringt es bis nahe maxSwingSpeed; danach kommt bergab (höchstens 10 m
-    // Höhenunterschied bei 5 m Seil) nur noch die Schwerkraft dazu
+    // wird beim Kreisen schneller, bis nahe an maxSwingSpeed …
     expect(fastest).toBeGreaterThan(TUNING.maxSwingSpeed * 0.9);
+    // … aber nie schneller als maxSwingSpeed plus das, was bergab (höchstens 10 m
+    // Höhenunterschied bei 5 m Seil) die Schwerkraft dazugibt
     expect(fastest).toBeLessThan(Math.hypot(TUNING.maxSwingSpeed, Math.sqrt(2 * TUNING.gravity * 10)) + 1);
   });
 

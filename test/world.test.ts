@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TUNING } from '../src/physics';
-import { buildPracticeStreet, extentOf, holdsOf, isOnHold, SHAPE } from '../src/world';
+import { buildPracticeStreet, createStreet, extentOf, gapRange, holdsOf, isOnHold, SHAPE } from '../src/world';
 
 describe('Welt', () => {
   it('Tipp auf Rechteck und Kreis, mit Spielraum für den Finger', () => {
@@ -53,6 +53,27 @@ describe('Welt', () => {
     }
   });
 
+  it('Lücken wachsen mit der Strecke bis zu einer Grenze', () => {
+    expect(gapRange(-50)).toEqual([24, 42]);
+    expect(gapRange(0)).toEqual([24, 42]);
+    expect(gapRange(1000)).toEqual([34, 52]);
+    expect(gapRange(3000)).toEqual([54, 72]);
+    expect(gapRange(50_000)).toEqual([54, 72]);
+  });
+
+  it('Die Strasse ist endlos: wird beim Fliegen weitergebaut, immer gleich', () => {
+    const a = createStreet();
+    a.extendTo(500);
+    const n = a.props.length;
+    a.extendTo(5000);
+    expect(a.length).toBeGreaterThanOrEqual(5000);
+    expect(a.props.length).toBeGreaterThan(n);
+    expect(a.holds.length).toBe(a.props.flatMap(holdsOf).length);
+    const b = createStreet();
+    b.extendTo(5000);
+    expect(b.props).toEqual(a.props); // in Schritten oder auf einmal gebaut: gleich
+  });
+
   it('Start liegt knapp über dem ersten Turm', () => {
     const first = buildPracticeStreet().props[0]!;
     expect(first.kind).toBe('tower');
@@ -70,7 +91,7 @@ describe('Welt', () => {
     expect(a.length).toBeGreaterThan(1400);
   });
 
-  it('Lücken zwischen den Teilen sind gross (mindestens 16 m)', () => {
+  it('Lücken sind gross und wachsen mit der Strecke', () => {
     const w = buildPracticeStreet();
     // Ein Kran auf einem Dach gehört zu seinem Turm (gleiche Gruppe)
     const groups: { left: number; right: number }[] = [];
@@ -81,8 +102,9 @@ describe('Welt', () => {
     }
     for (let i = 1; i < groups.length; i++) {
       const gap = groups[i]!.left - groups[i - 1]!.right;
-      expect(gap).toBeGreaterThanOrEqual(16 - 1e-9);
-      expect(gap).toBeLessThanOrEqual(30 + 1e-9);
+      const [min, max] = gapRange(groups[i - 1]!.right);
+      expect(gap).toBeGreaterThanOrEqual(min - 1e-9);
+      expect(gap).toBeLessThanOrEqual(max + 1e-9);
     }
     expect(w.length).toBe(groups.at(-1)!.right);
   });

@@ -8,8 +8,8 @@ export interface Camera {
   scale: number; // Pixel pro Meter
 }
 
-const VIEW_HEIGHT = 120; // so viele Meter sieht man in der Höhe – weit weg, viel Himmel
-const FIGURE_SCALE = 2; // Figur so viel grösser zeichnen als in echt, damit man sie sieht
+const VIEW_HEIGHT = 70; // so viele Meter sieht man in der Höhe – nah dran wie im Vorbild, Türme ragen oben hinaus
+const FIGURE_SCALE = 1.6; // Figur so viel grösser zeichnen als in echt, damit man sie sieht
 const DEPTH = 9; // m – so tief sind Türme
 const PERSPECTIVE = 0.07; // wie stark man die Seiten sieht, je weiter ein Turm von der Bildmitte steht
 const LIFT = 2.2; // m – Rückseite liegt so viel höher (Blick leicht von oben)
@@ -53,8 +53,8 @@ export function updateCamera(cam: Camera, s: State, w: number, h: number): void 
   cam.scale = h / VIEW_HEIGHT;
   const viewW = w / cam.scale;
   const targetX = s.pos.x - viewW * 0.4;
-  const targetY = Math.max(-8, s.pos.y - VIEW_HEIGHT * 0.8); // Boden meist sichtbar
-  const k = s.phase === 'ready' ? 1 : 0.1; // weich nachziehen, beim Neustart springen
+  const targetY = Math.max(-8, s.pos.y - VIEW_HEIGHT * 0.5); // Männchen in der Bildmitte, Boden sichtbar, wenn es tief ist
+  const k = s.phase === 'ready' ? 1 : 0.15; // weich nachziehen, beim Neustart springen
   cam.x += (targetX - cam.x) * k;
   cam.y += (targetY - cam.y) * k;
 }

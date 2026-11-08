@@ -122,6 +122,35 @@ Aus dem Video (richtig gedreht) abgeleitet und umgesetzt:
 - Gegenlesen: zweiter Turm-Absatz und Luftschiff-Hülle (jetzt Ellipse)
   greifen wie gezeichnet; Dachkräne und Startpunkt mit Tests abgesichert.
 
+## Rückmeldung Pascal 08.11.2026: zu einfach, Welt zu kurz
+
+Pascal: im Vergleich zum Vorbild viel zu einfach (Tempo, Abstände?), die
+Welt ist zu kurz; Tempo im Video nachschauen. Grafik später (Etappe 5,
+Vorschlag echtes 3D mit three.js).
+
+Gemessen im Video (`docs/IMG_1852.mov`, Einzelbilder alle 0,4 s, Anzeige
+mitgelesen): im Flug rund **50 m/s** (464 → 485 → 505 → 524 → 537 m), danach
+rund 6 s Loopings um einen Turm. Kamera viel näher: Türme ragen oben aus
+dem Bild, Lücken etwa eine halbe bis ganze Bildbreite.
+
+Umgesetzt:
+- **Endlose Strasse** (`createStreet().extendTo()`), wird beim Fliegen 600 m
+  voraus gebaut, bei gleicher Startzahl immer gleich.
+- **Schwerer mit der Strecke**: Lücken 24–42 m am Start, alle 100 m 1 m
+  mehr, ab 3 km 54–72 m (`DIFFICULTY`).
+- **Schneller**: Schwerkraft 40 m/s², Start 22 m/s, Schwingen bis 55 m/s.
+- **Weniger Hilfe**: Schwung holen schwächer (7 m/s²); aus dem Stand gibt es
+  am kurzen Seil keinen Looping mehr – dafür braucht es Tempo vom Flug.
+- **Kamera näher** (70 m hoch), Männchen in der Bildmitte; Türme 70–150 m.
+- Bot (sieht alles voraus, spielt also besser als ein Mensch): 4 km mit
+  rund 30 m/s im Schnitt. Tests: erste 1,5 km und 500 m hinter 3 km (grösste
+  Lücken) – heisst «machbar», nicht «leicht».
+- Gegenlesen: Die Rechnung bremste schnelle Drehungen künstlich (Seil-Länge
+  in festen Schritten); behoben – am gespannten Seil bleibt das Tempo jetzt
+  erhalten, nur der Ruck beim Spannen kostet Schwung. Loopings erreichen so
+  wirklich bis 55 m/s; Loopings werden in Tests nur gezählt, wenn das Seil
+  oben gespannt ist.
+
 ## Testanleitung für Pascal
 
 Testlink (privat): https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW
@@ -131,7 +160,9 @@ Neu erzeugen: `npm run einzelseite -- ‹ziel.html›`, dann veröffentlichen.
 2. Auf ein Haus, einen Kran, einen Ballon oder ein Luftschiff tippen: Das
    Seil hakt dort ein.
 3. Hängen lassen: Das Männchen holt mit den Beinen Schwung, die Schwünge
-   werden grösser, mit kurzem Seil bis zum Looping.
+   werden grösser. Einen Looping gibt es nur, wenn man schnell aus einem
+   Flug am kurzen Seil einhakt.
 4. Tippen löst das Seil, das Männchen fliegt (und dreht) weiter.
-5. Ein paar hundert Meter weit kommen. Stimmen Tempo und Abstände?
+5. Ein paar hundert Meter weit kommen. Stimmen Tempo und Abstände? Wird es mit der
+   Strecke schwerer (grössere Lücken)?
 6. In den Himmel tippen: nichts passiert. Am Boden: tippen startet neu.

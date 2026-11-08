@@ -12,25 +12,25 @@ export interface Vec {
 
 /** Stellschrauben für das Spielgefühl. Pascals Rückmeldungen landen hier. */
 export const TUNING = {
-  gravity: 28, // m/s² – stärker als echt (9.81), damit es zackig und schnell wirkt
+  gravity: 40, // m/s² – viel stärker als echt (9.81): Vorbild-Video fliegt bis rund 50 m/s
   bodyRadius: 0.45, // ab diesem Abstand zum Boden ist der Versuch vorbei
   minRopeLength: 1, // kürzer wird ein Seil nie, auch wenn man ganz nah tippt
   // Schwung holen: Am gespannten Seil bewegt das Männchen die Beine wie auf
   // einer Schaukel und beschleunigt in Schwungrichtung – überall, auch oben.
   // So werden die Drehungen schneller, bis maxSwingSpeed. Mit genug Schwung
   // geht ein Looping (oben braucht es mindestens √(g·Seillänge)).
-  pump: 10, // m/s²
-  maxSwingSpeed: 38, // m/s – schneller wird das Schwingen durch Schwung holen nicht
+  pump: 7, // m/s²
+  maxSwingSpeed: 55, // m/s – schneller wird das Schwingen durch Schwung holen nicht
   pumpStartSpeed: 0.3, // m/s – langsamer gilt als «hängt still», dann stösst es sich nach vorne ab
   tautTolerance: 0.02, // m – so knapp unter der Seillänge gilt das Seil als gespannt
   airDrag: 0.02, // Luftwiderstand pro Sekunde (Anteil)
-  maxSpeed: 70, // m/s – Obergrenze, damit nichts explodiert
+  maxSpeed: 90, // m/s – Obergrenze, damit nichts explodiert
   ropeSegment: 0.8, // m – Länge eines Seil-Glieds (nur Darstellung)
   ropeDamping: 0.995, // Anteil Tempo, den ein Seil-Glied pro Schritt behält
   looseRopeTime: 1.5, // s – so lange fällt ein gelöstes Seil, bevor es verschwindet
   spinDamping: 0.6, // Anteil Drehung, den das Männchen im freien Flug pro Sekunde behält
   startPos: { x: 4, y: 88 } as Vec,
-  startVel: { x: 14, y: 4 } as Vec,
+  startVel: { x: 22, y: 4 } as Vec,
 };
 
 export const STEP = 1 / 120; // feste Zeitschritte: überall gleiche Ergebnisse
@@ -163,9 +163,10 @@ export function step(s: State, dt = STEP): void {
     s.vel.y *= TUNING.maxSpeed / speed;
   }
 
+  const wasTaut = isTaut(s);
   s.pos.x += s.vel.x * dt;
   s.pos.y += s.vel.y * dt;
-  applyRope(s);
+  applyRope(s, wasTaut);
 
   if (s.rope) stepChain(s.rope.chain, dt, s.rope.anchor, s.pos);
   turnBody(s, dt);
@@ -218,8 +219,13 @@ function pump(s: State, dt: number): void {
   s.vel.y += t.y * TUNING.pump * dt;
 }
 
-/** Seil-Länge erzwingen: zurück auf den Kreis, Tempo nach aussen wegnehmen. */
-function applyRope(s: State): void {
+/**
+ * Seil-Länge erzwingen: zurück auf den Kreis, Tempo nach aussen wegnehmen.
+ * Spannt sich das Seil gerade erst (Ruck), geht dabei Schwung verloren – wie
+ * in echt. War es schon gespannt (Kreisen), bleibt das Tempo erhalten; sonst
+ * würde die Rechnung in festen Schritten bei schnellen Drehungen bremsen.
+ */
+function applyRope(s: State, wasTaut: boolean): void {
   if (!s.rope) return;
   const dx = s.pos.x - s.rope.anchor.x;
   const dy = s.pos.y - s.rope.anchor.y;
@@ -231,8 +237,14 @@ function applyRope(s: State): void {
   s.pos.y = s.rope.anchor.y + ny * s.rope.length;
   const radial = s.vel.x * nx + s.vel.y * ny;
   if (radial > 0) {
+    const speed = Math.hypot(s.vel.x, s.vel.y);
     s.vel.x -= radial * nx;
     s.vel.y -= radial * ny;
+    const left = Math.hypot(s.vel.x, s.vel.y);
+    if (wasTaut && left > 1e-9) {
+      s.vel.x *= speed / left;
+      s.vel.y *= speed / left;
+    }
   }
 }
 
