@@ -1,0 +1,10 @@
+# Changelog — Meg Rope
+
+Format nach Keep a Changelog. Noch keine Version veröffentlicht; bis zur ersten
+sammelt «Unveröffentlicht».
+
+## [Unveröffentlicht]
+
+- 08.11.2026 · Etappe 1 «Schwingen» (B1): Seil, Pendel, Kulisse/feste Häuser, Übungsstrasse, Tests.
+- 08.11.2026 · Konzept abgenommen (`docs/konzept.md`).
+- 08.11.2026 · Projekt aus der Vorlage `20-Infra/projekt-vorlage/` angelegt.

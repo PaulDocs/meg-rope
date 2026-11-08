@@ -1,0 +1,19 @@
+# macOS-Artefakte (Netzwerkfreigabe)
+.DS_Store
+._*
+
+# Abhaengigkeiten und Build-Ausgaben
+node_modules/
+dist/
+.astro/
+.next/
+coverage/
+
+# Geheimnisse – nie ins Repo. Eine Beispieldatei ohne Werte ist erlaubt.
+.env
+.env.*
+!.env.beispiel
+
+# Lokale Daten
+*.db
+*.sqlite
