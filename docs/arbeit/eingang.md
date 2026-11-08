@@ -17,9 +17,8 @@ Format: `- **B‹n›** · ‹Bug|Unschön|Idee|Altlast› · Prio ‹hoch|mitte
 ## Offen
 
 - **B1** · Idee · Prio hoch · Etappe 1 «Schwingen» → `B1-schwingen.md`
-- **B2** · Altlast · Prio mittel · Häuser-Variante (`solidBuildings`) ist ein globaler Schalter in `TUNING`; vor Etappe 3 als Feld in `State` führen, `TUNING` einfrieren (Gegenlesen 08.11.2026).
-- **B3** · Altlast · Prio tief · `draw()` in `src/render.ts` vor Etappe 2 aufteilen (Hintergrund, Gebäude, Seil, Anzeige), Schrift-Helfer statt dreifacher Angabe (Gegenlesen 08.11.2026).
 
 ## Erledigt
 
-- keine
+- **B3** · Altlast · `draw()` aufgeteilt und Schrift-Helfer – erledigt im zweiten B1-Umbau (08.11.2026).
+- **B2** · Altlast · Häuser-Schalter in `TUNING` – entfällt, feste Häuser sind entfernt (08.11.2026).

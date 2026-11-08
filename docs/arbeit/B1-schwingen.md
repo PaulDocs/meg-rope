@@ -67,17 +67,47 @@ Nicht dabei: Ziel, drei Versuche, Zeit, Punkte, Server (Etappen 2–3).
 sein, nach der Physik schwingen und ohne Schwung zusammenfallen; das Männchen
 holt immer Schwung. Fotos und Videos des Vorbilds geschickt.
 
+## Rückmeldung Pascal 08.11.2026 (zweiter Test) und Umbau
+
+Pascal: Grafik nach den Videos anpassen, Abstände zwischen den Häusern wie
+im Vorbild, ab und zu Kräne oder andere Dinge zum Festhalten, alles etwas
+schneller, Loopings mit dem richtigen Schwung, Drehungen werden bis zu einer
+Grenze schneller.
+
+Umgesetzt:
+- **Welt** (`src/world.ts`): schlanke Türme (45–95 m) mit grossen Lücken
+  (16–30 m), dazwischen Baukräne und Heissluftballone; alles hält das Seil.
+  Feste Startzahl: Die Strasse sieht jedes Mal gleich aus (1,5 km).
+- **Nur noch Kulisse**: feste Häuser und der Umschalter sind entfernt (das
+  Vorbild fliegt vor den Häusern durch).
+- **Schneller**: Schwerkraft 28 m/s², Start mit 14 m/s.
+- **Loopings**: Schwung holen wirkt jetzt am gespannten Seil überall, auch
+  oben (10 m/s²), bis 38 m/s. Mit genug Tempo bleibt das Seil oben gespannt
+  und das Männchen dreht ganz um den Haken. Im freien Flug dreht es mit dem
+  mitgenommenen Schwung weiter.
+- **Grafik**: eigener Look – heller Taghimmel, Wolken, blasse Stadt hinten,
+  Türme als Quader mit Seite und Dach in drei Tönen, gelbe Kräne,
+  gestreifte Ballone, dunkles Männchen. Bilder und Figuren des Vorbilds
+  sind nicht übernommen.
+- Spielbarkeit als Test (`test/street.test.ts`): Ein einfacher Bot muss die
+  ganze Übungsstrasse schaffen. Läuft rund 20 s in `pruefen.sh`.
+- Kran-Ausleger überlappen keine Nachbarn mehr; alle Lücken 16–30 m.
+- Toleranzen in den Tests bewusst gelockert (Gegenlesen): sichtbare
+  Seil-Glieder dürfen sich beim schnellen Schwingen bis 20 % dehnen
+  (Gesamtlänge bleibt auf 5 % genau); «allmählich schneller» heisst jetzt:
+  nach 1 s weit unter dem Haken, nach 2 s noch kein Looping.
+- Kulisse als Entscheid abgelegt: `docs/entscheide/2026-11-08-haeuser-kulisse.md`
+  (Bestätigung Pascal offen).
+
 ## Testanleitung für Pascal
 
 Testlink (privat): https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW
 Neu erzeugen: `npm run einzelseite -- ‹ziel.html›`, dann veröffentlichen.
 
 1. Link auf dem iPad in Safari öffnen, iPad quer halten.
-2. Auf einen Turm tippen: Das Seil hakt dort ein. Ist es locker, hängt es
-   durch; gespannt schwingt das Männchen und holt mit den Beinen Schwung.
-3. Nochmals irgendwo tippen: Das Seil löst sich, das Männchen fliegt weiter.
-4. Ein paar Türme weit schwingen. Die Meter oben links zählen mit.
-5. In den Himmel tippen: Es passiert nichts.
-6. Auf den Boden fallen lassen: Meldung erscheint, tippen startet neu.
-7. Oben rechts auf «Häuser: Kulisse» tippen und «fest» ausprobieren.
-   Welche Variante fühlt sich richtig an?
+2. Auf ein Haus, einen Kran oder einen Ballon tippen: Das Seil hakt dort ein.
+3. Hängen lassen: Das Männchen holt mit den Beinen Schwung, die Schwünge
+   werden grösser, mit kurzem Seil bis zum Looping.
+4. Tippen löst das Seil, das Männchen fliegt (und dreht) weiter.
+5. Ein paar hundert Meter weit kommen. Stimmen Tempo und Abstände?
+6. In den Himmel tippen: nichts passiert. Am Boden: tippen startet neu.

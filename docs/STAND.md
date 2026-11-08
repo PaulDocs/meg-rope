@@ -18,8 +18,8 @@ stand: 2026-11-08
 
 ### Entscheid Pascal
 
-- Häuser als **Kulisse** oder **fest**? Beides ist im Spiel umschaltbar.
-- Spielgefühl nach dem Umbau (festes Seil, Schwung holen): Stärke des Schwungholens, Schwerkraft, Tempo (Werte in `src/physics.ts`, `TUNING`).
+- Häuser nur noch Kulisse bestätigen (`docs/entscheide/2026-11-08-haeuser-kulisse.md`).
+- Spielgefühl nach dem zweiten Umbau (Tempo, Loopings, Abstände, Grafik): Werte in `src/physics.ts` (`TUNING`) und `src/world.ts`.
 - GitHub-Push: erster Commit liegt lokal, Push nach `PaulDocs/meg-rope` auf dein Wort.
 
 ### Später

@@ -20,3 +20,6 @@ datum: 2026-11-08
   sein, durchhängen und ohne Schwung zusammenfallen; das Männchen holt
   selbst Schwung. Umgebaut: Glieder-Kette fürs Seil, Schwungholen, kein
   Einzug mehr. Vorbild-Fotos zeigen: Häuser sind Kulisse.
+- Zweite Rückmeldung mit Videos: Grafik, Abstände, Kräne und Ballone,
+  schneller, Loopings. Umgebaut; feste Häuser entfernt, weil das Vorbild
+  Kulisse zeigt. Eigener heller Look statt Kopie des Vorbilds.

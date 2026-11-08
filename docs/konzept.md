@@ -32,10 +32,11 @@ zwei Spieler im lokalen Netz. Gespielt wird nacheinander, nicht gleichzeitig.
 
 - Tippen wechselt also immer zwischen **einhaken** und **lösen**. Man muss den
   Finger nicht halten.
-- **Einhaken** geht an **jedem Gebäude**: Wand, Dach, Kante. Tippt man in den
-  leeren Himmel, passiert nichts.
-- **Gebäude sind kein Hindernis**: Knallt das Männchen an eine Wand, prallt es
-  ab oder rutscht daran ab. Nur der **Boden** beendet den Versuch.
+- **Einhaken** geht an **jedem Haltepunkt**: Turm (Wand, Dach, Kante), Kran,
+  Ballon. Tippt man in den leeren Himmel, passiert nichts.
+- **Gebäude sind Kulisse**: Das Männchen fliegt davor durch. Nur der
+  **Boden** beendet den Versuch (Entscheid
+  `docs/entscheide/2026-11-08-haeuser-kulisse.md`, ersetzt «prallt ab»).
 - **Kamera** folgt dem Männchen nach rechts bis zum Ziel.
 - **Drei Versuche**: Wer am Boden landet, beginnt von vorne. Nach dem dritten
   missglückten Versuch ist die Runde vorbei. Wer das Ziel erreicht, ist sofort

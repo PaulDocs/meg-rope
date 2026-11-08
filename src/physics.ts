@@ -1,41 +1,36 @@
 // Physik von Meg Rope – reine Rechnung ohne Bildschirm, damit sie testbar ist.
 // Einheiten: Meter und Sekunden. y zeigt nach oben, der Boden liegt bei y = 0.
+// Häuser, Kräne und Ballone sind Kulisse: Man fliegt davor durch und hakt
+// genau dort ein, wo man tippt (docs/entscheide/2026-11-08-haeuser-kulisse.md).
+
+import { isOnHold, type Hold } from './world';
 
 export interface Vec {
   x: number;
   y: number;
 }
 
-/** Ein Gebäude: Rechteck, das auf dem Boden steht. */
-export interface Building {
-  x: number; // linke Kante
-  width: number;
-  height: number;
-}
-
 /** Stellschrauben für das Spielgefühl. Pascals Rückmeldungen landen hier. */
 export const TUNING = {
-  // true: Gebäude sind fest, man prallt ab, das Seil braucht freie Sicht.
-  // false: Gebäude sind Kulisse, man fliegt davor durch und hakt genau dort
-  // ein, wo man tippt. Pascal probiert beides auf dem iPad.
-  solidBuildings: false,
-  gravity: 22, // m/s² – stärker als echt (9.81), damit es zackig wirkt
-  bodyRadius: 0.45, // Kollisionskreis des Männchens
+  gravity: 28, // m/s² – stärker als echt (9.81), damit es zackig und schnell wirkt
+  bodyRadius: 0.45, // ab diesem Abstand zum Boden ist der Versuch vorbei
   minRopeLength: 1, // kürzer wird ein Seil nie, auch wenn man ganz nah tippt
-  // Schwung holen: Hängt das Männchen am gespannten Seil, bewegt es die Beine
-  // wie auf einer Schaukel. Das gibt eine kleine Beschleunigung in Schwungrichtung.
-  pump: 2.2, // m/s²
+  // Schwung holen: Am gespannten Seil bewegt das Männchen die Beine wie auf
+  // einer Schaukel und beschleunigt in Schwungrichtung – überall, auch oben.
+  // So werden die Drehungen schneller, bis maxSwingSpeed. Mit genug Schwung
+  // geht ein Looping (oben braucht es mindestens √(g·Seillänge)).
+  pump: 10, // m/s²
+  maxSwingSpeed: 38, // m/s – schneller wird das Schwingen durch Schwung holen nicht
   pumpStartSpeed: 0.3, // m/s – langsamer gilt als «hängt still», dann stösst es sich nach vorne ab
   tautTolerance: 0.02, // m – so knapp unter der Seillänge gilt das Seil als gespannt
-  ropeDamping: 0.995, // Anteil Tempo, den ein Seil-Glied pro Schritt behält
-  ropeSegment: 0.8, // m – Länge eines Seil-Glieds (nur für die Darstellung)
-  looseRopeTime: 1.5, // s – so lange fällt ein gelöstes Seil, bevor es verschwindet
-  bounce: 0.35, // 0 = klebt an der Wand, 1 = prallt voll zurück
-  wallFriction: 0.9, // Anteil Tempo entlang der Wand pro Aufprall
   airDrag: 0.02, // Luftwiderstand pro Sekunde (Anteil)
-  maxSpeed: 60, // m/s – Obergrenze, damit nichts explodiert
-  startPos: { x: 4, y: 52 } as Vec,
-  startVel: { x: 8, y: 2 } as Vec,
+  maxSpeed: 70, // m/s – Obergrenze, damit nichts explodiert
+  ropeSegment: 0.8, // m – Länge eines Seil-Glieds (nur Darstellung)
+  ropeDamping: 0.995, // Anteil Tempo, den ein Seil-Glied pro Schritt behält
+  looseRopeTime: 1.5, // s – so lange fällt ein gelöstes Seil, bevor es verschwindet
+  spinDamping: 0.6, // Anteil Drehung, den das Männchen im freien Flug pro Sekunde behält
+  startPos: { x: 4, y: 72 } as Vec,
+  startVel: { x: 14, y: 4 } as Vec,
 };
 
 export const STEP = 1 / 120; // feste Zeitschritte: überall gleiche Ergebnisse
@@ -78,6 +73,9 @@ export interface State {
   looseRopes: LooseRope[];
   maxX: number; // weiteste erreichte Stelle
   time: number;
+  // Wie das Männchen gedreht ist (nur Darstellung, Bogenmass; 0 = Kopf oben)
+  angle: number;
+  spin: number; // rad/s
 }
 
 export function createState(): State {
@@ -89,49 +87,9 @@ export function createState(): State {
     looseRopes: [],
     maxX: TUNING.startPos.x,
     time: 0,
+    angle: 0,
+    spin: 0,
   };
-}
-
-/**
- * Strahl vom Männchen Richtung Tipp-Punkt. Liefert die erste Stelle, an der
- * er ein Gebäude trifft – aber nur, wenn das nicht hinter dem Tipp-Punkt liegt
- * (mit etwas Spielraum). Tippen in den leeren Himmel trifft also nichts.
- */
-export function findAnchor(from: Vec, target: Vec, buildings: Building[], slack = 0.6): Vec | null {
-  const dx = target.x - from.x;
-  const dy = target.y - from.y;
-  const dist = Math.hypot(dx, dy);
-  if (dist < 1e-6) return null;
-  const maxT = (dist + slack) / dist;
-  let best: number | null = null;
-  for (const b of buildings) {
-    const t = rayBox(from, dx, dy, b.x, 0, b.x + b.width, b.height);
-    if (t !== null && t <= maxT && (best === null || t < best)) best = t;
-  }
-  if (best === null) return null;
-  return { x: from.x + dx * best, y: from.y + dy * best };
-}
-
-/** Schnitt Strahl–Rechteck (Slab-Verfahren). t in Vielfachen von (dx, dy). */
-function rayBox(o: Vec, dx: number, dy: number, x0: number, y0: number, x1: number, y1: number): number | null {
-  let tMin = 0;
-  let tMax = Infinity;
-  for (const [p, d, lo, hi] of [
-    [o.x, dx, x0, x1],
-    [o.y, dy, y0, y1],
-  ] as const) {
-    if (Math.abs(d) < 1e-9) {
-      if (p < lo || p > hi) return null;
-    } else {
-      let t1 = (lo - p) / d;
-      let t2 = (hi - p) / d;
-      if (t1 > t2) [t1, t2] = [t2, t1];
-      tMin = Math.max(tMin, t1);
-      tMax = Math.min(tMax, t2);
-      if (tMin > tMax) return null;
-    }
-  }
-  return tMin;
 }
 
 /** Alles auf den Anfang: neuer Versuch. */
@@ -139,23 +97,11 @@ export function resetState(s: State): void {
   Object.assign(s, createState());
 }
 
-/** Wo das Seil einhakt – hängt davon ab, ob Häuser fest oder Kulisse sind. */
-function pickAnchor(from: Vec, target: Vec, buildings: Building[]): Vec | null {
-  if (TUNING.solidBuildings) return findAnchor(from, target, buildings);
-  if (buildings.some((b) => isOnBuilding(target, b))) return { ...target };
-  return null;
-}
-
-/** Liegt der Punkt auf dem Gebäude (mit etwas Spielraum für Finger)? */
-export function isOnBuilding(p: Vec, b: Building, slack = 0.6): boolean {
-  return p.x >= b.x - slack && p.x <= b.x + b.width + slack && p.y >= 0 && p.y <= b.height + slack;
-}
-
 /**
  * Ein Tippen auf die Welt. Wechselt zwischen Einhaken und Lösen.
  * Gibt zurück, was passiert ist (für Anzeige und Tests).
  */
-export function tap(s: State, target: Vec, buildings: Building[]): 'attached' | 'released' | 'missed' | 'restart' {
+export function tap(s: State, target: Vec, holds: Hold[]): 'attached' | 'released' | 'missed' | 'restart' {
   if (s.phase === 'down') {
     resetState(s);
     return 'restart';
@@ -164,8 +110,8 @@ export function tap(s: State, target: Vec, buildings: Building[]): 'attached' | 
     releaseRope(s);
     return 'released';
   }
-  const anchor = pickAnchor(s.pos, target, buildings);
-  if (!anchor) return 'missed';
+  if (!holds.some((h) => isOnHold(target, h))) return 'missed';
+  const anchor = { ...target };
   if (s.phase === 'ready') {
     s.phase = 'flying';
     s.vel = { ...TUNING.startVel };
@@ -198,7 +144,7 @@ function stepLooseRopes(s: State, dt: number): void {
 }
 
 /** Einen festen Zeitschritt weiterrechnen. */
-export function step(s: State, buildings: Building[], dt = STEP): void {
+export function step(s: State, dt = STEP): void {
   stepLooseRopes(s, dt);
   if (s.phase !== 'flying') return;
   s.time += dt;
@@ -209,6 +155,8 @@ export function step(s: State, buildings: Building[], dt = STEP): void {
   s.vel.x *= drag;
   s.vel.y *= drag;
 
+  if (s.rope) pump(s, dt);
+
   const speed = Math.hypot(s.vel.x, s.vel.y);
   if (speed > TUNING.maxSpeed) {
     s.vel.x *= TUNING.maxSpeed / speed;
@@ -217,17 +165,10 @@ export function step(s: State, buildings: Building[], dt = STEP): void {
 
   s.pos.x += s.vel.x * dt;
   s.pos.y += s.vel.y * dt;
-
-  if (s.rope) pump(s, dt);
-
-  // Seil und Gebäude ziehen gegeneinander, wenn das Männchen an einer Wand
-  // hängt. Ein paar Durchgänge, damit beide Bedingungen fast genau stimmen.
-  for (let i = 0; i < 4; i++) {
-    applyRope(s);
-    if (TUNING.solidBuildings) for (const b of buildings) collide(s, b);
-  }
+  applyRope(s);
 
   if (s.rope) stepChain(s.rope.chain, dt, s.rope.anchor, s.pos);
+  turnBody(s, dt);
 
   if (s.pos.x > s.maxX) s.maxX = s.pos.x;
 
@@ -245,38 +186,84 @@ export function isTaut(s: State): boolean {
   return Math.hypot(s.pos.x - s.rope.anchor.x, s.pos.y - s.rope.anchor.y) >= s.rope.length - TUNING.tautTolerance;
 }
 
-/** Holt das Männchen gerade Schwung? Nur am gespannten Seil, unterhalb des Hakens. */
+/** Holt das Männchen gerade Schwung? Am gespannten Seil, bis maxSwingSpeed. */
 export function isPumping(s: State): boolean {
-  return s.rope !== null && isTaut(s) && s.pos.y < s.rope.anchor.y;
+  return isTaut(s) && Math.hypot(s.vel.x, s.vel.y) < TUNING.maxSwingSpeed;
+}
+
+/** Tangente an den Kreis um den Haken, Richtung gegen den Uhrzeigersinn. */
+function tangent(s: State): Vec {
+  const r = s.rope!;
+  const dx = s.pos.x - r.anchor.x;
+  const dy = s.pos.y - r.anchor.y;
+  const d = Math.hypot(dx, dy) || 1;
+  return { x: -dy / d, y: dx / d };
 }
 
 /**
- * Schwung holen wie auf einer Schaukel: Nur am gespannten Seil und unterhalb
- * des Hakens, immer in die Richtung, in die das Männchen gerade schwingt.
- * Hängt es fast still, stösst es sich nach vorne (rechts) ab.
+ * Schwung holen wie auf einer Schaukel: immer in die Richtung, in die das
+ * Männchen gerade schwingt. Hängt es fast still, stösst es sich nach vorne
+ * (rechts) ab.
  */
 function pump(s: State, dt: number): void {
-  if (!s.rope || !isPumping(s)) return;
+  if (!isPumping(s)) return;
+  let t = tangent(s);
+  const vt = s.vel.x * t.x + s.vel.y * t.y;
+  if (Math.abs(vt) < TUNING.pumpStartSpeed) {
+    if (t.x < 0) t = { x: -t.x, y: -t.y };
+  } else if (vt < 0) {
+    t = { x: -t.x, y: -t.y };
+  }
+  s.vel.x += t.x * TUNING.pump * dt;
+  s.vel.y += t.y * TUNING.pump * dt;
+}
+
+/** Seil-Länge erzwingen: zurück auf den Kreis, Tempo nach aussen wegnehmen. */
+function applyRope(s: State): void {
+  if (!s.rope) return;
   const dx = s.pos.x - s.rope.anchor.x;
   const dy = s.pos.y - s.rope.anchor.y;
   const d = Math.hypot(dx, dy);
-  // Tangente an den Kreis um den Haken, zeigt nach rechts unten/oben
-  let tx = -dy / d;
-  let ty = dx / d;
-  if (tx < 0) [tx, ty] = [-tx, -ty];
-  const vt = s.vel.x * tx + s.vel.y * ty;
-  const dir = Math.abs(vt) < TUNING.pumpStartSpeed ? 1 : Math.sign(vt);
-  s.vel.x += tx * dir * TUNING.pump * dt;
-  s.vel.y += ty * dir * TUNING.pump * dt;
+  if (d <= s.rope.length) return;
+  const nx = dx / d;
+  const ny = dy / d;
+  s.pos.x = s.rope.anchor.x + nx * s.rope.length;
+  s.pos.y = s.rope.anchor.y + ny * s.rope.length;
+  const radial = s.vel.x * nx + s.vel.y * ny;
+  if (radial > 0) {
+    s.vel.x -= radial * nx;
+    s.vel.y -= radial * ny;
+  }
 }
+
+/**
+ * Drehung des Männchens (nur Darstellung): Am gespannten Seil zeigt der Kopf
+ * zum Haken, die Drehung folgt dem Schwung. Im freien Flug dreht es mit dem
+ * mitgenommenen Schwung weiter und wird langsam ruhiger.
+ */
+function turnBody(s: State, dt: number): void {
+  if (s.rope && isTaut(s)) {
+    const target = Math.atan2(-(s.rope.anchor.x - s.pos.x), s.rope.anchor.y - s.pos.y);
+    const t = tangent(s);
+    s.spin = (s.vel.x * t.x + s.vel.y * t.y) / s.rope.length;
+    s.angle = s.angle + wrap(target - s.angle);
+  } else {
+    s.angle += s.spin * dt;
+    s.spin *= Math.pow(TUNING.spinDamping, dt);
+  }
+}
+
+function wrap(a: number): number {
+  return a - 2 * Math.PI * Math.round(a / (2 * Math.PI));
+}
+
+const CHAIN_ITERATIONS = 20; // Durchgänge pro Schritt, damit die Glieder ihren Abstand halten
 
 /**
  * Seil-Glieder als Kette weiterrechnen (Verlet). Sie fallen mit der
  * Schwerkraft und halten den Abstand zueinander. Anfang und Ende hängen am
  * Haken und am Männchen, wenn angegeben.
  */
-const CHAIN_ITERATIONS = 12; // Durchgänge pro Schritt, damit die Glieder ihren Abstand halten
-
 function stepChain(chain: Chain, dt: number, start: Vec | null, end: Vec | null): void {
   const { points: pts, prev, seg } = chain;
   const g = TUNING.gravity * dt * dt;
@@ -309,59 +296,4 @@ function stepChain(chain: Chain, dt: number, start: Vec | null, end: Vec | null)
   if (start) Object.assign(pts[0]!, start);
   if (end) Object.assign(pts[pts.length - 1]!, end);
   for (const p of pts) if (p.y < 0) p.y = 0; // liegt auf dem Boden
-}
-
-/** Seil-Länge erzwingen: zurück auf den Kreis, Tempo nach aussen wegnehmen. */
-function applyRope(s: State): void {
-  if (!s.rope) return;
-  const dx = s.pos.x - s.rope.anchor.x;
-  const dy = s.pos.y - s.rope.anchor.y;
-  const d = Math.hypot(dx, dy);
-  if (d <= s.rope.length) return;
-  const nx = dx / d;
-  const ny = dy / d;
-  s.pos.x = s.rope.anchor.x + nx * s.rope.length;
-  s.pos.y = s.rope.anchor.y + ny * s.rope.length;
-  const radial = s.vel.x * nx + s.vel.y * ny;
-  if (radial > 0) {
-    s.vel.x -= radial * nx;
-    s.vel.y -= radial * ny;
-  }
-}
-
-/** Kreis gegen Gebäude: herausschieben, abprallen, entlangrutschen. */
-function collide(s: State, b: Building): void {
-  const r = TUNING.bodyRadius;
-  const cx = Math.min(Math.max(s.pos.x, b.x), b.x + b.width);
-  const cy = Math.min(Math.max(s.pos.y, 0), b.height);
-  let nx = s.pos.x - cx;
-  let ny = s.pos.y - cy;
-  let d = Math.hypot(nx, ny);
-  if (d >= r) return;
-
-  if (d < 1e-9) {
-    // Mittelpunkt steckt im Gebäude: zur nächsten Kante hinaus
-    const left = s.pos.x - b.x;
-    const right = b.x + b.width - s.pos.x;
-    const top = b.height - s.pos.y;
-    const m = Math.min(left, right, top);
-    if (m === top) [nx, ny, d] = [0, 1, -top];
-    else if (m === left) [nx, ny, d] = [-1, 0, -left];
-    else [nx, ny, d] = [1, 0, -right];
-  } else {
-    nx /= d;
-    ny /= d;
-  }
-
-  const push = r - d;
-  s.pos.x += nx * push;
-  s.pos.y += ny * push;
-
-  const vn = s.vel.x * nx + s.vel.y * ny;
-  if (vn < 0) {
-    const tx = s.vel.x - vn * nx;
-    const ty = s.vel.y - vn * ny;
-    s.vel.x = tx * TUNING.wallFriction - vn * TUNING.bounce * nx;
-    s.vel.y = ty * TUNING.wallFriction - vn * TUNING.bounce * ny;
-  }
 }

@@ -24,8 +24,9 @@ sondern in `GLOSSAR.md` auf der Wurzel von ClaudeWork.
 | Challenge | Wettkampf über 1–5 Runden, alle Spieler auf derselben Welt | `challenge` | Freies Spiel |
 | Freies Spiel | Allein auf der Welt üben, ohne Rangliste | `freePlay` | Challenge |
 | Gastgeber | Spieler, der eine Challenge anlegt und schliesst | `host` | Server |
-| Kulisse / feste Häuser | Kulisse: Häuser sind Hintergrund, man fliegt davor durch. Fest: Häuser sind Hindernisse. Pascal entscheidet nach dem iPad-Test | `TUNING.solidBuildings` | – |
-| Schwung holen | Das Männchen bewegt am gespannten Seil die Beine wie auf einer Schaukel und beschleunigt in Schwungrichtung | `pump()`, `TUNING.pump` | – |
+| Schwung holen | Das Männchen bewegt am gespannten Seil die Beine wie auf einer Schaukel und beschleunigt in Schwungrichtung, überall bis `maxSwingSpeed` | `pump()`, `TUNING.pump` | – |
 | Seil-Glieder | Kette, die zeigt, wie das Seil durchhängt oder fällt; die Länge des Seils bleibt fest | `Chain` (in `Rope.chain`, `LooseRope.chain`) | Seillänge (`Rope.length`) |
-| Übungsstrasse | Feste Türme für Etappe 1, ohne Ziel | `PRACTICE_STREET` | Welt |
-| Einhaken / Lösen | Tippen hängt das Seil an die getippte Stelle eines Gebäudes bzw. löst es wieder | `tap()` → `'attached'` / `'released'` | – |
+| Haltepunkt | Stelle, an der das Seil einhaken kann: Turm, Kranmast, Kranausleger, Ballon | `Hold`, `isOnHold()` | Teil (`Prop`, das Gezeichnete) |
+| Übungsstrasse | 1,5 km Türme, Kräne und Ballone für Etappe 1, ohne Ziel, immer gleich | `PRACTICE_STREET`, `buildPracticeStreet()`; Typ `World` ist die gemeinsame Form von Übungsstrasse und Welt | Welt (mit Ziel, Etappe 2) |
+| Looping | Das Männchen dreht am gespannten Seil ganz um den Haken | – | – |
+| Einhaken / Lösen | Tippen hängt das Seil an die getippte Stelle eines Haltepunkts bzw. löst es wieder | `tap()` → `'attached'` / `'released'` | – |
