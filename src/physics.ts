@@ -34,13 +34,21 @@ export const TUNING = {
   ropeDamping: 0.995, // Anteil Tempo, den ein Seil-Glied pro Schritt behält
   looseRopeTime: 1.5, // s – so lange fällt ein gelöstes Seil, bevor es verschwindet
   spinDamping: 0.6, // Anteil Drehung, den das Männchen im freien Flug pro Sekunde behält
-  startPos: { x: 4, y: 58 } as Vec,
-  startVel: { x: 24, y: 6 } as Vec,
+  // Start wie im Vorbild (IMG_185322): Das Männchen erscheint in der Luft vor
+  // dem ersten Turm und fällt gerade herunter – kein Sprung nach vorne. Man
+  // muss einhaken, bevor es unten ist (aus 62 m rund 1,8 s).
+  startPos: { x: -24, y: 62 } as Vec,
+  dropInDelay: 0.5, // s – so lange schwebt es zu Beginn, dann fällt es (Tippen hakt schon vorher ein)
 };
 
 export const STEP = 1 / 120; // feste Zeitschritte: überall gleiche Ergebnisse
 
-export type Phase = 'ready' | 'flying' | 'down';
+/**
+ * dropIn: Einflug – schwebt kurz, geht nach dropInDelay von selbst in flying
+ * über (oder sofort beim Einhaken). flying: fliegt oder hängt am Seil.
+ * down: am Boden, Tippen startet neu.
+ */
+export type Phase = 'dropIn' | 'flying' | 'down';
 
 /**
  * Glieder-Kette, die zeigt, wie ein Seil durchhängt oder fällt.
@@ -79,7 +87,8 @@ export interface State {
   rope: Rope | null;
   looseRopes: LooseRope[];
   maxX: number; // weiteste erreichte Stelle
-  time: number;
+  time: number; // s seit Beginn des Versuchs, inklusive Einflug
+  hooked: boolean; // in diesem Versuch schon einmal eingehakt
   // Wie das Männchen gedreht ist (nur Darstellung, Bogenmass; 0 = Kopf oben)
   angle: number;
   spin: number; // rad/s
@@ -87,13 +96,14 @@ export interface State {
 
 export function createState(): State {
   return {
-    phase: 'ready',
+    phase: 'dropIn',
     pos: { ...TUNING.startPos },
     vel: { x: 0, y: 0 },
     rope: null,
     looseRopes: [],
     maxX: TUNING.startPos.x,
     time: 0,
+    hooked: false,
     angle: 0,
     spin: 0,
   };
@@ -101,6 +111,11 @@ export function createState(): State {
 
 /** Für tap() ohne Kamera: nur die Haltepunkte der Welt zählen, keine Seitenwände. */
 export const noSideWalls = (_p: Vec): boolean => false;
+
+/** Noch im Einflug: schwebt oder fällt und hat noch nie eingehakt (für den Hinweis im Bild). */
+export function isDropIn(s: State): boolean {
+  return s.phase === 'dropIn' || (s.phase === 'flying' && !s.hooked);
+}
 
 /** Alles auf den Anfang: neuer Versuch. */
 export function resetState(s: State): void {
@@ -129,10 +144,8 @@ export function tap(
   }
   if (!holds.some((h) => isOnHold(target, h)) && !grabbable(target)) return 'missed';
   const anchor = { ...target };
-  if (s.phase === 'ready') {
-    s.phase = 'flying';
-    s.vel = { ...TUNING.startVel };
-  }
+  if (s.phase === 'dropIn') s.phase = 'flying'; // ohne Schub: Tempo bleibt 0
+  s.hooked = true;
   const length = Math.max(TUNING.minRopeLength, Math.hypot(s.pos.x - anchor.x, s.pos.y - anchor.y));
   const n = Math.max(4, Math.round(length / TUNING.ropeSegment));
   const points: Vec[] = [];
@@ -169,8 +182,13 @@ function stepLooseRopes(s: State, dt: number): void {
 /** Einen festen Zeitschritt weiterrechnen. */
 export function step(s: State, dt = STEP): void {
   stepLooseRopes(s, dt);
-  if (s.phase !== 'flying') return;
+  if (s.phase === 'down') return;
   s.time += dt;
+  if (s.phase === 'dropIn') {
+    // Einflug: kurz schweben, dann aus dem Stand fallen
+    if (s.time >= TUNING.dropInDelay) s.phase = 'flying';
+    return;
+  }
 
   // Energie zu Beginn; Luft, Schwung holen und Obergrenze ändern sie unten
   const kin = () => 0.5 * (s.vel.x ** 2 + s.vel.y ** 2);

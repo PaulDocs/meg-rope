@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { createState, energyLimit, isPumping, isTaut, noSideWalls, step, swingEnergy, tap, turnsOnRope, TUNING, type State } from '../src/physics';
+import { createState, isDropIn, energyLimit, isPumping, isTaut, noSideWalls, step, swingEnergy, tap, turnsOnRope, TUNING, type State } from '../src/physics';
 import type { Hold } from '../src/world';
 
 // Ein hoher, breiter Turm von x 0 bis 20, 80 m hoch
@@ -49,7 +49,7 @@ describe('Einhaken', () => {
     const s = createState();
     expect(tap(s, { x: 50, y: 60 }, holds, noSideWalls)).toBe('missed');
     expect(s.rope).toBeNull();
-    expect(s.phase).toBe('ready');
+    expect(s.phase).toBe('dropIn');
   });
 
   it('Hakt genau dort ein, wo getippt wird, und startet den Versuch', () => {
@@ -57,7 +57,7 @@ describe('Einhaken', () => {
     expect(tap(s, { x: 13, y: 29 }, holds, noSideWalls)).toBe('attached');
     expect(s.rope?.anchor).toEqual({ x: 13, y: 29 });
     expect(s.phase).toBe('flying');
-    expect(s.vel).toEqual(TUNING.startVel);
+    expect(s.vel).toEqual({ x: 0, y: 0 }); // kein Sprung nach vorne
   });
 
   it('Hakt auch an einem Ballon ein', () => {
@@ -435,10 +435,28 @@ describe('Fliegen', () => {
     expect(s.spin).toBeLessThan(6);
   });
 
-  it('Vor dem ersten Tipp steht das Männchen still', () => {
+  it('Einflug wie im Vorbild: kurz schweben, dann gerade herunterfallen, nicht nach vorne', () => {
     const s = createState();
-    run(s, 1);
+    run(s, TUNING.dropInDelay * 0.9);
     expect(s.pos).toEqual(TUNING.startPos);
+    expect(s.phase).toBe('dropIn');
+    run(s, TUNING.dropInDelay * 0.1 + 1);
+    expect(s.phase).toBe('flying');
+    expect(s.pos.x).toBeCloseTo(TUNING.startPos.x, 6); // fällt senkrecht
+    expect(s.pos.y).toBeLessThan(TUNING.startPos.y - 10);
+    run(s, 2);
+    expect(s.phase).toBe('down'); // ohne Einhaken unten
+  });
+
+  it('Hinweis «Tippe auf …» nur im Einflug, bis zum ersten Einhaken', () => {
+    const s = createState();
+    expect(isDropIn(s)).toBe(true);
+    run(s, 1);
+    expect(isDropIn(s)).toBe(true); // fällt, noch nie eingehakt
+    expect(tap(s, { x: 10, y: 60 }, holds, noSideWalls)).toBe('attached');
+    expect(isDropIn(s)).toBe(false);
+    tap(s, s.pos, holds, noSideWalls); // lösen: Hinweis kommt nicht zurück
+    expect(isDropIn(s)).toBe(false);
   });
 
   it('Der Meterzähler sinkt nicht beim Zurückschwingen', () => {
@@ -474,7 +492,7 @@ describe('Boden', () => {
     run(s, 4);
     expect(s.phase).toBe('down');
     expect(tap(s, { x: 0, y: 0 }, holds, noSideWalls)).toBe('restart');
-    expect(s.phase).toBe('ready');
+    expect(s.phase).toBe('dropIn');
     expect(s.pos).toEqual(TUNING.startPos);
   });
 });

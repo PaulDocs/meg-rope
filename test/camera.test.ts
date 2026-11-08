@@ -105,7 +105,7 @@ describe('Kamera folgt wie im Vorbild', () => {
   });
 
   it('springt beim Neustart sofort an den Platz', () => {
-    const s = createState(); // Phase «ready»
+    const s = createState(); // Phase «dropIn»
     s.pos = { x: 500, y: 150 };
     const cam = { x: 0, y: 0, scale: 1 };
     updateCamera(cam, s, 1000, 700, 1 / 60);

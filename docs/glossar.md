@@ -19,6 +19,7 @@ sondern in `GLOSSAR.md` auf der Wurzel von ClaudeWork.
 | Versuch | Ein Flug vom Start bis zum Boden oder ins Ziel; höchstens drei pro Runde | `attempt` | Runde |
 | Runde | Ein Durchgang auf einer Welt mit höchstens drei Versuchen; endet im Ziel oder nach dem dritten Versuch | `round` | Versuch |
 | Welt | Eine von Hand gebaute Stadt mit Start und Ziel | `world` | Runde |
+| Einflug | Start eines Versuchs: Das Männchen erscheint in der Luft vor dem ersten Turm, schwebt kurz und fällt gerade herunter; kein Sprung nach vorne | `startPos`, `dropInDelay`, Phase `dropIn`, `isDropIn()` | – |
 | Ziel | Ende der Welt; wer es erreicht, hat die Runde geschafft | `goal` | – |
 | Bonuspunkte | Zusatzpunkte, je weniger Versuche bis ins Ziel gebraucht wurden | `bonus` | – |
 | Challenge | Wettkampf über 1–5 Runden, alle Spieler auf derselben Welt | `challenge` | Freies Spiel |

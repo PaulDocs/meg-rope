@@ -1,4 +1,4 @@
-import { isPumping, TUNING, type State, type Vec } from './physics';
+import { isDropIn, isPumping, TUNING, type State, type Vec } from './physics';
 import { containerOf, extentOf, GRAB_SLACK, roofHeight, SHAPE, type Prop, type World } from './world';
 
 /** Kamera: welcher Weltausschnitt auf dem Bildschirm liegt. */
@@ -62,7 +62,7 @@ export function updateCamera(cam: Camera, s: State, w: number, h: number, dt: nu
   const viewW = w / cam.scale;
   const targetX = s.pos.x - viewW * FIGURE_AT.x;
   const targetY = Math.max(-8, s.pos.y - VIEW_HEIGHT * (1 - FIGURE_AT.y)); // Boden sichtbar, wenn es tief ist
-  const k = s.phase === 'ready' ? 1 : 1 - Math.pow(1 - CAMERA_FOLLOW, dt * 60); // beim Neustart springen
+  const k = s.phase === 'dropIn' ? 1 : 1 - Math.pow(1 - CAMERA_FOLLOW, dt * 60); // beim Neustart springen
   cam.x += (targetX - cam.x) * k;
   cam.y += (targetY - cam.y) * k;
 }
@@ -153,7 +153,7 @@ function drawHud(ctx: CanvasRenderingContext2D, s: State, w: number, h: number):
   const dist = Math.max(0, s.maxX - TUNING.startPos.x);
   ctx.fillText(`${dist.toFixed(0)}`, w - h * 0.03, h * 0.025);
 
-  const msg = s.phase === 'ready' ? 'Tippe auf ein Haus, einen Kran, einen Ballon oder ein Luftschiff' : s.phase === 'down' ? 'Am Boden – tippen für neuen Versuch' : '';
+  const msg = isDropIn(s) ? 'Tippe auf ein Haus, einen Kran, einen Ballon oder ein Luftschiff' : s.phase === 'down' ? 'Am Boden – tippen für neuen Versuch' : '';
   if (msg) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';

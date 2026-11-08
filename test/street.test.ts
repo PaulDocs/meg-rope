@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createState, noSideWalls, step, tap, TUNING, type State } from '../src/physics';
+import { createState, noSideWalls, step, tap, type State } from '../src/physics';
 import { buildPracticeStreet, DIFFICULTY, extentOf, roofOf } from '../src/world';
 
 const W = buildPracticeStreet(7, DIFFICULTY.fullAt + 700);
@@ -41,30 +41,58 @@ function tryHop(s0: State, t: { x: number; y: number }, hold: number): State | n
   return s;
 }
 
-function play(s: State, until: number): State {
-  for (let hops = 0; hops < 80 && s.maxX < until; hops++) {
-    let best: State | null = null;
-    for (const t of targets(s)) {
-      for (const hold of [0.4, 0.8, 1.4, 2.2]) {
-        const r = tryHop(s, t, hold);
-        if (r && r.pos.x > s.pos.x + 2 && (!best || r.pos.x + 0.3 * r.pos.y > best.pos.x + 0.3 * best.pos.y)) best = r;
-      }
+// Wie gut ist ein Zwischenstand? Weit und hoch.
+const score = (r: State) => r.pos.x + 0.3 * r.pos.y;
+const BEAM = 3; // so viele Zwischenstände verfolgt der Bot parallel – einer allein läuft leicht in eine Sackgasse
+const DISTINCT = 3; // m – Zwischenstände näher beieinander gelten als derselbe Weg
+
+/** Alle Sprünge, die von b aus weiterbringen. */
+function candidates(b: State): State[] {
+  const out: State[] = [];
+  for (const t of targets(b)) {
+    for (const hold of [0.4, 0.8, 1.4, 2.2]) {
+      const r = tryHop(b, t, hold);
+      if (r && r.pos.x > b.pos.x + 2) out.push(r);
     }
-    if (!best) break;
-    s = best;
   }
-  return s;
+  return out;
+}
+
+/** Die besten n verschiedenen Zwischenstände. */
+function pickDistinct(all: State[], n: number): State[] {
+  const sorted = [...all].sort((p, q) => score(q) - score(p));
+  const out: State[] = [];
+  for (const r of sorted) {
+    if (out.every((k) => Math.abs(k.pos.x - r.pos.x) > DISTINCT || Math.abs(k.pos.y - r.pos.y) > DISTINCT)) out.push(r);
+    if (out.length === n) break;
+  }
+  return out;
+}
+
+function play(s: State, until: number): State {
+  let beam = [s];
+  let best = s;
+  for (let hops = 0; hops < 80 && best.maxX < until; hops++) {
+    const next = beam.flatMap(candidates);
+    if (next.length === 0) break;
+    beam = pickDistinct(next, BEAM);
+    for (const r of beam) if (r.maxX > best.maxX) best = r;
+  }
+  return best;
 }
 
 describe('Übungsstrasse', () => {
-  it('ist ab dem Start machbar', { timeout: 120_000 }, () => {
+  it('ist ab dem Start machbar', { timeout: 300_000 }, () => {
     let s = createState();
+    // erst nach einer menschlichen Reaktionszeit einhaken (im Video rund 1,3 s Fallen)
+    for (let i = 0; i < 1.3 * 120; i++) step(s);
+    expect(s.phase).toBe('flying');
     s = play(s, FIRST);
     expect(s.maxX).toBeGreaterThanOrEqual(FIRST);
   });
 
-  it('ist auch mit den grössten Lücken (ab voller Schwierigkeit) machbar', { timeout: 120_000 }, () => {
-    // Start knapp über dem ersten Turm ab voller Schwierigkeit, mit Starttempo
+  it('ist auch mit den grössten Lücken (ab voller Schwierigkeit) machbar', { timeout: 300_000 }, () => {
+    // Start knapp über dem ersten Turm ab voller Schwierigkeit, mit etwas Flugtempo
     const t = W.props.find((p) => p.kind === 'tower' && extentOf(p).left > DIFFICULTY.fullAt);
     if (!t || t.kind !== 'tower') throw new Error('kein Turm ab voller Schwierigkeit');
     const roof = roofOf(t);
@@ -72,7 +100,7 @@ describe('Übungsstrasse', () => {
     s.pos = { x: roof.x + roof.w / 2, y: roof.y + roof.h + 8 };
     s.maxX = s.pos.x;
     s.phase = 'flying';
-    s.vel = { ...TUNING.startVel };
+    s.vel = { x: 24, y: 6 }; // mit etwas Flugtempo, wie mitten im Lauf
     const from = s.pos.x;
     s = play(s, from + 500);
     expect(s.maxX - from).toBeGreaterThanOrEqual(500);

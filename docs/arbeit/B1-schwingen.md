@@ -296,12 +296,35 @@ Frage: Sind die Gebäude zu hoch?
 - Gegenlesen: Namen (`posBefore` entfiel mit der Energie-Rechnung),
   `updateCamera` verlangt `dt`, Verweis von `VIEW_HEIGHT` auf die Höhen.
 
+## Rückmeldung Pascal 08.11.2026: anderer Einflug, nicht nach vorne springen
+
+Im Video (IMG_185322, Läufe ab 41,7 s und 44,6 s) erscheint das Männchen
+in der Luft links vor dem ersten Turm, etwas über dessen Dach, und fällt
+sofort gerade herunter; der Zähler bleibt bei 0–2 m. Nach rund 1,3 s
+hakt der Spieler ein. Bei uns stand es still auf dem Dach und sprang beim
+ersten Tippen mit 24 m/s nach vorne.
+
+Umgesetzt:
+- **Einflug** (`startPos` −24/62, `dropInDelay` 0,5 s): kurz schweben,
+  dann senkrecht fallen; aus 62 m bleiben rund 1,8 s bis zum Boden.
+  Tippen hakt schon während des Schwebens ein, ohne Schub (`startVel`
+  entfernt).
+- Bot: Mit dem neuen Start lief der gierige Bot bei 758 m in eine
+  Sackgasse (steiler Wurf, oben still, nichts erreichbar). Er verfolgt
+  jetzt drei Wege parallel (`BEAM`) und schafft wieder beide Strecken.
+  Für einen Spieler, der nur den nächsten Sprung sieht, gibt es also
+  Sackgassen (hoher, steiler Wurf ohne erreichbaren Halt).
+- Gegenlesen: Phase heisst jetzt `dropIn`, Hinweis «Tippe auf …» über
+  `isDropIn()` bis zum ersten Einhaken; Bot hakt erst nach 1,3 s Fallen ein
+  (Reaktionszeit wie im Video); Bot-Suche in `candidates`/`pickDistinct`.
+
 ## Testanleitung für Pascal
 
 Testlink (privat): https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW
 Neu erzeugen: `npm run einzelseite -- ‹ziel.html›`, dann veröffentlichen.
 
-1. Link auf dem iPad in Safari öffnen, iPad quer halten.
+1. Link auf dem iPad in Safari öffnen, iPad quer halten. Das Männchen
+   erscheint vor dem ersten Turm und fällt gerade herunter: schnell einhaken.
 2. Auf ein Haus, einen Kran, einen Ballon oder ein Luftschiff tippen: Das
    Seil hakt dort ein, auch an der sichtbaren Seitenwand eines Turms. In den
    Himmel oder aufs Dach tippen: nichts. Tippen löst das Seil.

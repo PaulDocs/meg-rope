@@ -35,3 +35,4 @@ datum: 2026-11-08
 - Pascal: 80 m hoch, fällt zu langsam (Nachfrage), Seitenwände greifbar. Schwerkraft 40, Energiegrenze 80, onSideWall.
 - Video IMG_185322 ausgemessen (erstes Upload HEVC, nicht lesbar): Fallen passt zu g 40, Kamera wie im Vorbild oben links. Perspektive für die Grafik notiert.
 - Pascal: bleibt hängen (Fehler in applyRope behoben), Häuser zu hoch (× 0,6 nach Video).
+- Pascal: anderer Einflug. Männchen fällt jetzt vor dem ersten Turm herunter (Video), Bot mit drei parallelen Wegen.

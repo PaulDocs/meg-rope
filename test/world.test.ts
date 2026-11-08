@@ -240,12 +240,15 @@ describe('Strasse', () => {
     }
   });
 
-  it('Start liegt knapp über dem ersten Turm', () => {
+  it('Start: in der Luft vor dem ersten Turm, etwas über dem Dach', () => {
     const first = street.props[0]!;
     expect(first.kind).toBe('tower');
     if (first.kind !== 'tower') return;
     const top = roofHeight(first);
     expect(TUNING.startPos.y).toBeGreaterThan(top);
-    expect(TUNING.startPos.y).toBeLessThanOrEqual(top + 10);
+    expect(TUNING.startPos.y).toBeLessThanOrEqual(top + 15); // Video: etwas über dem Dach
+    const { left } = extentOf(first);
+    expect(TUNING.startPos.x).toBeLessThan(left); // links davor, nicht auf dem Dach
+    expect(TUNING.startPos.x).toBeGreaterThan(left - 20);
   });
 });
