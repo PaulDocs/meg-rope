@@ -57,7 +57,7 @@ Ein Browserspiel fürs iPad, in dem man mit einem Strichmännchen von Gebäude z
 - **Merge-Weg:** _noch offen_ (Standard seit 06.11.2026: Claude mergt selbst, sobald `/q-pr-pruefen` grün,
   `/q-pr-gegenlesen` ohne `issue (blocking)` und die CI komplett grün ist; reine Doku-PRs ohne CI nach dem
   Nachführen; bleibt ein Blocker: melden, nicht mergen; kein Force-Push)
-- **GitHub-API:** _noch offen_ (Token-Datei, falls PRs per API geöffnet werden)
+- **GitHub-API:** keine; Push per Deploy key (SSH `github-meg-rope`, nur dieses Repo)
 - **Dev nachziehen:** _noch offen_ (kein Dev-Checkout)
 - **Live:** _noch offen_ (Live bedient nur Pascal)
 
