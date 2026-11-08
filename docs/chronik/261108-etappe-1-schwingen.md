@@ -30,3 +30,4 @@ datum: 2026-11-08
   Flug). Endlose Strasse mit wachsenden Lücken, schneller, Kamera näher.
   Grafik verschoben auf später (Vorschlag three.js).
 - Loopings bis 3 Umdrehungen schneller, Schwung holen nach Energie (Abflug je nach Winkel). Flughöhe: Frage an Pascal.
+- Stadt abwechslungsreich nach Video (Gebäudearten, Höhen, Abstände), Looping-Schub. Nachfrage «Welt zu kurz» offen.

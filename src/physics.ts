@@ -25,6 +25,7 @@ export const TUNING = {
   pump: 7, // m/s²
   swingSpeedAtHookHeight: 50, // m/s – Energiegrenze, ausgedrückt als Tempo auf Hakenhöhe; unten je nach Seillänge schneller
   maxPumpTurns: 3, // so viele volle Umdrehungen lang wird das Kreisen schneller
+  loopBoost: 1.1, // nach jeder dieser Umdrehungen ein spürbarer Schub: Tempo × loopBoost (pump 0 schaltet ihn ab)
   pumpStartSpeed: 0.3, // m/s – langsamer gilt als «hängt still», dann stösst es sich nach vorne ab
   tautTolerance: 0.02, // m – so knapp unter der Seillänge gilt das Seil als gespannt
   airDrag: 0.02, // Luftwiderstand pro Sekunde (Anteil)
@@ -181,7 +182,10 @@ export function step(s: State, dt = STEP): void {
   applyRope(s, wasTaut);
 
   if (s.rope) {
+    const before = turnsOnRope(s);
     trackTurn(s.rope, s.pos);
+    const after = turnsOnRope(s);
+    if (shouldLoopBoost(s, before, after)) loopBoost(s);
     stepChain(s.rope.chain, dt, s.rope.anchor, s.pos);
   }
   turnBody(s, dt);
@@ -211,6 +215,17 @@ export function swingEnergy(s: State): number {
   return 0.5 * (s.vel.x ** 2 + s.vel.y ** 2) + TUNING.gravity * (s.pos.y - s.rope.anchor.y);
 }
 
+/**
+ * Schub nach einer vollen Umdrehung: Tempo × loopBoost. So wird jeder der
+ * ersten maxPumpTurns Loopings spürbar schneller – auch über der Grenze fürs
+ * Schwung holen. Ins Unendliche geht es nicht: nach maxPumpTurns ist Schluss
+ * (höchstens loopBoost^maxPumpTurns, zurzeit × 1,33).
+ */
+function loopBoost(s: State): void {
+  s.vel.x *= TUNING.loopBoost;
+  s.vel.y *= TUNING.loopBoost;
+}
+
 /** Winkel Haken → Männchen (rad). */
 function polarAngle(pos: Vec, anchor: Vec): number {
   return Math.atan2(pos.y - anchor.y, pos.x - anchor.x);
@@ -233,11 +248,20 @@ export function turnsOnRope(s: State): number {
  * unter der Grenze liegt und es noch keine maxPumpTurns Umdrehungen gemacht hat.
  */
 export function isPumping(s: State): boolean {
-  return (
-    isTaut(s) &&
-    swingEnergy(s) < 0.5 * TUNING.swingSpeedAtHookHeight ** 2 &&
-    turnsOnRope(s) < TUNING.maxPumpTurns
-  );
+  return isTaut(s) && swingEnergy(s) < energyLimit() && turnsOnRope(s) < TUNING.maxPumpTurns;
+}
+
+/** Energiegrenze je kg fürs Schwung holen (einzige Stelle, die sie festlegt). */
+export function energyLimit(): number {
+  return 0.5 * TUNING.swingSpeedAtHookHeight ** 2;
+}
+
+/**
+ * Schub nach einer vollen Umdrehung? Nur bei den ersten maxPumpTurns, bei
+ * gespanntem Seil – und nur mit Schwung holen (pump 0 schaltet auch den Schub ab).
+ */
+function shouldLoopBoost(s: State, turnsBefore: number, turnsAfter: number): boolean {
+  return turnsAfter > turnsBefore && turnsAfter <= TUNING.maxPumpTurns && isTaut(s) && TUNING.pump > 0;
 }
 
 /** Tangente an den Kreis um den Haken, Richtung gegen den Uhrzeigersinn. */

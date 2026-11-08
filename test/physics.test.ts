@@ -185,10 +185,13 @@ describe('Schwung holen und Loopings', () => {
     expect(bottom.length).toBe(6);
     // Durchgang 0 ist der Start; 1–3 nach je einer Umdrehung: jedes Mal schneller
     for (let k = 1; k <= 3; k++) expect(bottom[k]!).toBeGreaterThan(bottom[k - 1]! + 1);
-    // ab der dritten Umdrehung kein Zuwachs mehr (nur noch etwas Luftwiderstand)
-    expect(bottom[5]!).toBeLessThanOrEqual(bottom[3]! + 0.5);
-    // nicht extrem: höchstens so schnell, wie die Energiegrenze erlaubt
-    expect(Math.max(...bottom)).toBeLessThan(Math.sqrt(TUNING.swingSpeedAtHookHeight ** 2 + 2 * TUNING.gravity * 5) + 1);
+    // ganz unten kommt man kurz vor dem Schub vorbei: Durchgang 4 hat den dritten Schub schon,
+    // danach kein Zuwachs mehr (nur noch etwas Luftwiderstand)
+    expect(bottom[4]!).toBeGreaterThan(bottom[3]! + 1);
+    expect(bottom[5]!).toBeLessThanOrEqual(bottom[4]! + 0.5);
+    // nicht extrem: höchstens Energiegrenze plus die drei Schübe
+    const cap = Math.sqrt(TUNING.swingSpeedAtHookHeight ** 2 + 2 * TUNING.gravity * 5) * TUNING.loopBoost ** TUNING.maxPumpTurns;
+    expect(Math.max(...bottom)).toBeLessThan(cap + 1);
   });
 
   it('Grenze nach Energie: oben schon bei weniger Tempo Schluss mit Schwung holen', () => {
@@ -206,11 +209,12 @@ describe('Schwung holen und Loopings', () => {
     const s = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: Math.sqrt(5.2 * TUNING.gravity * 5), y: 0 });
     let top = 0;
     let bottom = 0;
-    for (let i = 0; i < 120 * 3 && turnsOnRope(s) < 2; i++) {
+    // in der zweiten Umdrehung: erst unten (gleich nach dem Schub), dann oben
+    for (let i = 0; i < 120 * 3 && top === 0; i++) {
       step(s);
-      if (turnsOnRope(s) < 1) continue; // in der zweiten Umdrehung messen, Schwung holen läuft
-      if (s.pos.y > 59.9) top = Math.hypot(s.vel.x, s.vel.y);
-      if (s.pos.y < 50.1) bottom = Math.hypot(s.vel.x, s.vel.y);
+      if (turnsOnRope(s) < 1) continue;
+      if (bottom === 0 && s.pos.y < 50.1) bottom = Math.hypot(s.vel.x, s.vel.y);
+      if (bottom > 0 && s.pos.y > 59.9) top = Math.hypot(s.vel.x, s.vel.y);
     }
     expect(isPumping(s)).toBe(true);
     expect(top).toBeGreaterThan(0);
@@ -229,6 +233,43 @@ describe('Schwung holen und Loopings', () => {
     tap(loop, loop.pos, holds); // lösen …
     tap(loop, { x: loop.pos.x + 0.5, y: Math.min(79, loop.pos.y + 6) }, holds); // … und neu einhaken
     expect(turnsOnRope(loop)).toBe(0);
+  });
+
+  it('nach jeder der ersten 3 Umdrehungen ein Schub (× loopBoost), danach keiner', () => {
+    const s = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: Math.sqrt(5.2 * TUNING.gravity * 5), y: 0 });
+    const ratios: number[] = [];
+    for (let i = 0; i < 120 * 15 && ratios.length < 5; i++) {
+      const before = turnsOnRope(s);
+      const v0 = Math.hypot(s.vel.x, s.vel.y);
+      step(s);
+      if (turnsOnRope(s) > before) ratios.push(Math.hypot(s.vel.x, s.vel.y) / v0);
+    }
+    expect(ratios.length).toBe(5);
+    // Umdrehung 1–3: deutlicher Sprung (ein Schritt Schwerkraft/Schwung holen ändert nur wenig)
+    for (const r of ratios.slice(0, 3)) expect(r).toBeGreaterThan(1 + (TUNING.loopBoost - 1) * 0.5);
+    for (const r of ratios.slice(0, 3)) expect(r).toBeLessThanOrEqual(TUNING.loopBoost + 0.01);
+    // und das dreimal hintereinander: zusammen spürbar schneller
+    expect(ratios[0]! * ratios[1]! * ratios[2]!).toBeGreaterThan(1.25);
+    // ab der 4.: kein Sprung mehr
+    for (const r of ratios.slice(3)) expect(Math.abs(r - 1)).toBeLessThan(0.01);
+  });
+
+  it('ohne Schub sind die Loopings deutlich langsamer', () => {
+    const fastestBottom = () => {
+      const s = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: Math.sqrt(5.2 * TUNING.gravity * 5), y: 0 });
+      let v = 0;
+      while (turnsOnRope(s) < 3 && s.time < 15) {
+        step(s);
+        if (s.pos.y < 50.1) v = Math.max(v, Math.hypot(s.vel.x, s.vel.y));
+      }
+      return v;
+    };
+    const withBoost = fastestBottom();
+    const old = TUNING.loopBoost;
+    TUNING.loopBoost = 1;
+    const without = fastestBottom();
+    TUNING.loopBoost = old;
+    expect(withBoost).toBeGreaterThan(without + 2);
   });
 
   it('oben im Looping langsamer als unten – wie in echt', () => {

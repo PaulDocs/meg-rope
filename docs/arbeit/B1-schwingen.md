@@ -172,6 +172,36 @@ Umgesetzt:
   steil nach oben → rund 8 m, 50 m/s → rund 31 m. **Offen: Flughöhe** –
   höher oder tiefer? Stellschraube ist die Schwerkraft (`TUNING.gravity`).
 
+## Rückmeldung Pascal 08.11.2026: Welt zu gleichförmig
+
+Pascal: Loopings ja – die ersten drei sollen spürbar schneller werden. Welt
+immer noch kurz (Nachfrage offen: was genau?). Zu einfach: zu viele gleich
+hohe und allgemein hohe Gebäude; im Video wechseln Höhen, Abstände und
+Gebäudearten.
+
+Aus dem Video (24 Bilder quer durch): Nadeltürme, gestufte Hochhäuser,
+breite Doppeltürme, kurze Blöcke; Kran auf dem Dach mit hängendem
+Container; Häuser mal dicht beieinander, mal lange Strecken nur mit Ballon
+oder Luftschiff.
+
+Umgesetzt:
+- **Fünf Gebäudearten** aus gestapelten Blöcken (`TowerStyle`: needle,
+  setback, twin, stub, slab), Höhen von 20 m bis 170 m; dieselbe Art nie
+  zweimal hintereinander.
+- **Abstände wechseln**: dicht (5–12 m), normal (`gapRange`) oder weit
+  (1,4–1,8 × normal, immer mit Ballon oder Luftschiff als Zwischenhalt). Je
+  weiter, desto öfter weit und seltener dicht, mehr kurze Blöcke
+  (`spacingOdds`).
+- **Kräne mit Container** (greifbar), öfter auch auf Dächern.
+- **Loopings**: nach jeder der ersten 3 Umdrehungen ein Schub, Tempo × 1,1
+  (`loopBoost`), zusammen × 1,33. Der Schub darf über die Grenze fürs
+  Schwung holen hinaus (sonst schluckte sie am kurzen Seil den dritten);
+  nach 3 Umdrehungen ist Schluss.
+- Gegenlesen: Gebäudearten als `buildTower()`/`TOWER_STYLES` (auch für die
+  Welt in Etappe 2), Schwierigkeit über `progress()`/`DIFFICULTY.fullAt`,
+  Dachkräne höher (Container hängt über dem Dach), Tests für Schub, Lücken
+  samt Zwischenhalt, Container und Dachkran-Mast.
+
 ## Testanleitung für Pascal
 
 Testlink (privat): https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW
@@ -187,7 +217,9 @@ Neu erzeugen: `npm run einzelseite -- ‹ziel.html›`, dann veröffentlichen.
 5. Ein paar hundert Meter weit kommen. Stimmen Tempo und Abstände? Wird es mit der
    Strecke schwerer (grössere Lücken)?
 6. In den Himmel tippen: nichts passiert. Am Boden: tippen startet neu.
-7. Schnell am kurzen Seil einhaken (z. B. an einem Kranausleger): Die ersten
-   3 Loopings werden spürbar schneller, danach nicht mehr.
+7. Schnell am kurzen Seil einhaken (z. B. an einem Kranausleger): Nach jedem
+   der ersten 3 Loopings ein spürbarer Schub, danach nicht mehr.
 8. Einmal ganz unten, einmal schräg oben lösen: Oben gelöst fliegt höher,
    unten gelöst flacher und schneller. Passt die Flughöhe – höher oder tiefer?
+9. Ein paar Kilometer fliegen: Wechseln Gebäudearten, Höhen und Abstände
+   wie im Video? Wird es spürbar schwerer?

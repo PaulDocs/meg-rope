@@ -1,5 +1,5 @@
 import { isPumping, TUNING, type State, type Vec } from './physics';
-import { extentOf, SHAPE, type Prop, type World } from './world';
+import { containerOf, extentOf, roofHeight, SHAPE, type Prop, type World } from './world';
 
 /** Kamera: welcher Weltausschnitt auf dem Bildschirm liegt. */
 export interface Camera {
@@ -30,6 +30,8 @@ const C = {
   crane: '#e0b13a',
   craneDark: '#b0841f',
   hook: '#c8452f',
+  container: '#c8452f',
+  containerRib: 'rgba(80, 20, 10, 0.35)',
   basket: '#8a5a33',
   airship: '#9aa3ad',
   airshipLight: '#c3cad2',
@@ -178,13 +180,14 @@ function drawFarCity(ctx: CanvasRenderingContext2D, cam: Camera, P: Proj, w: num
 
 /** Weicher Schatten eines Turms auf dem Boden, schräg nach hinten links. */
 function drawShadow(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'tower' }>, P: Proj): void {
-  const len = Math.min(p.h * 0.18, 18);
+  const base = p.blocks[0]!; // unterster Block steht auf dem Boden
+  const len = Math.min(roofHeight(p) * 0.18, 18);
   ctx.fillStyle = C.shadow;
   poly(ctx, [
-    [P.X(p.x), P.Y(0)],
-    [P.X(p.x + p.w), P.Y(0)],
-    [P.X(p.x + p.w - len * 0.6), P.Y(LIFT + len * 0.25)],
-    [P.X(p.x - len * 0.6), P.Y(LIFT + len * 0.25)],
+    [P.X(base.x), P.Y(0)],
+    [P.X(base.x + base.w), P.Y(0)],
+    [P.X(base.x + base.w - len * 0.6), P.Y(LIFT + len * 0.25)],
+    [P.X(base.x - len * 0.6), P.Y(LIFT + len * 0.25)],
   ]);
 }
 
@@ -233,22 +236,15 @@ function box(ctx: CanvasRenderingContext2D, P: Proj, x: number, y: number, w: nu
 
 function drawTower(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'tower' }>, P: Proj): void {
   const col = TOWER[p.color % TOWER.length]!;
-  // Schaft
-  box(ctx, P, p.x, 0, p.w, p.h, col);
-  const st = SHAPE.stepTop;
-  const s2 = SHAPE.stepTop2;
-  const sp = SHAPE.spireBase;
-  if (p.top === 'step') {
-    box(ctx, P, p.x + p.w * st.x, p.h, p.w * st.w, p.h * st.h, col);
-    box(ctx, P, p.x + p.w * s2.x, p.h * (1 + st.h), p.w * s2.w, p.h * s2.h, col);
-  }
-  if (p.top === 'spire') {
-    box(ctx, P, p.x + p.w * sp.x, p.h, p.w * sp.w, p.h * sp.h, col);
+  // Blöcke von unten nach oben, dann die Spitze
+  for (const b of p.blocks) box(ctx, P, b.x, b.y, b.w, b.h, col);
+  if (p.spire) {
+    const sp = p.spire;
     ctx.fillStyle = col.side;
     poly(ctx, [
-      [P.X(p.x + p.w * sp.x), P.Y(p.h * (1 + sp.h))],
-      [P.X(p.x + p.w * (sp.x + sp.w)), P.Y(p.h * (1 + sp.h))],
-      [P.X(p.x + p.w * (sp.x + sp.w / 2)), P.Y(p.h * (1 + SHAPE.spireTip))],
+      [P.X(sp.x), P.Y(sp.y)],
+      [P.X(sp.x + sp.w), P.Y(sp.y)],
+      [P.X(sp.x + sp.w / 2), P.Y(sp.y + sp.h)],
     ]);
   }
 }
@@ -292,13 +288,21 @@ function drawCrane(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'cran
   ctx.fillStyle = C.craneDark;
   ctx.fillRect(X(a), Y(top + 0.2), 3 * m, 2.2 * m);
   ctx.fillRect(X(p.x + 0.8), Y(top - 0.2), 2.2 * m, 2 * m);
-  // Lastseil mit rotem Haken
-  const hookX = p.x + p.jib * 0.75;
-  const hookY = Math.max(b0 + 2, top - Math.min(16, p.h * 0.6));
+  // Lastseil mit Haken, oft mit hängendem Container
+  const hookX = p.x + p.jib * SHAPE.craneHookAt;
+  const load = containerOf(p);
+  const hookY = load ? load.y + load.h : Math.max(b0 + 2, top - Math.min(16, p.h * 0.6));
   ctx.strokeStyle = C.ink;
   line(ctx, X(hookX), Y(top), X(hookX), Y(hookY));
-  ctx.fillStyle = C.hook;
-  ctx.fillRect(X(hookX - 0.6), Y(hookY), 1.2 * m, 1 * m);
+  if (load) {
+    ctx.fillStyle = C.container;
+    ctx.fillRect(X(load.x), Y(load.y + load.h), load.w * m, load.h * m);
+    ctx.fillStyle = C.containerRib;
+    for (let i = 1; i < 8; i++) ctx.fillRect(X(load.x + (i * load.w) / 8), Y(load.y + load.h), Math.max(1, 0.12 * m), load.h * m);
+  } else {
+    ctx.fillStyle = C.hook;
+    ctx.fillRect(X(hookX - 0.6), Y(hookY), 1.2 * m, 1 * m);
+  }
 }
 
 /** Heissluftballon mit Streifen, Korb und Leinen. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createState, step, tap, TUNING, type State } from '../src/physics';
-import { buildPracticeStreet } from '../src/world';
+import { buildPracticeStreet, extentOf, roofOf } from '../src/world';
 
 const W = buildPracticeStreet(7, 3600);
 const FIRST = 1500;
@@ -65,10 +65,11 @@ describe('Übungsstrasse', () => {
 
   it('ist auch mit den grössten Lücken (ab 3 km) machbar', { timeout: 120_000 }, () => {
     // Start knapp über dem ersten Turm hinter 3 km, mit Starttempo
-    const t = W.props.find((p) => p.kind === 'tower' && p.x > 3000);
+    const t = W.props.find((p) => p.kind === 'tower' && extentOf(p).left > 3000);
     if (!t || t.kind !== 'tower') throw new Error('kein Turm hinter 3 km');
+    const roof = roofOf(t);
     let s = createState();
-    s.pos = { x: t.x + t.w / 2, y: t.h + 8 };
+    s.pos = { x: roof.x + roof.w / 2, y: roof.y + roof.h + 8 };
     s.maxX = s.pos.x;
     s.phase = 'flying';
     s.vel = { ...TUNING.startVel };
