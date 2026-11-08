@@ -96,11 +96,17 @@ describe('Strasse', () => {
 
   it('Höhen wechseln stark: kurze und sehr hohe Häuser', () => {
     const heights = towers.map(roofHeight);
-    expect(Math.min(...heights)).toBeLessThan(45);
-    expect(Math.max(...heights)).toBeGreaterThan(130);
-    // viele Sprünge von mindestens 30 m zwischen Nachbarn
+    expect(Math.min(...heights)).toBeLessThan(27);
+    expect(Math.max(...heights)).toBeGreaterThan(80);
+    // nicht zu hoch (Pascal): Türme höchstens 1,5 Bildhöhen (70 m), wie im Video
+    expect(Math.max(...heights)).toBeLessThanOrEqual(105);
+    for (const p of street.props) {
+      if (p.kind === 'crane' && p.base === 0) expect(p.h).toBeLessThanOrEqual(65);
+      if (p.kind === 'balloon' || p.kind === 'airship') expect(p.y).toBeLessThanOrEqual(90);
+    }
+    // viele Sprünge von mindestens 18 m zwischen Nachbarn
     let jumps = 0;
-    for (let i = 1; i < heights.length; i++) if (Math.abs(heights[i]! - heights[i - 1]!) >= 30) jumps++;
+    for (let i = 1; i < heights.length; i++) if (Math.abs(heights[i]! - heights[i - 1]!) >= 18) jumps++;
     expect(jumps / (heights.length - 1)).toBeGreaterThan(0.4);
   });
 

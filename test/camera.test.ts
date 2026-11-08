@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { tap, createState } from '../src/physics';
-import { onSideWall, screenToWorld } from '../src/render';
+import { CAMERA_FOLLOW, FIGURE_AT, onSideWall, screenToWorld, updateCamera } from '../src/render';
 import type { World } from '../src/world';
 
 describe('Tipp auf dem Bildschirm → Ort in der Welt', () => {
@@ -61,5 +61,55 @@ describe('Seitenwand rechts der Bildmitte', () => {
     expect(onSideWall(world, cam, 1000, { x: 127, y: 30 })).toBe(true);
     expect(onSideWall(world, cam, 1000, { x: 141, y: 30 })).toBe(false); // abgewandte Seite
     expect(onSideWall(world, cam, 1000, { x: 124, y: 30 })).toBe(false);
+  });
+});
+
+describe('Kamera folgt wie im Vorbild', () => {
+  it('hält das Männchen oben links im Bild, auch wenn es hoch fliegt', () => {
+    const s = createState();
+    s.phase = 'flying';
+    s.pos = { x: 500, y: 150 };
+    const cam = { x: 0, y: 0, scale: 1 };
+    for (let i = 0; i < 60; i++) updateCamera(cam, s, 1000, 700, 1 / 60);
+    const viewW = 1000 / cam.scale;
+    const viewH = 700 / cam.scale;
+    expect((s.pos.x - cam.x) / viewW).toBeCloseTo(FIGURE_AT.x, 2);
+    expect(1 - (s.pos.y - cam.y) / viewH).toBeCloseTo(FIGURE_AT.y, 2); // Anteil von oben
+  });
+
+  it('tief unten bleibt der Boden im Bild', () => {
+    const s = createState();
+    s.phase = 'flying';
+    s.pos = { x: 50, y: 5 };
+    const cam = { x: 0, y: 0, scale: 1 };
+    for (let i = 0; i < 60; i++) updateCamera(cam, s, 1000, 700, 1 / 60);
+    expect(cam.y).toBeCloseTo(-8, 2); // Untergrenze: Boden knapp über dem unteren Rand
+    // etwas höher greift die Untergrenze nicht mehr
+    s.pos = { x: 50, y: 50 };
+    for (let i = 0; i < 60; i++) updateCamera(cam, s, 1000, 700, 1 / 60);
+    expect(cam.y).toBeCloseTo(50 - 70 * (1 - FIGURE_AT.y), 2); // Bild 70 m hoch
+  });
+
+  it('zieht eng nach, bei 60 und 120 Bildern pro Sekunde gleich', () => {
+    const s = createState();
+    s.phase = 'flying';
+    s.pos = { x: 500, y: 300 };
+    const target = 500 - 100 * FIGURE_AT.x; // 1000 px bei 10 px/m → 100 m breit
+    const a = { x: 0, y: 0, scale: 1 };
+    updateCamera(a, s, 1000, 700, 1 / 60);
+    expect(a.x).toBeCloseTo(target * CAMERA_FOLLOW, 6);
+    const b = { x: 0, y: 0, scale: 1 };
+    updateCamera(b, s, 1000, 700, 1 / 120);
+    updateCamera(b, s, 1000, 700, 1 / 120);
+    expect(b.x).toBeCloseTo(a.x, 6);
+  });
+
+  it('springt beim Neustart sofort an den Platz', () => {
+    const s = createState(); // Phase «ready»
+    s.pos = { x: 500, y: 150 };
+    const cam = { x: 0, y: 0, scale: 1 };
+    updateCamera(cam, s, 1000, 700, 1 / 60);
+    expect((s.pos.x - cam.x) / 100).toBeCloseTo(FIGURE_AT.x, 6);
+    expect(1 - (s.pos.y - cam.y) / 70).toBeCloseTo(FIGURE_AT.y, 6);
   });
 });

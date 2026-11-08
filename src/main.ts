@@ -39,14 +39,15 @@ for (const ev of ['touchstart', 'touchmove', 'gesturestart', 'contextmenu']) {
 let last = performance.now();
 let acc = 0;
 function frame(now: number): void {
-  acc += Math.min(0.25, (now - last) / 1000);
+  const dt = Math.min(0.25, (now - last) / 1000);
+  acc += dt;
   last = now;
   while (acc >= STEP) {
     step(state);
     acc -= STEP;
   }
   street.extendTo(state.pos.x + AHEAD);
-  updateCamera(cam, state, width, height);
+  updateCamera(cam, state, width, height, dt);
   draw(ctx, state, street, cam, width, height);
   requestAnimationFrame(frame);
 }

@@ -24,4 +24,4 @@ stand: 2026-11-08
 
 ### Später
 
-- Grafik in echtem 3D (three.js) – Vorschlag, Entscheid Pascal nach dem Physik-Test.
+- Grafik in echtem 3D (three.js) – Vorschlag, Entscheid Pascal nach dem Physik-Test. Pascal 08.11.2026: Das Vorbild zeigt die Welt perspektivisch, nicht als Frontansicht; das gehört in die Grafikumsetzung (heute nur einfache Perspektive in `box()`).

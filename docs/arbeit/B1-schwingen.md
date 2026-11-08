@@ -244,6 +244,58 @@ Umgesetzt:
   Seitenwand-Prüfung ausdrücklich; Tests für beide Seiten und das Dach;
   Glossar und Konzept nachgezogen.
 
+## Video IMG_185322 ausgemessen (08.11.2026)
+
+Pascal: neues Video, Geschwindigkeiten und Bewegungen ablesen. Das erste
+Upload (IMG_1853, HEVC) liess sich hier nicht öffnen; IMG_185322 ist H.264.
+Das Video bleibt lokal (`.gitignore`).
+
+Gemessen (Bilder alle 0,05–0,5 s, Meterzähler und Turmspitzen verfolgt):
+- **Bildbreite** im Vorbild rund 40 «Vorbild-Meter» (Zähler gegen
+  vorbeiziehende Türme). Darum vergleiche ich in Bildbreiten (BB), nicht in
+  Metern: das Vorbild zählt kleinere Meter als wir.
+- **Flug waagrecht**: Zähler +18 m in 0,6 s → rund 30 m/s = 0,75 BB/s. Bei
+  uns rund 55 m/s auf 93 m Bildbreite = 0,6 BB/s. Passt ungefähr.
+- **Fallen**: Ein steiler Wurf stieg rund 1,4 s und fiel ebenso lang; am
+  Ende kamen die Türme mit rund 0,6 BB/s von unten herauf. Das ergibt
+  rund 0,43 BB/s² – genau unsere Schwerkraft 40 (40 / 93 m). Mit der
+  alten 30 waren es 0,32: daher «fällt zu langsam».
+- **Kamera**: Das Männchen bleibt fast fest oben links (unter der Sonne,
+  rund 30 % von links, 25 % von oben); die Welt zieht vorbei, beim Fallen
+  kommen Häuser und Boden von unten herauf. Bei uns stand es in der
+  Bildmitte und die Kamera zog weich nach.
+- **Perspektive**: echte 3D-Kamera, Türme schräg von unten und von der
+  Seite, Boden als Fläche. Gehört zur Grafikumsetzung (`docs/STAND.md`).
+
+Umgesetzt:
+- **Kamera wie im Vorbild** (`FIGURE_AT`, `CAMERA_FOLLOW`): Männchen bei
+  30 % von links und 25 % von oben, enger nachgezogen. Unten bleibt der
+  Boden im Bild.
+- Schwerkraft bleibt 40 (bestätigt durch die Messung).
+- Gegenlesen: Kamera zieht pro Zeit nach, nicht pro Bild (gleich bei 60
+  und 120 Hz); Tests für Untergrenze, Nachziehen und Sprung beim Neustart.
+  `.gitignore` sperrt auch `*.MOV`/`*.MP4` (IMG_1853.MOV wäre sonst ins Repo).
+
+## Rückmeldung Pascal 08.11.2026: bleibt hängen, Häuser zu hoch?
+
+Pascal (Bildschirmfoto): Das Männchen hängt schräg unter dem Haken still.
+Frage: Sind die Gebäude zu hoch?
+
+- **Hängenbleiben war ein Fehler** in `applyRope`: Am gespannten Seil wurde
+  das ganze Tempo erhalten, auch der Zug der Schwerkraft nach aussen. Fast
+  still wurde daraus Tempo bergauf, das Männchen kroch und blieb hängen.
+  Jetzt folgt das Tempo am gespannten Seil der Energie (½v² + g·y, plus
+  Arbeit von Luft und Schwung holen): nichts geht verloren, nichts kommt
+  dazu. Tests: Pascals Lage, gespiegelt und ganz still; ein Pendel ohne
+  Luft und Schwung holen behält 10 s lang seine Energie (± 2 %).
+- **Ja, zu hoch**: Im Video reichen Türme etwa 0,5–1,3 Bildhöhen (bei uns
+  35–90 m), unsere waren bis 170 m. Alle Höhen rund × 0,6 (Nadel 65–100,
+  gestuft 42–78, Scheibe 48–84, doppelt 28–52, kurz 12–27 m), Bodenkräne,
+  Ballone und Luftschiffe tiefer, Start auf 50 m. Bot: weiter machbar.
+  Test: Türme höchstens 105 m, Bodenkräne 65 m, Ballone/Luftschiffe 90 m.
+- Gegenlesen: Namen (`posBefore` entfiel mit der Energie-Rechnung),
+  `updateCamera` verlangt `dt`, Verweis von `VIEW_HEIGHT` auf die Höhen.
+
 ## Testanleitung für Pascal
 
 Testlink (privat): https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW
@@ -260,5 +312,8 @@ Neu erzeugen: `npm run einzelseite -- ‹ziel.html›`, dann veröffentlichen.
 5. Mit vollem Schwung steil oben lösen: rund 80 m hoch? Fällt er danach
    schwer genug? Unten gelöst flacher und schneller.
 6. Erste 1,5 km: Wechseln Gebäudearten, Höhen und Abstände wie im Video?
+   Steht das Männchen wie im Vorbild oben links, und kommen beim Fallen
+   die Häuser von unten herauf? Passen die tieferen Häuser? Bleibt es nie
+   mehr schräg hängen?
 7. Weiter fliegen: Ab etwa 1,5 km spürbar schwerer (grössere Lücken, mehr
    weite Strecken, kurze Blöcke), bis 6 km immer schwerer?

@@ -8,7 +8,12 @@ export interface Camera {
   scale: number; // Pixel pro Meter
 }
 
-const VIEW_HEIGHT = 70; // so viele Meter sieht man in der Höhe – nah dran wie im Vorbild, Türme ragen oben hinaus
+const VIEW_HEIGHT = 70; // (Häuserhöhen in world.ts TOWER_STYLES sind darauf geeicht) so viele Meter sieht man in der Höhe – nah dran wie im Vorbild, Türme ragen oben hinaus
+// Wo das Männchen im Bild steht (Anteil von links / von oben). Im Vorbild-Video
+// (IMG_185322) bleibt es fast fest oben links unter der Sonne; die Welt zieht
+// vorbei, beim Fallen kommen Häuser und Boden von unten herauf.
+export const FIGURE_AT = { x: 0.3, y: 0.25 };
+export const CAMERA_FOLLOW = 0.35; // pro 1/60 s so viel des Abstands nachziehen – eng wie im Vorbild
 const FIGURE_SCALE = 1.6; // Figur so viel grösser zeichnen als in echt, damit man sie sieht
 const DEPTH = 9; // m – so tief sind Türme
 const PERSPECTIVE = 0.07; // wie stark man die Seiten sieht, je weiter ein Turm von der Bildmitte steht
@@ -51,12 +56,13 @@ const BALLOON = [
   ['#d9a630', '#fbefc6'],
 ];
 
-export function updateCamera(cam: Camera, s: State, w: number, h: number): void {
+/** Kamera nachziehen; `dt` ist die Zeit seit dem letzten Bild, damit es bei 60 und 120 Hz gleich wirkt. */
+export function updateCamera(cam: Camera, s: State, w: number, h: number, dt: number): void {
   cam.scale = h / VIEW_HEIGHT;
   const viewW = w / cam.scale;
-  const targetX = s.pos.x - viewW * 0.4;
-  const targetY = Math.max(-8, s.pos.y - VIEW_HEIGHT * 0.5); // Männchen in der Bildmitte, Boden sichtbar, wenn es tief ist
-  const k = s.phase === 'ready' ? 1 : 0.15; // weich nachziehen, beim Neustart springen
+  const targetX = s.pos.x - viewW * FIGURE_AT.x;
+  const targetY = Math.max(-8, s.pos.y - VIEW_HEIGHT * (1 - FIGURE_AT.y)); // Boden sichtbar, wenn es tief ist
+  const k = s.phase === 'ready' ? 1 : 1 - Math.pow(1 - CAMERA_FOLLOW, dt * 60); // beim Neustart springen
   cam.x += (targetX - cam.x) * k;
   cam.y += (targetY - cam.y) * k;
 }

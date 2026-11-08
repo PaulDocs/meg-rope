@@ -338,6 +338,52 @@ describe('Schwung holen und Loopings', () => {
     expect(-s.vel.y).toBeGreaterThan(35);
   });
 
+  it('bleibt nie schräg in der Luft hängen: fast still am gespannten Seil schwingt es nach unten', () => {
+    // Pascals Bild: schräg unter dem Haken, fast kein Tempo, ein wenig bergauf – auch gespiegelt und ganz still
+    const cases = [
+      { pos: { x: 28.1, y: 60.6 }, vel: { x: 0.4, y: 0.25 } },
+      { pos: { x: 9.9 - 18.2, y: 60.6 }, vel: { x: -0.4, y: 0.25 } },
+      { pos: { x: 28.1, y: 60.6 }, vel: { x: 0, y: 0 } },
+    ];
+    for (const c of cases) {
+      const s = hang(c.pos, { x: 9.9, y: 80 }, c.vel);
+      const y0 = s.pos.y;
+      run(s, 1);
+      expect(s.pos.y).toBeLessThan(y0 - 5); // fällt und schwingt nach unten
+      expect(Math.hypot(s.vel.x, s.vel.y)).toBeGreaterThan(10);
+    }
+  });
+
+  it('ohne Schwung holen und ohne Luft behält ein Pendel seine Energie', () => {
+    const drag = TUNING.airDrag;
+    TUNING.pump = 0;
+    TUNING.airDrag = 0;
+    try {
+      for (const start of [
+        { pos: { x: 30, y: 80 }, vel: { x: 0, y: 0 } }, // waagrecht auf Hakenhöhe aus dem Stand
+        { pos: { x: 10, y: 60 }, vel: { x: 35, y: 0 } }, // ganz unten mit Tempo
+      ]) {
+        const s = hang(start.pos, { x: 10, y: 80 }, start.vel);
+        const e0 = swingEnergy(s);
+        run(s, 10);
+        const e = swingEnergy(s);
+        const scale = Math.abs(e0) + TUNING.gravity * 20; // Energie-Massstab: 20 m Seil
+        expect(Math.abs(e - e0) / scale).toBeLessThan(0.02);
+      }
+    } finally {
+      TUNING.airDrag = drag;
+    }
+  });
+
+  it('sehr kurzes Seil, Höchsttempo: bleibt endlich und wird nicht schneller', () => {
+    const s = hang({ x: 10, y: 79 }, { x: 10, y: 80 }, { x: 200, y: 0 }); // 1 m Seil
+    for (let i = 0; i < 5; i++) {
+      step(s);
+      expect(Number.isFinite(s.vel.x) && Number.isFinite(s.vel.y)).toBe(true);
+      expect(Math.hypot(s.vel.x, s.vel.y)).toBeLessThanOrEqual(TUNING.maxSpeed * 1.2);
+    }
+  });
+
   it('am lockeren Seil holt es keinen Schwung', () => {
     const runWith = (pump: number) => {
       const old = TUNING.pump;

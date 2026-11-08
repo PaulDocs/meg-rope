@@ -136,13 +136,18 @@ export function isOnHold(pt: Vec, h: Hold, slack = GRAB_SLACK): boolean {
   return pt.x >= h.x - slack && pt.x <= h.x + h.w + slack && pt.y >= h.y - slack && pt.y <= h.y + h.h + slack;
 }
 
-/** Breite und Höhe (m) je Gebäudeart, aus dem Vorbild-Video geschätzt. */
+/**
+ * Breite und Höhe (m) je Gebäudeart, aus den Vorbild-Videos geschätzt. Höhen
+ * nach IMG_185322 rund 0,6 × der ersten Schätzung: Türme reichen dort etwa
+ * 0,5–1,3 Bildhöhen hoch (unsere Bildhöhe: 70 m), das Männchen fliegt oft
+ * über den Dächern.
+ */
 export const TOWER_STYLES: Record<TowerStyle, { w: [number, number]; h: [number, number] }> = {
-  needle: { w: [6, 9], h: [110, 170] }, // sehr hoch und schlank, lange Spitze
-  setback: { w: [10, 15], h: [70, 130] }, // nach oben in Stufen schmaler
-  twin: { w: [18, 26], h: [45, 85] }, // breiter Sockel mit zwei Kronen
-  stub: { w: [8, 14], h: [20, 45] }, // kurz und gedrungen
-  slab: { w: [9, 13], h: [80, 140] }, // schlichte hohe Scheibe
+  needle: { w: [6, 9], h: [65, 100] }, // sehr hoch und schlank, lange Spitze
+  setback: { w: [10, 15], h: [42, 78] }, // nach oben in Stufen schmaler
+  twin: { w: [18, 26], h: [28, 52] }, // breiter Sockel mit zwei Kronen
+  stub: { w: [8, 14], h: [12, 27] }, // kurz und gedrungen
+  slab: { w: [9, 13], h: [48, 84] }, // schlichte hohe Scheibe
 };
 
 /**
@@ -246,7 +251,7 @@ export function createStreet(seed = 7): Street {
     if (r < 0.1 && !lastWasCrane) {
       lastWasCrane = true;
       const counter = between(5, 8);
-      return [{ kind: 'crane', x: x + counter, base: 0, h: between(70, 100), jib: between(18, 26), counter, load: rnd() < 0.7 }];
+      return [{ kind: 'crane', x: x + counter, base: 0, h: between(45, 65), jib: between(18, 26), counter, load: rnd() < 0.7 }];
     }
     // je weiter, desto öfter kurze Blöcke (schwerer, weil tief)
     const stubShare = spacingOdds(distance).stub;
@@ -267,11 +272,11 @@ export function createStreet(seed = 7): Street {
   /** Ballon oder Luftschiff mitten in eine weite Lücke von a bis b. */
   const airIn = (a: number, b: number): Prop => {
     const mid = (a + b) / 2;
-    if (rnd() < 0.6) return { kind: 'balloon', x: mid, y: between(60, 130), r: between(3.5, 5), color: color() };
-    return { kind: 'airship', x: mid, y: between(80, 140), len: Math.min(between(22, 30), (b - a) * 0.6) };
+    if (rnd() < 0.6) return { kind: 'balloon', x: mid, y: between(40, 85), r: between(3.5, 5), color: color() };
+    return { kind: 'airship', x: mid, y: between(50, 90), len: Math.min(between(22, 30), (b - a) * 0.6) };
   };
 
-  const first: Prop = { kind: 'tower', style: 'slab', color: 0, blocks: [{ x: -14, y: 0, w: 14, h: 80 }] };
+  const first: Prop = { kind: 'tower', style: 'slab', color: 0, blocks: [{ x: -14, y: 0, w: 14, h: 50 }] };
   const props: Prop[] = [first];
   const holds: Hold[] = holdsOf(first);
   let length = 0; // rechte Kante des letzten Teils am Boden

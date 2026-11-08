@@ -34,7 +34,7 @@ export const TUNING = {
   ropeDamping: 0.995, // Anteil Tempo, den ein Seil-Glied pro Schritt behält
   looseRopeTime: 1.5, // s – so lange fällt ein gelöstes Seil, bevor es verschwindet
   spinDamping: 0.6, // Anteil Drehung, den das Männchen im freien Flug pro Sekunde behält
-  startPos: { x: 4, y: 88 } as Vec,
+  startPos: { x: 4, y: 58 } as Vec,
   startVel: { x: 24, y: 6 } as Vec,
 };
 
@@ -172,8 +172,13 @@ export function step(s: State, dt = STEP): void {
   if (s.phase !== 'flying') return;
   s.time += dt;
 
+  // Energie zu Beginn; Luft, Schwung holen und Obergrenze ändern sie unten
+  const kin = () => 0.5 * (s.vel.x ** 2 + s.vel.y ** 2);
+  const energyStart = kin() + TUNING.gravity * s.pos.y;
+
   // Schwerkraft und Luftwiderstand
   s.vel.y -= TUNING.gravity * dt;
+  const kinAfterGravity = kin();
   const drag = 1 - TUNING.airDrag * dt;
   s.vel.x *= drag;
   s.vel.y *= drag;
@@ -186,10 +191,13 @@ export function step(s: State, dt = STEP): void {
     s.vel.y *= TUNING.maxSpeed / speed;
   }
 
+  // Ziel-Energie am Ende des Schritts: Start plus Arbeit von Luft, Schwung holen und Obergrenze
+  const energyTarget = energyStart + (kin() - kinAfterGravity);
+
   const wasTaut = isTaut(s);
   s.pos.x += s.vel.x * dt;
   s.pos.y += s.vel.y * dt;
-  applyRope(s, wasTaut);
+  applyRope(s, wasTaut ? energyTarget : null);
 
   if (s.rope) {
     const before = turnsOnRope(s);
@@ -304,10 +312,13 @@ function pump(s: State, dt: number): void {
 /**
  * Seil-Länge erzwingen: zurück auf den Kreis, Tempo nach aussen wegnehmen.
  * Spannt sich das Seil gerade erst (Ruck), geht dabei Schwung verloren – wie
- * in echt. War es schon gespannt (Kreisen), bleibt das Tempo erhalten; sonst
- * würde die Rechnung in festen Schritten bei schnellen Drehungen bremsen.
+ * in echt. War es schon gespannt (`energyTarget` gesetzt), folgt das Tempo
+ * der Energie: ½v² + g·y = Ziel-Energie des Schritts. So verliert die Rechnung
+ * in festen Schritten nichts und erfindet nichts dazu. (Früher wurde das ganze
+ * Tempo erhalten; fast still wurde dann der Zug der Schwerkraft nach aussen
+ * zu Tempo bergauf, und das Männchen blieb schräg hängen.)
  */
-function applyRope(s: State, wasTaut: boolean): void {
+function applyRope(s: State, energyTarget: number | null): void {
   if (!s.rope) return;
   const dx = s.pos.x - s.rope.anchor.x;
   const dy = s.pos.y - s.rope.anchor.y;
@@ -319,14 +330,16 @@ function applyRope(s: State, wasTaut: boolean): void {
   s.pos.y = s.rope.anchor.y + ny * s.rope.length;
   const radial = s.vel.x * nx + s.vel.y * ny;
   if (radial > 0) {
-    const speed = Math.hypot(s.vel.x, s.vel.y);
     s.vel.x -= radial * nx;
     s.vel.y -= radial * ny;
-    const left = Math.hypot(s.vel.x, s.vel.y);
-    if (wasTaut && left > 1e-9) {
-      s.vel.x *= speed / left;
-      s.vel.y *= speed / left;
-    }
+  }
+  if (energyTarget === null) return;
+  const left = Math.hypot(s.vel.x, s.vel.y);
+  const v2 = 2 * (energyTarget - TUNING.gravity * s.pos.y);
+  if (left > 1e-6 && v2 > 0) {
+    const k = Math.sqrt(v2) / left;
+    s.vel.x *= k;
+    s.vel.y *= k;
   }
 }
 
