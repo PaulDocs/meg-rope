@@ -400,10 +400,10 @@ Umgesetzt:
   Hakenhöhe als Flug (vorher 0,5). Tempo ganz unten, ab dem Schwung holen
   bis zum Looping reicht: 10 m 31 m/s (vorher 35), 20 m 44 (49), 30 m 54 (60).
   Aus dem Stand weiterhin kein Looping; oben gelöst und knapp darunter neu
-  eingehakt bleibt es unter Hakenhöhe (Test). Offen (Frage an Pascal): Wer
-  still über der Hakenhöhe hängt und im ungünstigsten Winkel schräg ins Seil
-  fällt, behält nach dem Ruck rund 0,27 · g · L – das zählt jetzt knapp als
-  Flug (Test festgehalten).
+  eingehakt bleibt es unter Hakenhöhe (Test). Entschieden (Pascal 09.11.: «so
+  lassen»): Wer still über der Hakenhöhe hängt und im ungünstigsten Winkel
+  schräg ins Seil fällt, behält nach dem Ruck rund 0,27 · g · L – das zählt
+  knapp als Flug (Test festgehalten).
 - **Natürlicher Anlauf** (`pumpShare`): Hängt es still, holt es nur 20 % so
   stark Schwung; mit grösserem Schwung mehr, ab 10 m/s (ganz unten gemessen)
   voll. Die Schwünge wachsen so erst sacht, dann immer schneller. Gemessen
