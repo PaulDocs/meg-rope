@@ -17,3 +17,7 @@ coverage/
 # Lokale Daten
 *.db
 *.sqlite
+
+# Videos und Bilder vom Vorbild – nur zum Anschauen, nie ins Repo
+*.mov
+*.mp4

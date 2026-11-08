@@ -29,7 +29,7 @@ export const TUNING = {
   ropeDamping: 0.995, // Anteil Tempo, den ein Seil-Glied pro Schritt behält
   looseRopeTime: 1.5, // s – so lange fällt ein gelöstes Seil, bevor es verschwindet
   spinDamping: 0.6, // Anteil Drehung, den das Männchen im freien Flug pro Sekunde behält
-  startPos: { x: 4, y: 72 } as Vec,
+  startPos: { x: 4, y: 88 } as Vec,
   startVel: { x: 14, y: 4 } as Vec,
 };
 

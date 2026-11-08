@@ -23,3 +23,6 @@ datum: 2026-11-08
 - Zweite Rückmeldung mit Videos: Grafik, Abstände, Kräne und Ballone,
   schneller, Loopings. Umgebaut; feste Häuser entfernt, weil das Vorbild
   Kulisse zeigt. Eigener heller Look statt Kopie des Vorbilds.
+- Drittes Video (139 s) ausgewertet: Bilder mussten gedreht werden, das
+  Spiel lief quer. Umgebung nachgebaut mit Boden, Perspektive, Schatten,
+  Dachkränen und Luftschiffen. Video bleibt lokal (`.gitignore`).

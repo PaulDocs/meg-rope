@@ -26,7 +26,7 @@ sondern in `GLOSSAR.md` auf der Wurzel von ClaudeWork.
 | Gastgeber | Spieler, der eine Challenge anlegt und schliesst | `host` | Server |
 | Schwung holen | Das Männchen bewegt am gespannten Seil die Beine wie auf einer Schaukel und beschleunigt in Schwungrichtung, überall bis `maxSwingSpeed` | `pump()`, `TUNING.pump` | – |
 | Seil-Glieder | Kette, die zeigt, wie das Seil durchhängt oder fällt; die Länge des Seils bleibt fest | `Chain` (in `Rope.chain`, `LooseRope.chain`) | Seillänge (`Rope.length`) |
-| Haltepunkt | Stelle, an der das Seil einhaken kann: Turm, Kranmast, Kranausleger, Ballon | `Hold`, `isOnHold()` | Teil (`Prop`, das Gezeichnete) |
-| Übungsstrasse | 1,5 km Türme, Kräne und Ballone für Etappe 1, ohne Ziel, immer gleich | `PRACTICE_STREET`, `buildPracticeStreet()`; Typ `World` ist die gemeinsame Form von Übungsstrasse und Welt | Welt (mit Ziel, Etappe 2) |
+| Haltepunkt | Stelle, an der das Seil einhaken kann: Turm, Kranmast, Kranausleger (Kran auch auf Dächern), Ballon, Luftschiff | `Hold`, `isOnHold()` | Teil (`Prop`, das Gezeichnete) |
+| Übungsstrasse | 1,5 km Türme, Kräne, Ballone und Luftschiffe für Etappe 1, ohne Ziel, immer gleich | `PRACTICE_STREET`, `buildPracticeStreet()`; Typ `World` ist die gemeinsame Form von Übungsstrasse und Welt | Welt (mit Ziel, Etappe 2) |
 | Looping | Das Männchen dreht am gespannten Seil ganz um den Haken | – | – |
 | Einhaken / Lösen | Tippen hängt das Seil an die getippte Stelle eines Haltepunkts bzw. löst es wieder | `tap()` → `'attached'` / `'released'` | – |

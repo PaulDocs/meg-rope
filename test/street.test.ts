@@ -13,7 +13,7 @@ const clone = (s: State): State => structuredClone(s);
 function targets(s: State) {
   const out: { x: number; y: number }[] = [];
   for (const h of W.holds) {
-    if (h.kind === 'circle') {
+    if (h.kind === 'circle' || h.kind === 'ellipse') {
       if (Math.abs(h.x - s.pos.x) < 45) out.push({ x: h.x, y: h.y });
       continue;
     }

@@ -99,13 +99,36 @@ Umgesetzt:
 - Kulisse als Entscheid abgelegt: `docs/entscheide/2026-11-08-haeuser-kulisse.md`
   (Bestätigung Pascal offen).
 
+## Rückmeldung Pascal 08.11.2026 (drittes Video) und Umbau
+
+Pascal: Video `docs/IMG_1852.mov` (liegt nur lokal, `*.mov` ist in
+`.gitignore`) ansehen und die Umgebung so gut wie möglich nachbauen.
+
+Aus dem Video (richtig gedreht) abgeleitet und umgesetzt:
+- **Boden** als helle Fläche, man blickt leicht von oben; Türme werfen
+  Schatten auf den Boden.
+- **Perspektive**: Türme sind tiefe Quader; man sieht die Seite, die zur
+  Bildmitte zeigt – beim Vorbeifliegen wandert sie von rechts nach links.
+- **Türme** schlank und höher (55–110 m), ein kühler Ton mit senkrechten
+  Rillen, Absätze und Nadelspitzen; blasse Türme weit hinten.
+- **Haltepunkte** neu: Kräne auch auf Dächern, Luftschiffe; Ballone wie bisher.
+- **Seil** dünn und dunkel, Meter oben rechts, Figur etwas kleiner, Blick
+  weiter (120 m hoch).
+- Eigene Farben und Formen; nichts aus dem Vorbild kopiert.
+- Bekannt: Tippt man auf die sichtbare Seite eines Turms (nicht die Front),
+  hakt das Seil nur in der Nähe der Front-Kante ein (0,8 m Spielraum). Das
+  Leitwerk des Luftschiffs ist nur Kulisse. Entscheid Pascal, ob greifbar.
+- Gegenlesen: zweiter Turm-Absatz und Luftschiff-Hülle (jetzt Ellipse)
+  greifen wie gezeichnet; Dachkräne und Startpunkt mit Tests abgesichert.
+
 ## Testanleitung für Pascal
 
 Testlink (privat): https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW
 Neu erzeugen: `npm run einzelseite -- ‹ziel.html›`, dann veröffentlichen.
 
 1. Link auf dem iPad in Safari öffnen, iPad quer halten.
-2. Auf ein Haus, einen Kran oder einen Ballon tippen: Das Seil hakt dort ein.
+2. Auf ein Haus, einen Kran, einen Ballon oder ein Luftschiff tippen: Das
+   Seil hakt dort ein.
 3. Hängen lassen: Das Männchen holt mit den Beinen Schwung, die Schwünge
    werden grösser, mit kurzem Seil bis zum Looping.
 4. Tippen löst das Seil, das Männchen fliegt (und dreht) weiter.
