@@ -378,6 +378,12 @@ Umgesetzt:
   die Energie nicht über die Hakenhöhe reicht – an diesem Seil dann kein
   Looping. Umgekehrt zählt hochschwingen, lösen, rund 10 m fallen und
   seitlich an einem kurzen Seil einhaken als «vom Flug» – Looping möglich.
+- Nachfrage Pascal: Loopings an langen Seilen? Gemessen (Tempo ganz unten,
+  ab dem es als Flug zählt → Looping nach): 5 m 24 m/s → 1,1 s; 10 m 35 →
+  1,6 s; 20 m 49 → 2,3 s; 30 m 60 → 2,9 s; 40 m 69 → 3,6 s; 50 m 77 →
+  4,5 s. Ohne Schwung holen bräuchte es √(5·g·L) (20 m: 63 m/s). Längeres
+  Seil: schwieriger, aber möglich, und der Looping ist schneller (bis rund
+  120 statt 85 m/s). Pascal hält den Rest der Rückmeldung als Variante fest → B4.
 
 ## Testanleitung für Pascal
 
