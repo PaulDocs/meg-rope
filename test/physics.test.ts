@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { createState, energyLimit, isPumping, isTaut, step, swingEnergy, tap, turnsOnRope, TUNING, type State } from '../src/physics';
+import { createState, energyLimit, isPumping, isTaut, noSideWalls, step, swingEnergy, tap, turnsOnRope, TUNING, type State } from '../src/physics';
 import type { Hold } from '../src/world';
 
 // Ein hoher, breiter Turm von x 0 bis 20, 80 m hoch
@@ -20,7 +20,7 @@ function run(s: State, seconds: number) {
 function hang(pos: { x: number; y: number }, hook: { x: number; y: number }, vel = { x: 0, y: 0 }): State {
   const s = createState();
   s.pos = { ...pos };
-  expect(tap(s, hook, holds)).toBe('attached');
+  expect(tap(s, hook, holds, noSideWalls)).toBe('attached');
   s.vel = { ...vel };
   return s;
 }
@@ -47,14 +47,14 @@ const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.
 describe('Einhaken', () => {
   it('Tippen in den leeren Himmel hakt nicht ein', () => {
     const s = createState();
-    expect(tap(s, { x: 50, y: 60 }, holds)).toBe('missed');
+    expect(tap(s, { x: 50, y: 60 }, holds, noSideWalls)).toBe('missed');
     expect(s.rope).toBeNull();
     expect(s.phase).toBe('ready');
   });
 
   it('Hakt genau dort ein, wo getippt wird, und startet den Versuch', () => {
     const s = createState();
-    expect(tap(s, { x: 13, y: 29 }, holds)).toBe('attached');
+    expect(tap(s, { x: 13, y: 29 }, holds, noSideWalls)).toBe('attached');
     expect(s.rope?.anchor).toEqual({ x: 13, y: 29 });
     expect(s.phase).toBe('flying');
     expect(s.vel).toEqual(TUNING.startVel);
@@ -62,13 +62,13 @@ describe('Einhaken', () => {
 
   it('Hakt auch an einem Ballon ein', () => {
     const s = createState();
-    expect(tap(s, { x: 31, y: 61 }, [{ kind: 'circle', x: 30, y: 60, r: 4 }])).toBe('attached');
+    expect(tap(s, { x: 31, y: 61 }, [{ kind: 'circle', x: 30, y: 60, r: 4 }], noSideWalls)).toBe('attached');
   });
 
   it('Nochmals tippen löst das Seil', () => {
     const s = createState();
-    expect(tap(s, { x: 13, y: 26 }, holds)).toBe('attached');
-    expect(tap(s, { x: 13, y: 26 }, holds)).toBe('released');
+    expect(tap(s, { x: 13, y: 26 }, holds, noSideWalls)).toBe('attached');
+    expect(tap(s, { x: 13, y: 26 }, holds, noSideWalls)).toBe('released');
     expect(s.rope).toBeNull();
   });
 });
@@ -124,7 +124,7 @@ describe('Seil', () => {
   it('ein gelöstes Seil fällt herunter und verschwindet', () => {
     const s = hang({ x: 0, y: 60 }, { x: 20, y: 60 });
     run(s, 0.3);
-    tap(s, { x: 0, y: 0 }, holds);
+    tap(s, { x: 0, y: 0 }, holds, noSideWalls);
     expect(s.looseRopes).toHaveLength(1);
     const y0 = s.looseRopes[0]!.chain.points[0]!.y;
     run(s, 0.5);
@@ -237,8 +237,8 @@ describe('Schwung holen und Loopings', () => {
     const loop = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: Math.sqrt(5.2 * TUNING.gravity * 5), y: 0 });
     run(loop, 8);
     expect(turnsOnRope(loop)).toBeGreaterThanOrEqual(TUNING.maxPumpTurns);
-    tap(loop, loop.pos, holds); // lösen …
-    tap(loop, { x: loop.pos.x + 0.5, y: Math.min(79, loop.pos.y + 6) }, holds); // … und neu einhaken
+    tap(loop, loop.pos, holds, noSideWalls); // lösen …
+    tap(loop, { x: loop.pos.x + 0.5, y: Math.min(79, loop.pos.y + 6) }, holds, noSideWalls); // … und neu einhaken
     expect(turnsOnRope(loop)).toBe(0);
   });
 
@@ -301,7 +301,7 @@ describe('Schwung holen und Loopings', () => {
       const s = hang({ x: 0, y: 60 }, { x: 0, y: 80 }, { x: 35, y: 0 });
       TUNING.pump = 0;
       run(s, releaseAt);
-      tap(s, s.pos, holds);
+      tap(s, s.pos, holds, noSideWalls);
       const y0 = s.pos.y;
       const vy = s.vel.y;
       let apex = y0;
@@ -318,6 +318,24 @@ describe('Schwung holen und Loopings', () => {
     // Wurfhöhe v_y²/(2g); Luftwiderstand nimmt höchstens ein paar Prozent
     expect(steep.rise).toBeGreaterThan(steep.expected * 0.95);
     expect(steep.rise).toBeLessThanOrEqual(steep.expected + 0.05);
+  });
+
+  it('mit vollem Schwung steil gelöst: rund 80 m hoch (Pascal), danach fällt es schwer', () => {
+    // auf Hakenhöhe mit genau dem Grenztempo senkrecht nach oben gelöst
+    const s = hang({ x: 10, y: 60 }, { x: 0, y: 60 }, { x: 0, y: TUNING.swingSpeedAtHookHeight });
+    tap(s, s.pos, holds, noSideWalls);
+    let apex = s.pos.y;
+    let t = 0;
+    while (s.vel.y > 0) {
+      step(s);
+      t++;
+      apex = Math.max(apex, s.pos.y);
+    }
+    expect(apex - 60).toBeGreaterThan(72);
+    expect(apex - 60).toBeLessThan(85);
+    // fällt deutlich schneller als in echt (9.81): nach 1 s Fall über 35 m/s
+    for (let i = 0; i < 120; i++) step(s);
+    expect(-s.vel.y).toBeGreaterThan(35);
   });
 
   it('am lockeren Seil holt es keinen Schwung', () => {
@@ -339,7 +357,7 @@ describe('Fliegen', () => {
     const s = hang({ x: 0, y: 60 }, { x: 20, y: 60 });
     run(s, 0.5);
     const vel = { ...s.vel };
-    expect(tap(s, { x: 20, y: 60 }, holds)).toBe('released');
+    expect(tap(s, { x: 20, y: 60 }, holds, noSideWalls)).toBe('released');
     expect(s.vel).toEqual(vel);
     const x0 = s.pos.x;
     run(s, 0.5);
@@ -354,7 +372,7 @@ describe('Fliegen', () => {
     const head = { x: -Math.sin(s.angle), y: Math.cos(s.angle) };
     const toHook = { x: (20 - s.pos.x) / s.rope!.length, y: (60 - s.pos.y) / s.rope!.length };
     expect(head.x * toHook.x + head.y * toHook.y).toBeGreaterThan(0.99);
-    tap(s, s.pos, holds);
+    tap(s, s.pos, holds, noSideWalls);
     expect(s.spin).not.toBe(0);
     const a0 = s.angle;
     const spin = s.spin;
@@ -409,7 +427,7 @@ describe('Boden', () => {
     s.phase = 'flying';
     run(s, 4);
     expect(s.phase).toBe('down');
-    expect(tap(s, { x: 0, y: 0 }, holds)).toBe('restart');
+    expect(tap(s, { x: 0, y: 0 }, holds, noSideWalls)).toBe('restart');
     expect(s.phase).toBe('ready');
     expect(s.pos).toEqual(TUNING.startPos);
   });

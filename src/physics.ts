@@ -12,7 +12,7 @@ export interface Vec {
 
 /** Stellschrauben für das Spielgefühl. Pascals Rückmeldungen landen hier. */
 export const TUNING = {
-  gravity: 30, // m/s² – stärker als echt (9.81), so schwach, dass 50 m/s steil nach oben rund 40 m Wurfhöhe ergibt
+  gravity: 40, // m/s² – rund viermal echt: fällt schwer wie im Vorbild (Pascal: «fällt zu langsam»)
   bodyRadius: 0.45, // ab diesem Abstand zum Boden ist der Versuch vorbei
   minRopeLength: 1, // kürzer wird ein Seil nie, auch wenn man ganz nah tippt
   // Schwung holen: Am gespannten Seil bewegt das Männchen die Beine wie auf
@@ -23,13 +23,13 @@ export const TUNING = {
   // während der ersten maxPumpTurns Umdrehungen um einen Haken Schwung, danach
   // dreht es mit dem gewonnenen Tempo weiter.
   pump: 8, // m/s²
-  swingSpeedAtHookHeight: 60, // m/s – Energiegrenze, ausgedrückt als Tempo auf Hakenhöhe; unten je nach Seillänge schneller
+  swingSpeedAtHookHeight: 80, // m/s – Energiegrenze als Tempo auf Hakenhöhe: steil gelöst rund 80 m Wurfhöhe (v²/2g); unten je nach Seillänge schneller
   maxPumpTurns: 3, // so viele volle Umdrehungen lang wird das Kreisen schneller
   loopBoost: 1.1, // nach jeder dieser Umdrehungen ein spürbarer Schub: Tempo × loopBoost (pump 0 schaltet ihn ab)
   pumpStartSpeed: 0.3, // m/s – langsamer gilt als «hängt still», dann stösst es sich nach vorne ab
   tautTolerance: 0.02, // m – so knapp unter der Seillänge gilt das Seil als gespannt
   airDrag: 0.02, // Luftwiderstand pro Sekunde (Anteil)
-  maxSpeed: 110, // m/s – Obergrenze, damit nichts explodiert
+  maxSpeed: 130, // m/s – Obergrenze, damit nichts explodiert
   ropeSegment: 0.8, // m – Länge eines Seil-Glieds (nur Darstellung)
   ropeDamping: 0.995, // Anteil Tempo, den ein Seil-Glied pro Schritt behält
   looseRopeTime: 1.5, // s – so lange fällt ein gelöstes Seil, bevor es verschwindet
@@ -99,16 +99,26 @@ export function createState(): State {
   };
 }
 
+/** Für tap() ohne Kamera: nur die Haltepunkte der Welt zählen, keine Seitenwände. */
+export const noSideWalls = (_p: Vec): boolean => false;
+
 /** Alles auf den Anfang: neuer Versuch. */
 export function resetState(s: State): void {
   Object.assign(s, createState());
 }
 
 /**
- * Ein Tippen auf die Welt. Wechselt zwischen Einhaken und Lösen.
- * Gibt zurück, was passiert ist (für Anzeige und Tests).
+ * Ein Tippen auf die Welt: einhaken, lösen oder neu starten. Gibt zurück, was
+ * passiert ist (für Anzeige und Tests). `grabbable` meldet zusätzliche Stellen,
+ * die nur die Darstellung kennt (Seitenwände in der Perspektive); wer keine
+ * Kamera hat (Bot, Tests), übergibt bewusst `noSideWalls`.
  */
-export function tap(s: State, target: Vec, holds: Hold[]): 'attached' | 'released' | 'missed' | 'restart' {
+export function tap(
+  s: State,
+  target: Vec,
+  holds: Hold[],
+  grabbable: (p: Vec) => boolean,
+): 'attached' | 'released' | 'missed' | 'restart' {
   if (s.phase === 'down') {
     resetState(s);
     return 'restart';
@@ -117,7 +127,7 @@ export function tap(s: State, target: Vec, holds: Hold[]): 'attached' | 'release
     releaseRope(s);
     return 'released';
   }
-  if (!holds.some((h) => isOnHold(target, h))) return 'missed';
+  if (!holds.some((h) => isOnHold(target, h)) && !grabbable(target)) return 'missed';
   const anchor = { ...target };
   if (s.phase === 'ready') {
     s.phase = 'flying';

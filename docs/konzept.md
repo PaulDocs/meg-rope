@@ -32,7 +32,7 @@ zwei Spieler im lokalen Netz. Gespielt wird nacheinander, nicht gleichzeitig.
 
 - Tippen wechselt also immer zwischen **einhaken** und **lösen**. Man muss den
   Finger nicht halten.
-- **Einhaken** geht an **jedem Haltepunkt**: Turm (Front, Dach, Kante, Spitze),
+- **Einhaken** geht an **jedem Haltepunkt**: Turm (Front und sichtbare Seitenwand, Spitze; das Dach ist Kulisse, siehe `docs/entscheide/2026-11-08-haeuser-kulisse.md`),
   Kran (auch auf Dächern) samt hängendem Container, Ballon, Luftschiff. Tippt man in den leeren Himmel, passiert nichts.
 - **Gebäude sind Kulisse**: Das Männchen fliegt davor durch. Nur der
   **Boden** beendet den Versuch (Entscheid

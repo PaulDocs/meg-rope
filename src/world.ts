@@ -127,7 +127,10 @@ export function roofOf(p: Extract<Prop, { kind: 'tower' }>): Block {
 }
 
 /** Liegt der Punkt auf einem Haltepunkt (mit etwas Spielraum für Finger)? */
-export function isOnHold(pt: Vec, h: Hold, slack = 0.8): boolean {
+/** m – so viel daneben darf der Finger tippen und trifft trotzdem (Front und Seite). */
+export const GRAB_SLACK = 0.8;
+
+export function isOnHold(pt: Vec, h: Hold, slack = GRAB_SLACK): boolean {
   if (h.kind === 'circle') return Math.hypot(pt.x - h.x, pt.y - h.y) <= h.r + slack;
   if (h.kind === 'ellipse') return ((pt.x - h.x) / (h.rx + slack)) ** 2 + ((pt.y - h.y) / (h.ry + slack)) ** 2 <= 1;
   return pt.x >= h.x - slack && pt.x <= h.x + h.w + slack && pt.y >= h.y - slack && pt.y <= h.y + h.h + slack;

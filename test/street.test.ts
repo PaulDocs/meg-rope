@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createState, step, tap, TUNING, type State } from '../src/physics';
+import { createState, noSideWalls, step, tap, TUNING, type State } from '../src/physics';
 import { buildPracticeStreet, DIFFICULTY, extentOf, roofOf } from '../src/world';
 
 const W = buildPracticeStreet(7, DIFFICULTY.fullAt + 700);
@@ -28,10 +28,10 @@ function targets(s: State) {
 
 function tryHop(s0: State, t: { x: number; y: number }, hold: number): State | null {
   const s = clone(s0);
-  if (tap(s, t, W.holds) !== 'attached') return null;
+  if (tap(s, t, W.holds, noSideWalls) !== 'attached') return null;
   for (let i = 0; i < hold * 120 && s.phase === 'flying'; i++) step(s);
   if (s.phase !== 'flying') return null;
-  tap(s, s.pos, W.holds);
+  tap(s, s.pos, W.holds, noSideWalls);
   let n = 0;
   while (s.phase === 'flying' && (s.vel.y > 0 || n < 12) && n < 600) {
     step(s);

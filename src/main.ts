@@ -1,5 +1,5 @@
 import { createState, STEP, step, tap } from './physics';
-import { draw, screenToWorld, updateCamera, type Camera } from './render';
+import { draw, onSideWall, screenToWorld, updateCamera, type Camera } from './render';
 import { createStreet } from './world';
 
 const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -27,7 +27,8 @@ resize();
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   const rect = canvas.getBoundingClientRect();
-  tap(state, screenToWorld(cam, height, e.clientX - rect.left, e.clientY - rect.top), street.holds);
+  const target = screenToWorld(cam, height, e.clientX - rect.left, e.clientY - rect.top);
+  tap(state, target, street.holds, (p) => onSideWall(street, cam, width, p));
 });
 // iPad: kein Zoomen, Scrollen oder Kontextmenü
 for (const ev of ['touchstart', 'touchmove', 'gesturestart', 'contextmenu']) {

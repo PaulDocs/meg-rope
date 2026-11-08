@@ -222,6 +222,28 @@ Umgesetzt:
   dass sie gültig bleiben; Strassentests bis 6,7 km; Test «oben langsamer»
   rechnet den Zuwachs durch Schwung holen genau nach.
 
+## Rückmeldung Pascal 08.11.2026: 80 m hoch, fällt zu langsam, Seitenwände
+
+Pascal: Flughöhe auf 80 m. Die Fallgeschwindigkeit stimmt nicht, sie soll
+etwa einem 80-kg-Gewicht entsprechen. Auf Nachfrage: Er fällt zu langsam.
+Das Seil soll auch an den Seitenwänden einhaken.
+
+Umgesetzt:
+- **Fällt schwerer**: Schwerkraft 30 → 40. Nach 1 s Fall über 35 m/s.
+- **Trotzdem 80 m hoch**: Energiegrenze 60 → 80 m/s auf Hakenhöhe. Mit
+  vollem Schwung steil gelöst steigt er rund 80 m (v²/2g). Richtwert, keine
+  Obergrenze: mit Looping-Schüben geht es höher. Obergrenze
+  110 → 130 m/s (unten am langen Seil plus Looping-Schübe).
+- **Seitenwände greifbar** (`onSideWall`): Was in der Perspektive von der
+  Seite sichtbar ist, hakt ein. Das Dach bleibt Kulisse.
+- Bot: erste 1,6 km in 35 s (vorher 37 s), höchster Punkt 117 m; ab 6 km
+  noch machbar. Der Bot greift nur an Haltepunkten, nicht an Seitenwänden
+  (er hat keine Kamera) – im Spiel ist es also eher leichter.
+- Gegenlesen: Perspektive für Zeichnen und Treffen geteilt (`sideFace`,
+  `viewMid`), gemeinsame Fingertoleranz `GRAB_SLACK`, `tap()` verlangt die
+  Seitenwand-Prüfung ausdrücklich; Tests für beide Seiten und das Dach;
+  Glossar und Konzept nachgezogen.
+
 ## Testanleitung für Pascal
 
 Testlink (privat): https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW
@@ -229,13 +251,14 @@ Neu erzeugen: `npm run einzelseite -- ‹ziel.html›`, dann veröffentlichen.
 
 1. Link auf dem iPad in Safari öffnen, iPad quer halten.
 2. Auf ein Haus, einen Kran, einen Ballon oder ein Luftschiff tippen: Das
-   Seil hakt dort ein. In den Himmel tippen: nichts. Tippen löst das Seil.
+   Seil hakt dort ein, auch an der sichtbaren Seitenwand eines Turms. In den
+   Himmel oder aufs Dach tippen: nichts. Tippen löst das Seil.
 3. Hängen lassen: Das Männchen holt mit den Beinen Schwung, die Schwünge
    werden grösser. Am Boden: tippen startet neu.
 4. Schnell am kurzen Seil einhaken (z. B. an einem Kranausleger): Nach jedem
    der ersten 3 Loopings ein spürbarer Schub, danach nicht mehr.
-5. Schräg oben lösen: Fliegt er jetzt hoch genug (steil oben rund 40 m)? Unten
-   gelöst flacher und schneller. Reicht der Schwung im Vergleich zum Vorbild?
+5. Mit vollem Schwung steil oben lösen: rund 80 m hoch? Fällt er danach
+   schwer genug? Unten gelöst flacher und schneller.
 6. Erste 1,5 km: Wechseln Gebäudearten, Höhen und Abstände wie im Video?
 7. Weiter fliegen: Ab etwa 1,5 km spürbar schwerer (grössere Lücken, mehr
    weite Strecken, kurze Blöcke), bis 6 km immer schwerer?

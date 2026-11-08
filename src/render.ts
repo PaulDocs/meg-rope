@@ -1,5 +1,5 @@
 import { isPumping, TUNING, type State, type Vec } from './physics';
-import { containerOf, extentOf, roofHeight, SHAPE, type Prop, type World } from './world';
+import { containerOf, extentOf, GRAB_SLACK, roofHeight, SHAPE, type Prop, type World } from './world';
 
 /** Kamera: welcher Weltausschnitt auf dem Bildschirm liegt. */
 export interface Camera {
@@ -61,6 +61,38 @@ export function updateCamera(cam: Camera, s: State, w: number, h: number): void 
   cam.y += (targetY - cam.y) * k;
 }
 
+/**
+ * Liegt ein Punkt (in Weltkoordinaten) auf einer sichtbaren Seitenwand eines
+ * Turms? Die Seite hängt von der Kamera ab (Perspektive wie in box()). Pascal
+ * 08.11.2026: Das Seil hakt auch an den Seitenwänden ein; das Dach bleibt Kulisse.
+ */
+/** Welt-x der Bildmitte: von hier aus richtet sich die Perspektive. */
+function viewMid(cam: Camera, w: number): number {
+  return cam.x + w / cam.scale / 2;
+}
+
+/** Sichtbare Seite eines Quaders: Versatz der Rückseite (dx) und x der Frontkante, an der die Seite ansetzt. */
+function sideFace(x: number, w: number, mid: number): { dx: number; sideX: number } {
+  const dx = -(x + w / 2 - mid) * PERSPECTIVE;
+  return { dx, sideX: dx < 0 ? x : x + w }; // sichtbare Seite: zur Mitte hin
+}
+
+export function onSideWall(world: World, cam: Camera, w: number, pt: Vec, slack = GRAB_SLACK): boolean {
+  const mid = viewMid(cam, w);
+  for (const p of world.props) {
+    if (p.kind !== 'tower') continue;
+    for (const b of p.blocks) {
+      const { dx, sideX } = sideFace(b.x, b.w, mid);
+      if (Math.abs(dx) < 1e-6) continue;
+      const u = (pt.x - sideX) / dx; // 0 an der Frontkante, 1 an der Hinterkante
+      if (u < -slack / Math.abs(dx) || u > 1 + slack / Math.abs(dx)) continue;
+      const yb = b.y + Math.min(1, Math.max(0, u)) * LIFT;
+      if (pt.y >= yb - slack && pt.y <= yb + b.h + slack) return true;
+    }
+  }
+  return false;
+}
+
 export function screenToWorld(cam: Camera, h: number, sx: number, sy: number): Vec {
   return { x: cam.x + sx / cam.scale, y: cam.y + (h - sy) / cam.scale };
 }
@@ -73,7 +105,7 @@ export function draw(ctx: CanvasRenderingContext2D, s: State, world: World, cam:
     X: (x) => (x - cam.x) * cam.scale,
     Y: (y) => h - (y - cam.y) * cam.scale,
     m: cam.scale,
-    mid: cam.x + viewW / 2,
+    mid: viewMid(cam, w),
   };
   drawSky(ctx, cam, w, h);
   drawFloor(ctx, P, w, h);
@@ -202,13 +234,12 @@ function drawProp(ctx: CanvasRenderingContext2D, p: Prop, P: Proj): void {
  * Quader in einfacher Perspektive: Die Rückseite ist zur Bildmitte hin
  * verschoben und etwas angehoben. So sieht man bei Türmen rechts der Mitte
  * die linke Seite, links der Mitte die rechte – wie mit einer echten Kamera.
- * Seite und Dach sind nur Kulisse: greifbar ist die Front (Haltepunkte in
- * world.ts). So entschieden von Pascal am 08.11.2026.
+ * Greifbar sind Front (Haltepunkte in world.ts) und Seite (onSideWall); das
+ * Dach ist Kulisse. So entschieden von Pascal am 08.11.2026.
  */
 function box(ctx: CanvasRenderingContext2D, P: Proj, x: number, y: number, w: number, h: number, col: (typeof TOWER)[number]): void {
-  const dx = -(x + w / 2 - P.mid) * PERSPECTIVE;
+  const { dx, sideX } = sideFace(x, w, P.mid);
   const dy = LIFT;
-  const sideX = dx < 0 ? x : x + w; // sichtbare Seite: zur Mitte hin
   // Seite
   ctx.fillStyle = col.side;
   poly(ctx, [

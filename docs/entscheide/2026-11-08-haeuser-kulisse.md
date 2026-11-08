@@ -23,4 +23,8 @@ entfernt (zweiter B1-Umbau). Das Konzept ist nachgezogen.
 **Ergänzung 08.11.2026 (Pascal):** Durch die Perspektive sieht man auch die
 Seite eines Turms. Greifbar ist nur die Front; Seite und Dach sind Kulisse.
 
+**Änderung 08.11.2026 (Pascal):** Das Seil hakt jetzt auch an den sichtbaren
+Seitenwänden ein (`onSideWall` in render.ts, weil die Seite von der Kamera
+abhängt). Das Dach bleibt Kulisse.
+
 **Offen:** Pascal bestätigt beim nächsten Test, dass Häuser nur Kulisse sind.
