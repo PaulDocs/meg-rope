@@ -91,10 +91,10 @@ Umgesetzt:
 ## Gemessen
 
 - Senkrecht ins Seil nach 11 m Fall: 56 % übrig; 45° schräg: 75 %.
-- Aus dem Stand (09.11., sachter Anlauf, Loopings ab 6 g halb so teuer):
-  Looping am 5-m-Seil nach 4,3 s, Kraft leer nach 13,7 s (lässt los); 10 m:
-  Looping nach 5,7 s, nach 40 s noch 2 %; 20 m: 6,9 s, nach 40 s noch 67 %;
-  30 m: 8,2 s, nach 40 s noch 84 %.
+- Aus dem Stand (09.11., Schwung holen wie auf einer Schaukel, siehe B1;
+  Loopings ab 6 g halb so teuer): Looping am 5-m-Seil nach 7,0 s, Kraft
+  leer nach 17,5 s (lässt los); 10 m: 8,9 s / 23,9 s; 20 m: 10,2 s, nach
+  40 s noch 53 %; 30 m: 21,5 s / 24,8 s.
 - Ruhiges Pendeln bis knapp unter Hakenhöhe (unten 3 g) kostet nichts.
 
 ## Testanleitung für Pascal

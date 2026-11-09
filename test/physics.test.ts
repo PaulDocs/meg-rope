@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { createState, isDropIn, energyLimit, isPumping, pumpShare, isTaut, noSideWalls, step, swingEnergy, tap, turnsOnRope, TUNING, type State } from '../src/physics';
+import { createState, isDropIn, energyLimit, isPumping, pumpAccel, pumpShare, isTaut, noSideWalls, step, swingEnergy, tap, turnsOnRope, TUNING, type State } from '../src/physics';
 import type { Hold } from '../src/world';
 
 // Ein hoher, breiter Turm von x 0 bis 20, 80 m hoch
@@ -8,8 +8,10 @@ const holds = [tower];
 
 // Tests, die eine Stellschraube ändern, stellen sie hier sicher zurück
 const pumpDefault = TUNING.pump;
+const dragDefault = TUNING.airDrag;
 afterEach(() => {
   TUNING.pump = pumpDefault;
+  TUNING.airDrag = dragDefault;
 });
 
 function run(s: State, seconds: number) {
@@ -138,7 +140,8 @@ describe('Schwung holen und Loopings', () => {
   it('holt am Seil selbst Schwung – hängt nie einfach still', () => {
     const s = hang({ x: 10, y: 30 }, { x: 10, y: 40 });
     let farthest = 0;
-    for (let i = 0; i < 120 * 4; i++) {
+    // Anlauf von Schwung zu Schwung (09.11.): 10 m Seil nach rund 4,7 s über 30°
+    for (let i = 0; i < 120 * 6; i++) {
       step(s);
       farthest = Math.max(farthest, Math.abs(s.pos.x - 10));
     }
@@ -173,57 +176,161 @@ describe('Schwung holen und Loopings', () => {
     }
   });
 
-  it('Schwung holen läuft sacht an: still hängend wenig, ab pumpFullSpeed voll – über den ganzen Schwung gleich', () => {
-    // Pascal 09.11.: nach dem Fall ins Seil soll es natürlich anlaufen
+  it('Schwung holen wie auf einer Schaukel: kleiner Anstoss plus Anteil des Tempos, über Hakenhöhe nur wenig', () => {
+    // Pascal 09.11.: der erste Schwung nach einem Fall ins Seil soll nach Physik wirken
     const still = hang({ x: 10, y: 50 }, { x: 10, y: 55 });
     step(still);
-    expect(pumpShare(still)).toBeCloseTo(TUNING.pumpMinShare, 9);
-    // ganz unten mit halbem pumpFullSpeed: halbe Kraft
-    const half = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: TUNING.pumpFullSpeed / 2, y: 0 });
-    step(half);
-    expect(pumpShare(half)).toBeCloseTo(0.5, 1);
-    // derselbe Schwung am Umkehrpunkt gemessen: gleich viel (nicht weniger, weil es dort langsam ist)
-    for (let i = 0; i < 240 && Math.hypot(half.vel.x, half.vel.y) > 0.5; i++) step(half);
-    expect(Math.hypot(half.vel.x, half.vel.y)).toBeLessThan(0.5); // wirklich am Umkehrpunkt
-    expect(pumpShare(half)).toBeGreaterThan(0.4);
-    const big = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: TUNING.pumpFullSpeed + 2, y: 0 });
-    step(big);
-    expect(pumpShare(big)).toBe(1);
-    // nicht am Seil oder locker: 0
-    expect(pumpShare(createState())).toBe(0);
+    expect(pumpAccel(still)).toBeGreaterThanOrEqual(TUNING.pumpStart); // Anstoss aus dem Stillstand
+    expect(pumpAccel(still)).toBeLessThan(TUNING.pumpStart + TUNING.pumpGrowth * 0.5);
+    // ganz unten mit 5 m/s: Anstoss + 1,2·5
+    const v5 = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: 5, y: 0 });
+    step(v5);
+    expect(pumpAccel(v5)).toBeCloseTo(TUNING.pumpStart + TUNING.pumpGrowth * Math.hypot(v5.vel.x, v5.vel.y), 1);
+    // schnell, aber unter Hakenhöhe: höchstens pump
+    const fast = hang({ x: 10, y: 40 }, { x: 10, y: 60 }, { x: 25, y: 0 }); // 20 m, Energie 312 − 800 < 0
+    step(fast);
+    expect(pumpAccel(fast)).toBe(TUNING.pump);
+    // vom Flug über Hakenhöhe, noch kein Looping: nur pumpHigh
+    const high = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: 26, y: 0 }); // Energie 138 > 0
+    step(high);
+    expect(high.rope!.pumpLimit).toBe(energyLimit());
+    expect(pumpAccel(high)).toBe(TUNING.pumpHigh);
+    expect(pumpShare(high)).toBeCloseTo(TUNING.pumpHigh / TUNING.pump, 9);
+    // in der Variante «Freier Schwung» dort voll
+    const free = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: 26, y: 0 });
+    free.variant = 'free';
+    step(free);
+    expect(pumpAccel(free)).toBe(TUNING.pump);
+    // nicht am Seil: 0; pump 0 schaltet alles ab
+    expect(pumpAccel(createState())).toBe(0);
+    TUNING.pump = 0;
+    expect(pumpAccel(high)).toBe(0);
   });
 
-  it('nach dem Fall ins Seil: die ersten Schwünge bleiben klein (sachter Anlauf)', () => {
-    const swingOut = () => {
-      const s = hang({ x: 10, y: 30 }, { x: 10, y: 40 }); // 10 m, hängt still
-      let far = 0;
-      for (let i = 0; i < 120; i++) {
+  it('nach dem Fall ins Seil wachsen die Schwünge von Schwung zu Schwung, nicht in einem Zug', () => {
+    // 10 m Seil, hängt still: Umkehrpunkte zählen, Ausschlag je Schwung messen
+    const s = hang({ x: 10, y: 30 }, { x: 10, y: 40 });
+    const amps: number[] = [];
+    let last = 0;
+    for (let i = 0; i < 120 * 8 && amps.length < 4; i++) {
+      step(s);
+      if (last !== 0 && Math.sign(s.vel.x) !== Math.sign(last)) amps.push(Math.abs(s.pos.x - 10));
+      if (s.vel.x !== 0) last = s.vel.x;
+    }
+    expect(amps.length).toBe(4);
+    expect(amps[0]!).toBeLessThan(1.5); // der erste Schwung ist klein
+    for (let k = 1; k < 4; k++) expect(amps[k]!).toBeGreaterThan(amps[k - 1]!); // jeder grösser
+  });
+
+  it('Looping vom Flug: höchstens 3 Looping-Anläufe, mit zu wenig Schwung nie, mit viel gleich beim ersten', () => {
+    // Pascal 09.11.: 1–3 Versuche; mit zu wenig Schwung auch nach 3 nicht
+    const g = TUNING.gravity;
+    const tries = (L: number, e: number): { n: number; limit: number | null } => {
+      const s = hang({ x: 10, y: 40 - L }, { x: 10, y: 40 }, { x: Math.sqrt(2 * (e * g * L + g * L)), y: 0 });
+      let above = false;
+      let n = 0;
+      for (let i = 0; i < 120 * 30; i++) {
         step(s);
-        far = Math.max(far, Math.abs(s.pos.x - 10));
+        const a = s.pos.y > 40;
+        if (a && !above) n++;
+        above = a;
+        if (isTaut(s) && s.pos.y > 40 + L - 0.1) return { n, limit: s.rope!.pumpLimit };
       }
-      return far;
+      return { n: -1, limit: s.rope!.pumpLimit }; // nie
     };
-    const gentle = swingOut();
-    expect(gentle).toBeLessThan(2);
-    const share = TUNING.pumpMinShare;
-    TUNING.pumpMinShare = 1;
-    try {
-      expect(swingOut()).toBeGreaterThan(2 * gentle); // ohne Anlauf schlägt es deutlich weiter aus
-    } finally {
-      TUNING.pumpMinShare = share;
+    for (const L of [5, 10, 20, 30]) {
+      // Raster 0,44 … 0,8: erst nie, dann 3, 2, 1 – nie mehr als 3, nie wieder schlechter
+      const ns: number[] = [];
+      for (let e = 0.44; e <= 0.8001; e += 0.02) ns.push(tries(L, e).n);
+      expect(ns[0]).toBe(-1);
+      expect(ns[ns.length - 1]).toBe(1);
+      expect(ns).toContain(3);
+      const first = ns.findIndex((n) => n !== -1);
+      for (let k = first; k < ns.length; k++) {
+        expect(ns[k]!).toBeGreaterThanOrEqual(1);
+        expect(ns[k]!).toBeLessThanOrEqual(3);
+        if (k > first) expect(ns[k]!).toBeLessThanOrEqual(ns[k - 1]!);
+      }
+      expect(tries(L, 0.3).n).toBe(-1); // aus dem Stand
+      // knapp über der Flug-Schwelle: vom Flug, aber zu wenig – nach 3 Versuchen nur noch bis Hakenhöhe
+      const few = tries(L, 0.45);
+      expect(few.n).toBe(-1);
+      expect(few.limit).toBe(0);
+      const ok = tries(L, 0.6).n;
+      expect(ok).toBeGreaterThanOrEqual(2);
+      expect(ok).toBeLessThanOrEqual(3);
+      expect(tries(L, 1).n).toBe(1);
     }
   });
 
-  it('entschieden (Pascal 09.11.: so lassen): schräg fallen lassen und neu einhaken kann knapp als Flug zählen', () => {
-    // ungünstigster Winkel: still über der Hakenhöhe, sin θ = 1/√6 – nach dem Ruck rund 0,27·g·L > flightEnergy 0,2
+  it('nach 3 misslungenen Looping-Anläufen holt es an diesem Seil nur noch bis Hakenhöhe Schwung', () => {
+    const L = 10;
+    const g = TUNING.gravity;
+    const s = hang({ x: 10, y: 40 - L }, { x: 10, y: 40 }, { x: Math.sqrt(2 * (0.45 * g * L + g * L)), y: 0 });
+    step(s);
+    expect(s.rope!.pumpLimit).toBe(energyLimit()); // vom Flug
+    for (let i = 0; i < 120 * 30 && s.rope!.pumpLimit !== 0; i++) step(s);
+    expect(s.rope!.loopTries).toBe(TUNING.maxLoopTries);
+    expect(s.rope!.pumpLimit).toBe(0);
+    expect(s.rope!.looped).toBe(false);
+  });
+
+  it('über den Haken hinweg gefallen ist kein Looping: danach nicht wieder voll Schwung holen', () => {
+    // misslungener Versuch: fällt locker über den Haken – der Netto-Winkel zählt, ein Looping ist es nicht
+    const L = 30;
+    const g = TUNING.gravity;
+    const s = hang({ x: 10, y: 40 - L }, { x: 10, y: 40 }, { x: Math.sqrt(2 * (0.46 * g * L + g * L)), y: 0 });
+    let fellOver = false;
+    for (let i = 0; i < 120 * 30 && !s.rope!.looped; i++) {
+      step(s);
+      if (turnsOnRope(s) >= 1 && !s.rope!.looped) fellOver = true;
+      if (!s.rope!.looped && swingEnergy(s) >= 0 && isTaut(s)) expect(pumpAccel(s)).toBeLessThanOrEqual(TUNING.pumpHigh);
+    }
+    expect(fellOver).toBe(true);
+    expect(s.rope!.loopTries).toBeGreaterThanOrEqual(1); // das Darüberfallen war ein Anlauf
+  });
+
+  it('kein Schub fürs Darüberfallen: loopBoost nur nach echtem Looping', () => {
+    const L = 30;
+    const g = TUNING.gravity;
+    const s = hang({ x: 10, y: 40 - L }, { x: 10, y: 40 }, { x: Math.sqrt(2 * (0.46 * g * L + g * L)), y: 0 });
+    for (let i = 0; i < 120 * 30 && !s.rope!.looped; i++) {
+      const before = turnsOnRope(s);
+      const v = Math.hypot(s.vel.x, s.vel.y);
+      step(s);
+      if (turnsOnRope(s) > before) expect(Math.hypot(s.vel.x, s.vel.y)).toBeLessThan(v * 1.05); // kein × loopBoost
+    }
+  });
+
+  it('wer oben am Kreis einhakt, hat damit keinen Looping – und es ist schon ein Anlauf', () => {
+    // ganz oben über dem Haken, vom Flug: noch kein echter Looping, nur pumpHigh
+    const top = hang({ x: 10, y: 60 }, { x: 10, y: 55 }, { x: -15, y: 0 });
+    step(top);
+    expect(top.rope!.looped).toBe(false);
+    expect(top.rope!.loopTries).toBe(1);
+    expect(pumpAccel(top)).toBe(TUNING.pumpHigh);
+    // schräg über dem Haken eingehakt: zählt als erster Anlauf, nach 3 misslungenen ist Schluss
+    const g = TUNING.gravity;
+    const L = 10;
+    const s = hang({ x: 10 - L * 0.8, y: 40 + L * 0.6 }, { x: 10, y: 40 }, { x: 0, y: -Math.sqrt(0.9 * g * L) });
+    expect(s.rope!.loopTries).toBe(1);
+    for (let i = 0; i < 120 * 30 && !s.rope!.looped && s.rope!.pumpLimit !== 0; i++) step(s);
+    if (!s.rope!.looped) {
+      expect(s.rope!.loopTries).toBe(TUNING.maxLoopTries);
+      expect(s.rope!.pumpLimit).toBe(0);
+    }
+  });
+
+  it('schräg fallen lassen und neu einhaken zählt nicht mehr als Flug (Pascal 09.11.: Trick zu leicht)', () => {
+    // ungünstigster Winkel: still über der Hakenhöhe, sin θ = 1/√6 – nach dem Ruck rund 0,27·g·L < flightEnergy
     const L = 10;
     const sin = 1 / Math.sqrt(6);
     const cos = Math.sqrt(1 - sin * sin);
     const s = hang({ x: 10 - L * cos, y: 40 + L * sin }, { x: 10, y: 40 });
     for (let i = 0; i < 240 && s.rope!.pumpLimit === null; i++) step(s);
-    expect(swingEnergy(s)).toBeGreaterThan(TUNING.flightEnergy * TUNING.gravity * L);
-    expect(swingEnergy(s)).toBeLessThan(0.28 * TUNING.gravity * L);
-    expect(s.rope!.pumpLimit).toBe(energyLimit());
+    expect(swingEnergy(s)).toBeGreaterThan(0.2 * TUNING.gravity * L);
+    expect(swingEnergy(s)).toBeLessThan(TUNING.flightEnergy * TUNING.gravity * L);
+    expect(s.rope!.pumpLimit).toBe(0);
   });
 
   it('aus dem Stand endet Schwung holen auf Hakenhöhe, vom Flug erst bei der Energiegrenze', () => {
@@ -455,6 +562,9 @@ describe('Schwung holen und Loopings', () => {
   });
 
   it('oben im Looping langsamer als unten – wie in echt', () => {
+    // mit Luft verliert es auf der halben Runde rund 7 % (gemessen 747 statt 800) – ohne lässt sich die
+    // Energie genau vergleichen. Dass die Loopings auch mit Luft zustande kommen: Test darunter.
+    TUNING.airDrag = 0; // afterEach stellt zurück
     const s = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: Math.sqrt(5.2 * TUNING.gravity * 5), y: 0 });
     let top = 0;
     let bottom = 0;
@@ -468,6 +578,31 @@ describe('Schwung holen und Loopings', () => {
     // Energie bleibt: unten² − oben² = 2·g·(2·L)
     expect(bottom ** 2 - top ** 2).toBeCloseTo(2 * TUNING.gravity * 10, -2);
     expect(top).toBeLessThan(bottom - 3);
+  });
+
+  it('mit Luftwiderstand: vom Flug mit √(5,2·g·L) dreht es seine ersten Loopings in wenigen Sekunden', () => {
+    const s = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: Math.sqrt(5.2 * TUNING.gravity * 5), y: 0 });
+    let t = -1;
+    for (let i = 0; i < 120 * 8 && t < 0; i++) {
+      step(s);
+      if (turnsOnRope(s) >= TUNING.maxPumpTurns) t = i / 120;
+    }
+    expect(t).toBeGreaterThan(0);
+    expect(t).toBeLessThan(4);
+    expect(s.rope!.looped).toBe(true);
+    // danach (ohne Schwung holen) oben langsamer als unten; Luft kostet auf der halben Runde etwas
+    let top = 0;
+    for (let i = 0; i < 120 * 2; i++) {
+      step(s);
+      if (s.pos.y > 59.9) top = Math.hypot(s.vel.x, s.vel.y);
+      if (top > 0 && s.pos.y < 50.1) break;
+    }
+    const bottom = Math.hypot(s.vel.x, s.vel.y);
+    const ideal = 2 * TUNING.gravity * 2 * 5;
+    expect(top).toBeGreaterThan(0);
+    expect(top).toBeLessThan(bottom - 3);
+    expect(bottom ** 2 - top ** 2).toBeLessThanOrEqual(ideal);
+    expect(bottom ** 2 - top ** 2).toBeGreaterThan(0.85 * ideal); // gemessen rund 0,93
   });
 
   it('Abflug je nach Winkel: steiler gelöst fliegt höher, die Höhe folgt der Physik', () => {

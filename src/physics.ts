@@ -25,24 +25,30 @@ export const TUNING = {
   //   Energiegrenze, siehe standingLimit()). Bis dorthin bleibt das Seil gespannt, es fällt also
   //   nicht zurück ins Seil und stockt nicht.
   // - Mit Tempo vom Flug (Energie über flightEnergy) bis swingSpeedAtHookHeight:
-  //   daraus werden Loopings. Oben im Kreis ist es langsamer als unten, wie bei
-  //   einer echten Schaukel; bei pump 22 ist der Unterschied in den ersten
-  //   maxPumpTurns Umdrehungen klein, danach wieder voll. Nach maxPumpTurns
-  //   Umdrehungen um einen Haken dreht es mit dem gewonnenen Tempo weiter.
-  pump: 22, // m/s² – Schwünge erreichen rasch die Hakenhöhe (mit 8 stockten sie bei g 40 schon darunter)
+  //   über Hakenhöhe zuerst nur schwach (pumpHigh, höchstens maxLoopTries
+  //   Looping-Anläufe), nach dem ersten Looping voll. Oben im Kreis ist es langsamer
+  //   als unten, wie bei einer echten Schaukel; in den ersten maxPumpTurns
+  //   Umdrehungen ist der Unterschied klein, danach wieder voll. Danach dreht
+  //   es mit dem gewonnenen Tempo weiter. Wie stark es holt: pumpAccel().
+  pump: 22, // m/s² – volles Schwung holen: Obergrenze unter Hakenhöhe (pumpAccel), nach dem ersten Looping und im Freien Schwung; 0 schaltet alles ab
   swingSpeedAtHookHeight: 80, // m/s – Energiegrenze als Tempo auf Hakenhöhe: steil gelöst rund 80 m Wurfhöhe (v²/2g); unten je nach Seillänge schneller
   // Ab dieser Energie über Hakenhöhe (Anteil von g·Seillänge) zählt es als «vom Flug».
-  // Pascal 09.11.: 0,5 war zu schwer. Fallen lassen und neu einhaken gibt nach
-  // dem Ruck höchstens rund 0,27·g·L (senkrecht ins Seil: nichts); oben am
-  // Schwung gelöst und knapp darunter eingehakt bleibt es unter Hakenhöhe.
-  flightEnergy: 0.2,
+  // Pascal 09.11.: 0,2 war mit dem Trick zu leicht («20 % mehr»): Fallen lassen
+  // und neu einhaken gibt nach dem Ruck höchstens rund 0,27·g·L, das reicht
+  // nicht mehr. Ab 0,5 klappt der Looping nach 3 Versuchen (siehe pumpHigh).
+  flightEnergy: 0.44,
   maxPumpTurns: 3, // so viele volle Umdrehungen lang wird das Kreisen schneller
   loopBoost: 1.1, // nach jeder dieser Umdrehungen ein spürbarer Schub: Tempo × loopBoost (pump 0 schaltet ihn ab)
-  pumpStartSpeed: 0.3, // m/s – langsamer gilt als «hängt still», dann stösst es sich nach vorne ab
-  // Schwung holen läuft an wie auf einer Schaukel (Pascal 09.11.: natürlicher):
-  // kleine Schwünge wenig Kraft, grössere mehr – bis pumpFullSpeed voll.
-  pumpMinShare: 0.2, // Anteil von pump, wenn es still hängt
-  pumpFullSpeed: 10, // m/s – ab diesem Schwung (Tempo ganz unten) volles Schwung holen
+  pumpStartSpeed: 0.02, // m/s – langsamer gilt als «hängt still» (ganz unten nach vorne abstossen, sonst bergab); sonst immer in Schwungrichtung
+  // Schwung holen wie auf einer Schaukel (Pascal 09.11.: «nach Physik»): Wer
+  // schaukelt, gibt bei jedem Schwung etwas dazu, je schneller er schwingt, desto
+  // mehr – die Schwünge wachsen von Schwung zu Schwung um einen Anteil, im Takt
+  // des Pendels. Aus dem Stillstand reicht ein kleiner Anstoss.
+  pumpStart: 0.6, // m/s² – Anstoss aus dem Stillstand
+  pumpGrowth: 1.2, // 1/s – dazu je m/s Tempo: Schwung-Energie wächst rund um den Faktor e^(1,2·t)
+  pumpHigh: 11, // m/s² – über Hakenhöhe (Looping-Anläufe) nur noch so viel: 1–3 Anläufe bis zum Looping
+  maxLoopTries: 3, // Looping-Anläufe: so oft darf es über die Hakenhöhe hinaus probieren; danach nur noch bis Hakenhöhe
+  loopTopTolerance: 0.1, // m – so knapp unter dem höchsten Punkt gilt «ganz oben» (echter Looping)
   pumpBottomSlope: 0.02, // so flach (Steigung der Kreisbahn) gilt «ganz unten» beim Abstossen aus dem Stillstand
   // Fliegt es schneller als das vom Haken weg oder darauf zu, kommt der Ruck
   // erst noch: kein Schwingen am gespannten Seil (step), Seil zieht noch nicht
@@ -131,10 +137,12 @@ export interface Rope {
   chain: Chain;
   turned: number; // rad – Winkel um den Haken seit dem Einhaken, mit Vorzeichen (hin und her hebt sich auf)
   lastPolar: number; // rad – letzter Winkel Haken → Männchen
-  pumpLimit: number | null; // Energie, bis zu der es Schwung holt (pumpLimitFor); null, bis das Seil zum ersten Mal zieht (ropePulls)
+  pumpLimit: number | null; // Energie, bis zu der es Schwung holt: pumpLimitFor beim ersten Zug (null bis dahin), nach maxLoopTries misslungenen Anläufen gesenkt (trackLoopTry)
   age: number; // s seit dem Einhaken
   clean: boolean; // an diesem Seil noch kein Ruck, weder beim Einhaken noch danach (für den guten Schwung)
   jerk: number; // m/s – grösster Ruck an diesem Seil (für die Style-Wertung, in jeder Variante)
+  loopTries: number; // Looping-Anläufe: so oft über die Hakenhöhe hinaus, noch ohne echten Looping
+  looped: boolean; // schon einmal mit gespanntem Seil ganz oben durch (ein echter Looping, nicht nur darüber gefallen)
 }
 
 /** Ein gelöstes Seil, das herunterfällt und dann verschwindet. */
@@ -268,6 +276,8 @@ export function tap(
     age: 0,
     clean: true,
     jerk: 0,
+    loopTries: s.pos.y > anchor.y ? 1 : 0, // über der Hakenhöhe eingehakt: das ist schon der erste Anlauf
+    looped: false,
   };
   spendJerk(s, catchJerk(s));
   return 'attached';
@@ -434,6 +444,7 @@ export function step(s: State, dt = STEP): void {
 
   // Gespannt geschwungen (nicht: fliegt gerade ins Seil, das ist ein Ruck)
   const wasTaut = isTaut(s) && radialSpeed(s) < TUNING.jerkSpeed;
+  const prevY = s.pos.y;
   s.pos.x += s.vel.x * dt;
   s.pos.y += s.vel.y * dt;
   const jerk = applyRope(s, wasTaut ? energyTarget : null);
@@ -442,6 +453,7 @@ export function step(s: State, dt = STEP): void {
   if (s.rope) {
     s.rope.age += dt;
     if (s.rope.pumpLimit === null && ropePulls(s)) s.rope.pumpLimit = pumpLimitFor(s);
+    trackLoopTry(s, prevY);
     const before = turnsOnRope(s);
     trackTurn(s.rope, s.pos);
     const after = turnsOnRope(s);
@@ -501,7 +513,31 @@ function trackTurn(rope: Rope, pos: Vec): void {
   rope.lastPolar = polar;
 }
 
-/** Volle Umdrehungen um den aktuellen Haken (Loopings), seit dem Einhaken. */
+/**
+ * Looping-Anläufe mitzählen: jedes Mal, wenn es ohne echten Looping über die
+ * Hakenhöhe steigt. Ein echter Looping (`looped`) heisst: mit gespanntem Seil
+ * ganz oben durch. Misslingt der letzte erlaubte Anlauf (fällt unter die
+ * Hakenhöhe zurück), gilt an diesem Seil wieder die Grenze aus dem Stand.
+ */
+function trackLoopTry(s: State, prevY: number): void {
+  const r = s.rope!;
+  if (r.looped) return;
+  if (prevY <= r.anchor.y && s.pos.y > r.anchor.y) r.loopTries++;
+  // ganz oben zählt nur, wer von unten dort hinkommt (nicht schon, wer oben einhakt)
+  const top = r.anchor.y + r.length - TUNING.loopTopTolerance;
+  if (r.loopTries > 0 && isTaut(s) && s.pos.y >= top && prevY < top) {
+    r.looped = true;
+    return;
+  }
+  const fellBack = prevY > r.anchor.y && s.pos.y <= r.anchor.y;
+  if (fellBack && r.loopTries >= TUNING.maxLoopTries) r.pumpLimit = standingLimit(s);
+}
+
+/**
+ * Umdrehungen um den aktuellen Haken seit dem Einhaken (Netto-Winkel, zählt
+ * auch lockeres Darüberfallen) – für Schub und maxPumpTurns. Ob es ein echter
+ * Looping war, sagt `Rope.looped`.
+ */
 export function turnsOnRope(s: State): number {
   return s.rope ? Math.floor(Math.abs(s.rope.turned) / (2 * Math.PI)) : 0;
 }
@@ -543,9 +579,10 @@ export function standingLimit(s: State): number {
 }
 
 /**
- * Bis zu welcher Energie holt es an diesem Seil Schwung? Einzige Stelle, die
- * die Grenzen festlegt. Gerechnet, sobald das Seil zum ersten Mal zieht
- * (ropePulls, also nach dem Ruck): mit Tempo vom Flug energyLimit(), sonst die Hakenhöhe (0).
+ * Bis zu welcher Energie holt es an diesem Seil Schwung? Gerechnet, sobald
+ * das Seil zum ersten Mal zieht (ropePulls, also nach dem Ruck): mit Tempo vom
+ * Flug energyLimit(), sonst standingLimit(). Gesenkt wird sie nur noch von
+ * trackLoopTry (nach maxLoopTries misslungenen Looping-Anläufen).
  */
 function pumpLimitFor(s: State): number {
   const fromFlight = swingEnergy(s) > TUNING.flightEnergy * TUNING.gravity * s.rope!.length;
@@ -557,7 +594,7 @@ function pumpLimitFor(s: State): number {
  * gespanntem Seil – und nur mit Schwung holen (pump 0 schaltet auch den Schub ab).
  */
 function shouldLoopBoost(s: State, turnsBefore: number, turnsAfter: number): boolean {
-  return turnsAfter > turnsBefore && turnsAfter <= TUNING.maxPumpTurns && isTaut(s) && TUNING.pump > 0;
+  return turnsAfter > turnsBefore && turnsAfter <= TUNING.maxPumpTurns && isTaut(s) && s.rope!.looped && TUNING.pump > 0;
 }
 
 /** Tangente an den Kreis um den Haken, Richtung gegen den Uhrzeigersinn. */
@@ -570,27 +607,39 @@ function tangent(s: State): Vec {
 }
 
 /**
- * Wie stark es gerade Schwung holt (0 … 1): still hängend wenig, mit grösserem
- * Schwung mehr. So wachsen die Schwünge erst sacht, dann immer schneller.
- * Gemessen wird der Schwung als Tempo, das er ganz unten hätte – über den
- * ganzen Schwung gleich, so holt es auch oben am Umkehrpunkt nicht weniger.
- * 0, wenn es gerade keinen Schwung holt (auch für die Beine im Bild).
+ * Wie stark es gerade Schwung holt (m/s² entlang der Bahn):
+ * - unter Hakenhöhe wie auf einer Schaukel: kleiner Anstoss plus ein Anteil
+ *   des Tempos (pumpStart + pumpGrowth·v), höchstens pump;
+ * - über Hakenhöhe, noch ohne Looping: nur pumpHigh – Looping-Anläufe,
+ *   höchstens maxLoopTries; misslingt der letzte, nur noch bis Hakenhöhe
+ *   (step setzt die Grenze des Seils zurück; in der Variante «Freier Schwung» voll, dort geht
+ *   der Looping aus dem Stand);
+ * - nach dem ersten Looping: pump (die Loopings werden schneller).
+ * 0, wenn es gerade keinen Schwung holt; pump 0 schaltet alles ab.
  */
+export function pumpAccel(s: State): number {
+  if (!isPumping(s) || TUNING.pump <= 0) return 0;
+  if (s.rope!.looped) return TUNING.pump;
+  if (swingEnergy(s) >= 0) return standingLimit(s) > 0 ? TUNING.pump : TUNING.pumpHigh; // Freier Schwung: voll
+  const t = tangent(s);
+  const vt = Math.abs(s.vel.x * t.x + s.vel.y * t.y);
+  return Math.min(TUNING.pump, TUNING.pumpStart + TUNING.pumpGrowth * vt);
+}
+
+/** Wie kräftig es gerade Schwung holt, 0 … 1 (für die Beine im Bild). */
 export function pumpShare(s: State): number {
-  if (!isPumping(s)) return 0;
-  const atBottom = Math.sqrt(Math.max(0, 2 * (swingEnergy(s) + TUNING.gravity * s.rope!.length)));
-  return Math.min(1, Math.max(TUNING.pumpMinShare, atBottom / TUNING.pumpFullSpeed));
+  return TUNING.pump > 0 ? pumpAccel(s) / TUNING.pump : 0;
 }
 
 /**
  * Schwung holen wie auf einer Schaukel: immer in die Richtung, in die das
- * Männchen gerade schwingt, je nach Schwung stärker (pumpShare). Hängt es
+ * Männchen gerade schwingt, so stark wie pumpAccel. Hängt es
  * fast still, stösst es sich ganz unten nach vorne (rechts) ab, am Umkehrpunkt
  * schwingt es bergab mit.
  */
 function pump(s: State, dt: number): void {
-  const share = pumpShare(s);
-  if (share === 0) return;
+  const accel = pumpAccel(s);
+  if (accel === 0) return;
   let t = tangent(s);
   const vt = s.vel.x * t.x + s.vel.y * t.y;
   if (Math.abs(vt) < TUNING.pumpStartSpeed) {
@@ -602,8 +651,8 @@ function pump(s: State, dt: number): void {
   } else if (vt < 0) {
     t = { x: -t.x, y: -t.y };
   }
-  s.vel.x += t.x * TUNING.pump * share * dt;
-  s.vel.y += t.y * TUNING.pump * share * dt;
+  s.vel.x += t.x * accel * dt;
+  s.vel.y += t.y * accel * dt;
 }
 
 /**

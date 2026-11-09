@@ -46,11 +46,17 @@ const score = (r: State) => r.pos.x + 0.3 * r.pos.y;
 const BEAM = 3; // so viele Zwischenstände verfolgt der Bot parallel – einer allein läuft leicht in eine Sackgasse
 const DISTINCT = 3; // m – Zwischenstände näher beieinander gelten als derselbe Weg
 
+// Haltezeiten am Seil. 3,2 s seit 09.11. (Schwung holen wie auf einer Schaukel,
+// über Hakenhöhe nur pumpHigh): für die grössten Lücken braucht es längeres
+// Schwingen. Der erste Abschnitt muss weiter mit höchstens 2,2 s gehen.
+const HOLDS_SHORT = [0.4, 0.8, 1.4, 2.2];
+const HOLDS_LONG = [...HOLDS_SHORT, 3.2];
+
 /** Alle Sprünge, die von b aus weiterbringen. */
-function candidates(b: State): State[] {
+function candidates(b: State, holds: number[]): State[] {
   const out: State[] = [];
   for (const t of targets(b)) {
-    for (const hold of [0.4, 0.8, 1.4, 2.2]) {
+    for (const hold of holds) {
       const r = tryHop(b, t, hold);
       if (r && r.pos.x > b.pos.x + 2) out.push(r);
     }
@@ -69,11 +75,11 @@ function pickDistinct(all: State[], n: number): State[] {
   return out;
 }
 
-function play(s: State, until: number): State {
+function play(s: State, until: number, holds: number[]): State {
   let beam = [s];
   let best = s;
   for (let hops = 0; hops < 80 && best.maxX < until; hops++) {
-    const next = beam.flatMap(candidates);
+    const next = beam.flatMap((b) => candidates(b, holds));
     if (next.length === 0) break;
     beam = pickDistinct(next, BEAM);
     for (const r of beam) if (r.maxX > best.maxX) best = r;
@@ -87,7 +93,7 @@ describe('Übungsstrasse', () => {
     // erst nach einer menschlichen Reaktionszeit einhaken (im Video rund 1,3 s Fallen)
     for (let i = 0; i < 1.3 * 120; i++) step(s);
     expect(s.phase).toBe('flying');
-    s = play(s, FIRST);
+    s = play(s, FIRST, HOLDS_SHORT);
     expect(s.maxX).toBeGreaterThanOrEqual(FIRST);
   });
 
@@ -102,7 +108,7 @@ describe('Übungsstrasse', () => {
     s.phase = 'flying';
     s.vel = { x: 24, y: 6 }; // mit etwas Flugtempo, wie mitten im Lauf
     const from = s.pos.x;
-    s = play(s, from + 500);
+    s = play(s, from + 500, HOLDS_LONG);
     expect(s.maxX - from).toBeGreaterThanOrEqual(500);
   });
 });

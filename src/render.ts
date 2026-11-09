@@ -592,7 +592,8 @@ function drawStickman(ctx: CanvasRenderingContext2D, s: State, P: Proj): void {
   circle(ctx, P.X(head.x + px * 0.1 * k * Math.sign(s.vel.x || 1)), P.Y(head.y + py * 0.1 * k), 0.09 * m);
 
   // Beine: beim Schwungholen in die Schwungrichtung gestreckt wie auf einer
-  // Schaukel – bei kleinen Schwüngen sacht, bei grossen kräftig; sonst leicht pendeln
+  // Schaukel – so kräftig, wie es gerade Schwung holt (pumpShare: beim Anlauf
+  // sacht, bei Looping-Versuchen über Hakenhöhe mässig); sonst leicht pendeln
   const share = pumpShare(s);
   const across = s.vel.x * px + s.vel.y * py;
   const kick = share > 0 ? Math.max(-1, Math.min(1, across / LEG_FULL_SPEED)) * (0.2 + 0.5 * share) : Math.sin(s.time * 6) * 0.15;

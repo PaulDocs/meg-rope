@@ -5,6 +5,8 @@ sammelt «Unveröffentlicht».
 
 ## [Unveröffentlicht]
 
+- 09.11.2026 · B1: Schwung holen wie auf einer Schaukel (Schwünge wachsen von Schwung zu Schwung); Looping vom Flug braucht mehr Schwung, höchstens 3 Looping-Anläufe, Fallen-lassen-Trick zählt nicht mehr.
+- 09.11.2026 · Tests laufen nur noch in `test/` (nicht in Worktrees paralleler Sitzungen); `.claude/worktrees/` ignoriert.
 - 09.11.2026 · B5: Drei Versuche und Bonus nur noch in der Challenge; im Einzelspiel wird jeder Versuch gleich gewertet und gespeichert, «Nochmal» startet sofort.
 - 09.11.2026 · B5: Wertung Meter + Style (Noten je Übergang, Strike mit Faktor), Spielername und Startmenü, Einzelspiel mit Bestenliste, Challenge nacheinander auf einem Gerät, Ergebnisse gespeichert; Kraftstationen alle 300 m im Freien Schwung. Einstellung jetzt im Startmenü statt Schalter oben links.
 - 09.11.2026 · B1/B4: Schwung holen läuft sacht an (Beine), Looping vom Flug leichter; Kraft lädt merkbar (leicht 25/mittel 18/schwer 10 %), Loopings kosten weniger.

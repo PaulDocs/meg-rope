@@ -47,10 +47,10 @@ describe('Variante «Freier Schwung»', () => {
     for (const L of [5, 10, 20]) {
       const free = hangStill('free', L);
       let looped = false;
-      // sachter Anlauf (09.11.): gemessen 5 m 4,3 s, 10 m 5,7 s, 20 m 6,9 s
-      for (let i = 0; i < 120 * 8 && !looped; i++) {
+      // Anlauf von Schwung zu Schwung (09.11.): gemessen 5 m 7,0 s, 10 m 8,9 s, 20 m 10,2 s
+      for (let i = 0; i < 120 * 12 && !looped; i++) {
         step(free);
-        looped = free.rope !== null && turnsOnRope(free) >= 1;
+        looped = free.rope !== null && free.rope.looped;
       }
       expect(looped).toBe(true);
       const normal = hangStill('normal', L);

@@ -400,11 +400,10 @@ Umgesetzt:
   Hakenhöhe als Flug (vorher 0,5). Tempo ganz unten, ab dem Schwung holen
   bis zum Looping reicht: 10 m 31 m/s (vorher 35), 20 m 44 (49), 30 m 54 (60).
   Aus dem Stand weiterhin kein Looping; oben gelöst und knapp darunter neu
-  eingehakt bleibt es unter Hakenhöhe (Test). Entschieden (Pascal 09.11.: «so
-  lassen»): Wer still über der Hakenhöhe hängt und im ungünstigsten Winkel
-  schräg ins Seil fällt, behält nach dem Ruck rund 0,27 · g · L – das zählt
-  knapp als Flug (Test festgehalten).
-- **Natürlicher Anlauf** (`pumpShare`): Hängt es still, holt es nur 20 % so
+  eingehakt bleibt es unter Hakenhöhe (Test). Pascal 09.11. zuerst «so
+  lassen», dann: zu leicht – siehe nächster Abschnitt.
+- **Natürlicher Anlauf** (abgelöst am 09.11. durch `pumpAccel`, siehe nächster
+  Abschnitt; `pumpShare` gibt seither nur noch die Stärke für die Beine) – damals: Hängt es still, holt es nur 20 % so
   stark Schwung; mit grösserem Schwung mehr, ab 10 m/s (ganz unten gemessen)
   voll. Die Schwünge wachsen so erst sacht, dann immer schneller. Gemessen
   wird über den ganzen Schwung gleich, damit es am Umkehrpunkt nicht stockt.
@@ -413,6 +412,51 @@ Umgesetzt:
   Hakenhöhe aus dem Stand: 3 m / 5 m 2,5 s, 10 m 4 s, 20 m 5 s, 30 m 6 s.
 - **Beine**: strecken sich beim Schwung holen in die Schwungrichtung, bei
   kleinen Schwüngen sacht, bei grossen kräftig.
+
+## Rückmeldung Pascal 09.11.2026: Trick zu leicht, erster Schwung nicht nach Physik
+
+> wenn man den Trick kenn kann man nun praktisch immer einen looping machen, es
+> sollte doch etwas schwieriger sein bzw. es brauch einfach doch mehr schwung.
+> 20% mehr bis man wirklich einen looping machen kann. heisst selten nach einem
+> schwingen, es sollte 1-3 versüche geben. mit wirklich knappem schwung wären
+> es 3 mal aber es soll auch zu wenig schwung geben, so dass es auch nach 3 mal
+> nicht möglich ist. Nach einem Fall ins seil also kompletter Schwungverlust
+> ist das Starten also der erste Schwung immer noch nicht ganz nach Physik
+
+Gemessen vorher: Nach dem Fall ins Seil schob das Schwung holen das Männchen
+in einem einzigen Zug von der Mitte auf 62° hoch (bis 22 m/s² entlang der
+Bahn, über die Hälfte der Schwerkraft) – wie ein Motor, nicht wie eine Schaukel.
+
+Umgesetzt (`pumpAccel`):
+- **Unter Hakenhöhe wie auf einer Schaukel**: kleiner Anstoss (0,6 m/s²)
+  plus ein Anteil des Tempos (1,2 je m/s), höchstens 22. Die Schwünge wachsen
+  so von Schwung zu Schwung, im Takt des Pendels (10-m-Seil: 3°, 11°, 32°,
+  dann Hakenhöhe nach 6,5 s; 3–30 m Seil: 5–9 s). Fast still: ganz unten
+  nach vorne, sonst bergab anstossen; sonst immer in Schwungrichtung.
+- **Über Hakenhöhe (Looping-Anläufe) nur 11 m/s²** (`pumpHigh`), nach dem
+  ersten echten Looping wieder voll. Ein misslungener Anlauf fällt ins Seil
+  zurück und kostet mit dem Ruck Schwung. **Höchstens 3 Looping-Anläufe**
+  (`maxLoopTries`, `Rope.loopTries`): misslingt der dritte Anlauf, holt es an diesem
+  Seil nur noch bis Hakenhöhe Schwung.
+- **Echter Looping** (`Rope.looped`) nur mit gespanntem Seil ganz oben. Beim
+  Gegenlesen gefunden: Fiel das Männchen nach einem misslungenen Anlauf
+  locker über den Haken, zählte das als Umdrehung, und es holte wieder voll
+  Schwung – so kamen Loopings nach 4–7 Anläufen zustande.
+- **Flug-Schwelle 0,2 → 0,44 · g · L**. Looping-Anläufe bis zum Looping je
+  Energie beim Einhaken (Anteil g · L über Hakenhöhe, gemessen in Schritten
+  von 0,02): zuerst nie, dann genau an der Grenze 3, darüber 2, mit viel
+  Schwung 1 – nie mehr als 3. Grenze für «überhaupt»: 5 m 0,50, 10 m 0,52,
+  20 m 0,54, 30 m 0,56; ein Anlauf reicht ab 0,66 (5 m) bis 0,76 (30 m).
+  Am 10-m-Seil heisst das Tempo ganz unten: unter 35 m/s nie, 35 m/s im
+  3., 35–36,5 m/s im 2., ab 37 m/s im 1. Anlauf. Der Trick (schräg fallen
+  lassen, rund 0,27) zählt nicht mehr.
+- Wer über der Hakenhöhe einhakt, hat damit schon den ersten Anlauf (und
+  keinen Looping, auch wenn er oben am Kreis einhakt). Den Schub nach einer
+  Umdrehung gibt es nur nach einem echten Looping.
+- Variante «Freier Schwung»: über Hakenhöhe weiter voll; Looping aus dem
+  Stand jetzt nach 6–10 s (30 m: 21 s; vorher 4–8 s, wegen des Anlaufs).
+- Der Test-Bot braucht für die grössten Lücken jetzt auch 3,2 s am Seil
+  (vorher höchstens 2,2 s): weite Würfe brauchen etwas mehr Schwingen.
 
 ## Testanleitung für Pascal
 
@@ -425,14 +469,16 @@ Neu erzeugen: `npm run einzelseite -- ‹ziel.html›`, dann veröffentlichen.
    Seil hakt dort ein, auch an der sichtbaren Seitenwand eines Turms. In den
    Himmel oder aufs Dach tippen: nichts. Tippen löst das Seil.
 3. Hängen lassen (z. B. nach einem Fall ins Seil): Das Männchen holt mit den
-   Beinen Schwung – erst sacht, die Beine strecken sich in die
-   Schwungrichtung, dann immer kräftiger. Die Schwünge werden grösser, aber
-   höchstens bis auf Hakenhöhe – aus dem Stand kein Looping. Am Boden:
+   Beinen Schwung – erst ein kleiner Schwung, dann wird jeder Schwung
+   grösser als der vorige (die Beine strecken sich in die Schwungrichtung),
+   aber höchstens bis auf Hakenhöhe – aus dem Stand kein Looping. Am Boden:
    tippen startet neu.
-4. Schnell am kurzen Seil einhaken (z. B. an einem Kranausleger): Looping
-   schon mit etwas weniger Tempo als vorher (10-m-Seil: rund 31 m/s ganz
-   unten). Nach jedem der ersten 3 Loopings ein spürbarer Schub, danach
-   nicht mehr.
+4. Schnell am Seil einhaken: Mit knappem Schwung geht der Looping erst nach
+   2–3 Anläufen (über den Haken hinaus, zurückfallen, nochmals), mit viel
+   Schwung gleich beim ersten, mit zu wenig gar nicht – nach 3 Anläufen ist
+   Schluss (10-m-Seil ganz unten: unter 35 m/s nie, knapp 35 m/s im 3.,
+   bis 36,5 m/s im 2., ab 37 m/s im 1. Anlauf).
+   Nach jedem der ersten 3 Loopings ein spürbarer Schub, danach nicht mehr.
 5. Mit vollem Schwung steil oben lösen: rund 80 m hoch? Fällt er danach
    schwer genug? Unten gelöst flacher und schneller.
 6. Erste 1,5 km: Wechseln Gebäudearten, Höhen und Abstände wie im Video?
