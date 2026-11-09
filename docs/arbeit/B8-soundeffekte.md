@@ -69,4 +69,4 @@ Browser merkt sich die Wahl (`meg-rope.muted`).
 7. Knopf unten rechts tippen: stumm; Seite neu laden: bleibt stumm.
 
 Rückmeldung zu Lautstärke und Klang bitte als Eindruck («zu laut», «Wind zu
-hoch»); die Werte stehen in `SOUND` (`src/audio.ts`).
+hoch»); die Gesamtwerte (Wind, Schwellen, Warnton) stehen in `SOUND`, die Klangrezepte der einzelnen Töne in `Sound.one()` (beide in `src/audio.ts`).

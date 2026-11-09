@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { impactLevel, jerkLevel, jerkSpeed, loadMuted, MUTE_KEY, saveMuted, SOUND, SoundObserver, windParams } from '../src/audio';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { impactLevel, jerkLevel, jerkSpeed, loadMuted, MUTE_KEY, saveMuted, SOUND, Sound, SoundObserver, windParams } from '../src/audio';
 import { createState, noSideWalls, STEP, step, STRENGTH, tap, TUNING, type State } from '../src/physics';
 import type { Hold } from '../src/world';
 
@@ -51,6 +51,9 @@ describe('Ruck aus dem Anteil des verlorenen Tempos', () => {
     expect(jerkSpeed(50, 1)).toBeCloseTo(50, 6);
     expect(jerkSpeed(50, 0.3)).toBeLessThan(jerkSpeed(50, 0.7));
     expect(jerkSpeed(0, 0.9)).toBe(0);
+    expect(jerkSpeed(10, 0.2)).toBeCloseTo(6, 6); // 10 · √(1 − 0,8²)
+    expect(jerkSpeed(10, -0.5)).toBe(0); // geklemmt
+    expect(jerkSpeed(10, 2)).toBeCloseTo(10, 6);
   });
 });
 
@@ -161,6 +164,43 @@ describe('SoundObserver meldet Ereignisse aus dem Spielzustand', () => {
     expect(kind(ob.update(s))).toEqual(['loop']);
   });
 
+  it('kein zweites «jerk» ohne grösseren Verlust; ein neues Seil mit Ruck meldet wieder', () => {
+    const { s, ob } = flying();
+    s.vel = { x: 0, y: -60 };
+    ob.update(s);
+    tap(s, { x: 0, y: 110 }, wall, noSideWalls);
+    expect(kind(ob.update(s))).toEqual(['hook', 'jerk']);
+    for (let i = 0; i < 5; i++) {
+      step(s);
+      expect(kind(ob.update(s))).not.toContain('jerk');
+    }
+    tap(s, { x: 0, y: 110 }, wall, noSideWalls); // lösen
+    ob.update(s);
+    s.pos = { x: 0, y: 100 };
+    s.vel = { x: 0, y: -60 };
+    ob.update(s);
+    tap(s, { x: 0, y: 110 }, wall, noSideWalls);
+    expect(kind(ob.update(s))).toContain('jerk');
+  });
+
+  it('«points» trägt Note und Folge aus dem Style-Stand, auch «out»', () => {
+    const { s, ob } = flying();
+    s.style.swings++;
+    s.style.last = { grade: 'perfect', points: 50, strike: 3, at: 1 };
+    expect(ob.update(s)).toEqual([{ type: 'points', grade: 'perfect', strike: 3 }]);
+    s.style.swings++;
+    s.style.last = { grade: 'out', points: 0, strike: 0, at: 2 };
+    expect(ob.update(s)).toEqual([{ type: 'points', grade: 'out', strike: 0 }]);
+  });
+
+  it('guter Schwung in Folge meldet «series» mit Zahl; das Zurücksetzen meldet nichts', () => {
+    const { s, ob } = flying('free');
+    s.goodSwings = 1;
+    expect(ob.update(s)).toEqual([{ type: 'series', count: 1 }]);
+    s.goodSwings = 0;
+    expect(ob.update(s)).toEqual([]);
+  });
+
   it('Kraftstation meldet «station»', () => {
     const { s, ob } = flying('free');
     s.pos.x = TUNING.startPos.x + STRENGTH.stationEvery + 1;
@@ -210,5 +250,80 @@ describe('SoundObserver meldet Ereignisse aus dem Spielzustand', () => {
     expect(ob.update(fresh)).toEqual([]);
     fresh.time += STEP;
     expect(kind(ob.update(fresh))).toEqual(['weak']);
+  });
+});
+
+describe('Sound mit Fake-AudioContext', () => {
+  class FakeNode {
+    onended: (() => void) | null = null;
+    gain = { value: 1, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, setTargetAtTime() {} };
+    frequency = { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {}, setTargetAtTime() {} };
+    Q = { value: 0 };
+    type = '';
+    buffer: unknown = null;
+    loop = false;
+    connect(n: unknown) { return n; }
+    disconnect() {}
+    start() {}
+    stop() {}
+  }
+  const made = { osc: [] as FakeNode[], src: 0 };
+  class FakeContext {
+    state = 'running';
+    currentTime = 0;
+    sampleRate = 100;
+    destination = new FakeNode();
+    createGain() { return new FakeNode(); }
+    createBiquadFilter() { return new FakeNode(); }
+    createOscillator() { const n = new FakeNode(); made.osc.push(n); return n; }
+    createBufferSource() { made.src++; return new FakeNode(); }
+    createBuffer(_c: number, len: number) { const d = new Float32Array(len); return { getChannelData: () => d }; }
+    resume() { return Promise.resolve(); }
+    suspend() { return Promise.resolve(); }
+  }
+  function ready(muted = false): Sound {
+    vi.stubGlobal('window', { AudioContext: FakeContext });
+    made.osc.length = 0;
+    made.src = 0;
+    const snd = new Sound(muted);
+    snd.unlock();
+    made.src = 0; // der Wind-Quell zählt nicht
+    return snd;
+  }
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('stumm: keine Töne', () => {
+    const snd = ready(true);
+    snd.play([{ type: 'weak' }, { type: 'hook' }]);
+    expect(made.osc).toHaveLength(0);
+    expect(made.src).toBe(0);
+    snd.setMuted(false);
+    snd.play([{ type: 'weak' }]);
+    expect(made.osc).toHaveLength(2);
+  });
+
+  it('vor unlock(): keine Töne, kein Absturz', () => {
+    vi.stubGlobal('window', { AudioContext: FakeContext });
+    made.osc.length = 0;
+    const snd = new Sound(false);
+    expect(() => snd.play([{ type: 'weak' }])).not.toThrow();
+    expect(made.osc).toHaveLength(0);
+  });
+
+  it('höchstens maxVoices gleichzeitig; nach dem Ausklingen wieder Platz', () => {
+    const snd = ready();
+    for (let i = 0; i < 20; i++) snd.play([{ type: 'weak' }]);
+    expect(made.osc).toHaveLength(SOUND.maxVoices);
+    for (const o of made.osc) o.onended?.();
+    snd.play([{ type: 'weak' }]);
+    expect(made.osc.length).toBeGreaterThan(SOUND.maxVoices);
+  });
+
+  it('ohne Web Audio im Browser: kein Absturz', () => {
+    vi.stubGlobal('window', {});
+    const snd = new Sound(false);
+    expect(() => snd.unlock()).not.toThrow();
+    expect(() => snd.play([{ type: 'hook' }])).not.toThrow();
+    expect(() => snd.setWind(50, true)).not.toThrow();
   });
 });

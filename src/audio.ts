@@ -16,6 +16,7 @@ export const SOUND = {
   master: 0.5, // Gesamtlautstärke
   wind: { maxGain: 0.16, minFreq: 280, maxFreq: 2600, q: 0.7, follow: 0.12 }, // follow: s, mit der der Ton dem Tempo nachläuft
   windFrom: 4, // m/s – langsamer ist es still
+  impactFull: 80, // m/s – Aufprall in dieser Geschwindigkeit klingt voll
   jerkMin: 3, // m/s – kleiner Ruck (weggenommenes Tempo) bleibt lautlos
   weak: { below: 0.3, rearm: 0.45 }, // Kraft: Warnton beim Unterschreiten, wieder scharf erst über rearm
   maxVoices: 10, // so viele kurze Töne gleichzeitig, mehr werden verworfen
@@ -57,9 +58,9 @@ export function jerkSpeed(before: number, lost: number): number {
   return before * Math.sqrt(1 - keep * keep);
 }
 
-/** Stärke eines Aufpralls 0 … 1 nach dem Tempo (voll bei 80 m/s). */
+/** Stärke eines Aufpralls 0 … 1 nach dem Tempo (voll bei `SOUND.impactFull`). */
 export function impactLevel(speed: number): number {
-  return clamp01(speed / 80);
+  return clamp01(speed / SOUND.impactFull);
 }
 
 /** Was vom letzten Bild noch zählt. */
@@ -108,6 +109,7 @@ export class SoundObserver {
       return [];
     }
     const out: SoundEvent[] = [];
+    // jedes Einhaken legt ein neues Rope-Objekt an, darum genügt der Vergleich der Zeiger
     if (now.rope && now.rope !== prev.rope) out.push({ type: 'hook' });
     const before = now.rope === prev.rope ? prev.lost : 0;
     if (now.rope && now.lost > before) {
