@@ -137,6 +137,26 @@ Schwung» (Startwert, abgestimmt wird beim Spielen). Stellschrauben:
 `STYLE.lost`, `STYLE.angle`. Bekannt: Bleibt nach dem Ruck fast kein Tempo
 (Einhaken im Stand mit kleinem Ruck), gilt das als 100 % verloren.
 
+## Rückmeldung Pascal 09.11.2026: direkt weiterschwingen belohnen
+
+> direktes weiterschwingen (nur einen Schwung) sollte auch zählen, bzw. sogar
+> noch belohnt werden in dem die regel für ein und ausstieg etwas gelockert
+> werden vorausgesetzt die anderen regeln werden eingehalten.
+
+Umgesetzt (`isDirect()`, `STYLE.direct`): Wer nach **höchstens 1,5 s** am Seil
+löst (nur ein Schwung) und mindestens 0,4 s gehalten hat, wird grosszügiger
+benotet und bekommt **+10 Punkte** (mal Faktor der Folge):
+
+| | normal | direkt (bis 1,5 s) |
+|---|---|---|
+| Perfekt / Gut / Knapp bei verlorenem Schwung | 15 / 40 / 70 % | 25 / 50 / 80 % |
+| Abflug-Winkel Perfekt / Gut | 20–55° / 5–70° | 10–65° / −5–80° |
+
+Unverändert: mindestens 0,4 s am Seil und mindestens 12 m/s beim Lösen, sonst
+«Nicht im Schwung». Die 1,5 s sind meine Deutung von «nur einen Schwung»
+(rund eine Viertelperiode bei langem Seil); Entscheid Pascal, ob enger oder
+weiter. Die Note ist im Bild noch nicht als «Direkt» beschriftet.
+
 ## Testanleitung für Pascal
 
 Link: kommt mit der Meldung (privates Artifact).
@@ -161,5 +181,7 @@ Link: kommt mit der Meldung (privates Artifact).
    «Letzte Challenges».
 7. Fliegst du schnell (über 40 m/s) und hakst schräg ein: bleibt der Strike?
    Fällst du gerade ins Seil: «Nicht im Schwung».
-8. Sagt dir die Strenge der Noten zu (zu leicht oder zu schwer im Strike zu
+8. Von Seil zu Seil ohne Pumpen (unter 1,5 s): gibt es 10 Punkte mehr, und
+   bleibt der Strike auch bei etwas mehr Ruck oder flachem Abflug?
+9. Sagt dir die Strenge der Noten zu (zu leicht oder zu schwer im Strike zu
    bleiben)?

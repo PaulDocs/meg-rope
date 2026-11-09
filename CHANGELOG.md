@@ -6,6 +6,7 @@ sammelt «Unveröffentlicht».
 ## [Unveröffentlicht]
 
 - 09.11.2026 · B8: Stimme des Männchens (künstlich, aus Formant-Filtern): «yuuuh» beim Loslassen im Flug, «wooo» im Looping, «uff» bei hartem Ruck, Knochenknacken und Stöhnen beim Aufprall.
+- 09.11.2026 · B5: Direkt weiterschwingen (nur ein Schwung, 0,4 bis 1,5 s am Seil) wird belohnt: +10 Punkte und lockerere Grenzen für verlorenen Schwung und Abflug-Winkel.
 - 09.11.2026 · B8: Soundeffekte im Code erzeugt (Wind nach Tempo, Ruck, Looping, Aufprall, Einhaken, Punkte, Strike, Kraftstation, Warnton bei wenig Kraft), Stummschalter unten rechts, vom Browser gemerkt.
 - 09.11.2026 · B5: «Nicht im Schwung» nur noch bei mehr als 70 % verlorenem Tempo (statt Ruck in m/s und Winkel-Ausschluss); Noten nach Anteil des Tempos, der Abflug-Winkel gibt nur noch die Note. Im Test sank «Nicht im Schwung» von 51 % auf 10 %.
 - 09.11.2026 · B1: Schwung holen wie auf einer Schaukel (Schwünge wachsen von Schwung zu Schwung); Looping vom Flug braucht mehr Schwung, höchstens 3 Looping-Anläufe, Fallen-lassen-Trick zählt nicht mehr.
