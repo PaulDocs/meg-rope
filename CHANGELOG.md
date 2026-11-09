@@ -5,7 +5,7 @@ sammelt «Unveröffentlicht».
 
 ## [Unveröffentlicht]
 
-- 09.11.2026 · B-neu-1: Soundeffekte im Code erzeugt (Wind nach Tempo, Ruck, Looping, Aufprall, Einhaken, Punkte, Strike, Kraftstation, Warnton bei wenig Kraft), Stummschalter unten rechts, vom Browser gemerkt.
+- 09.11.2026 · B8: Soundeffekte im Code erzeugt (Wind nach Tempo, Ruck, Looping, Aufprall, Einhaken, Punkte, Strike, Kraftstation, Warnton bei wenig Kraft), Stummschalter unten rechts, vom Browser gemerkt.
 - 09.11.2026 · B1: Schwung holen wie auf einer Schaukel (Schwünge wachsen von Schwung zu Schwung); Looping vom Flug braucht mehr Schwung, höchstens 3 Looping-Anläufe, Fallen-lassen-Trick zählt nicht mehr.
 - 09.11.2026 · Tests laufen nur noch in `test/` (nicht in Worktrees paralleler Sitzungen); `.claude/worktrees/` ignoriert.
 - 09.11.2026 · B5: Drei Versuche und Bonus nur noch in der Challenge; im Einzelspiel wird jeder Versuch gleich gewertet und gespeichert, «Nochmal» startet sofort.

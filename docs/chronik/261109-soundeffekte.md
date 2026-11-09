@@ -5,7 +5,7 @@ erstellt: 2026-11-09
 stand: 2026-11-09
 datum: 2026-11-09
 ---
-# 09.11.2026 – Soundeffekte (B-neu-1)
+# 09.11.2026 – Soundeffekte (B8)
 
 - Pascal fragte, ob Soundeffekte möglich sind; empfohlen und angenommen:
   im Code erzeugte Web-Audio-Töne, die der Physik folgen, plus Stummschalter.

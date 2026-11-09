@@ -1,4 +1,4 @@
-// Töne (B-neu-1): alles im Code erzeugt (Web Audio), keine Sounddateien.
+// Töne (B8): alles im Code erzeugt (Web Audio), keine Sounddateien.
 // Zwei Teile:
 // 1. Reine Logik ohne Audio: `SoundObserver` schaut sich den Spielzustand
 //    Bild für Bild an und meldet Ereignisse (Einhaken, Ruck, Looping, Aufprall,
