@@ -25,5 +25,9 @@ eine Bestenliste auf dem Gerät.
 **Challenge vorerst auf einem Gerät:** Die Spieler geben das iPad weiter.
 Übers Heimnetz (Server auf dem NAS) bleibt Etappe 3.
 
+**Ergänzung 09.11.2026 (Pascal):** Die drei Versuche und der Bonus fürs
+frühe Werten gelten **nur in der Challenge**. Im Einzelspiel ist jeder
+Versuch eine eigene Wertung (Meter plus Style), ohne Bonus.
+
 **Herkunft:** Pascals Auftrag vom 09.11.2026 (Score, Style, Strike,
 Spielername, Speichern, Energie-Checkpoints).

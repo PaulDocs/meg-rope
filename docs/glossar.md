@@ -16,15 +16,15 @@ sondern in `GLOSSAR.md` auf der Wurzel von ClaudeWork.
 
 | Begriff | Bedeutung | Im Code | Nicht verwechseln mit |
 |---|---|---|---|
-| Versuch | Ein Flug vom Start bis zum Boden oder ins Ziel; höchstens drei pro Runde; zählt Meter plus Style | `Attempt`, `endAttempt()`, `attemptPoints()` | Runde |
-| Runde | Ein Durchgang auf einer Welt mit höchstens drei Versuchen je Spieler; endet im Ziel, nach dem dritten Versuch oder mit «Werten» | `Round`, `createRound()`, `Turn` (ein Spieler in der Runde) | Versuch |
+| Versuch | Ein Flug vom Start bis zum Boden oder ins Ziel; zählt Meter plus Style. Challenge: höchstens drei pro Runde; Einzelspiel: jeder Versuch ist eine eigene Wertung | `Attempt`, `endAttempt()`, `attemptPoints()`, `attemptsFor()` | Runde |
+| Runde | Ein Durchgang auf einer Welt; in der Challenge höchstens drei Versuche je Spieler, endet im Ziel, nach dem dritten Versuch oder mit «Werten»; im Einzelspiel ein Versuch | `Round`, `createRound()`, `Turn` (ein Spieler in der Runde) | Versuch |
 | Welt | Eine von Hand gebaute Stadt mit Start und Ziel | `world` | Runde |
 | Einflug | Start eines Versuchs: Das Männchen erscheint in der Luft vor dem ersten Turm, schwebt kurz und fällt gerade herunter; kein Sprung nach vorne | `startPos`, `dropInDelay`, Phase `dropIn`, `isDropIn()` | – |
 | Ziel | Ende der Welt; wer es erreicht, hat die Runde geschafft | `goal` | – |
 | Bonuspunkte | Zuschlag, je weniger Versuche gebraucht wurden: + 50 % nach dem 1., + 25 % nach dem 2. Versuch auf den besten | `ROUND.bonus`, `bonusFor()` | – |
-| Werten | Nach einem Versuch aufhören und den besten Versuch mit Bonus werten lassen | `stopTurn()`, `turnScore()` | – |
+| Werten | Nur Challenge: nach einem Versuch aufhören und den besten Versuch mit Bonus werten lassen | `stopTurn()`, `turnScore()` | – |
 | Challenge | Wettkampf, alle Spieler auf derselben Welt, wer kommt weiter; vorerst nacheinander auf einem Gerät (übers Netz: Etappe 3, mehrere Runden: Etappe 4) | `Mode` `'challenge'` | Einzelspiel |
-| Einzelspiel | Allein spielen, mit Bestleistung und Bestenliste auf dem Gerät (hiess bis 09.11. «Freies Spiel») | `Mode` `'single'` | Challenge, Spielvariante «Freier Schwung» |
+| Einzelspiel | Allein spielen; jeder Versuch wird gleich gewertet (ohne drei Versuche, ohne Bonus), mit Bestleistung und Bestenliste auf dem Gerät (hiess bis 09.11. «Freies Spiel») | `Mode` `'single'` | Challenge, Spielvariante «Freier Schwung» |
 | Spielername | Name zu Beginn im Startmenü; der Browser merkt sich die zuletzt gewählten | `cleanName()`, `loadNames()`, `saveNames()` | – |
 | Startmenü | Menü vor dem Spiel: Name, Einstellung, Einzelspiel oder Challenge, Bestenliste | `Menu.start()` (ui.ts) | – |
 | Bestenliste | Die besten Ergebnisse im Einzelspiel je Einstellung, auf dem Gerät gespeichert | `bestSingles()`, `personalBest()`, `Result` | Rangliste |

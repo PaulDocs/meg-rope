@@ -9,7 +9,10 @@ import type { Setting } from './physics';
 export type Mode = 'single' | 'challenge';
 
 export const ROUND = {
-  attempts: 3, // Versuche je Spieler und Runde
+  // Versuche je Spieler und Runde – nur in der Challenge (Pascal 09.11.). Im
+  // Einzelspiel ist jeder Versuch für sich eine Runde: gewertet und gespeichert,
+  // ohne Bonus, dann beliebig «Nochmal».
+  attempts: 3,
   // Bonus nach Zahl der gebrauchten Versuche (Konzept: 50 / 25 / 0 auf 100):
   // Wer nach dem 1. Versuch werten lässt, bekommt + 50 %, nach dem 2. + 25 %.
   bonus: [0.5, 0.25, 0],
@@ -66,9 +69,19 @@ export function isRoundOver(r: Round): boolean {
   return r.current >= r.turns.length;
 }
 
-/** Nummer des Versuchs, der als nächster läuft (1 … attempts). */
-export function attemptNumber(t: Turn): number {
-  return Math.min(ROUND.attempts, t.attempts.length + 1);
+/** So viele Versuche hat ein Spieler: Challenge drei, Einzelspiel einen (jeder Versuch zählt für sich). */
+export function attemptsFor(mode: Mode): number {
+  return mode === 'challenge' ? ROUND.attempts : 1;
+}
+
+/** Mehrere Versuche mit der Wahl «weiter» oder «werten» (und Bonus)? Nur in der Challenge. */
+export function hasAttemptChoice(mode: Mode): boolean {
+  return attemptsFor(mode) > 1;
+}
+
+/** Nummer des Versuchs, der als nächster läuft (1 … attemptsFor). */
+export function attemptNumber(r: Round, t: Turn): number {
+  return Math.min(attemptsFor(r.mode), t.attempts.length + 1);
 }
 
 function finish(r: Round, t: Turn): void {
@@ -81,7 +94,15 @@ export function endAttempt(r: Round, a: Attempt): void {
   const t = currentTurn(r);
   if (!t) return;
   t.attempts.push(a);
-  if (t.attempts.length >= ROUND.attempts) finish(r, t);
+  if (t.attempts.length >= attemptsFor(r.mode)) finish(r, t);
+}
+
+/**
+ * Was nach einem Versuch kommt: im Einzelspiel gleich die Wertung, in der
+ * Challenge der Zwischenstand (weiter oder werten).
+ */
+export function afterAttemptStep(r: Round): 'result' | 'between' {
+  return hasAttemptChoice(r.mode) ? 'between' : 'result';
 }
 
 /** Der Spieler lässt seinen besten Versuch werten und hört auf (mit Bonus für weniger Versuche). */
@@ -103,11 +124,12 @@ export function bonusFor(used: number): number {
   return ROUND.bonus[Math.min(ROUND.bonus.length, used) - 1] ?? 0;
 }
 
-/** Wertung eines Spielers: bester Versuch × (1 + Bonus für die gebrauchten Versuche). */
-export function turnScore(t: Turn): number {
+/** Wertung eines Spielers: bester Versuch, in der Challenge × (1 + Bonus für die gebrauchten Versuche). */
+export function turnScore(r: Round, t: Turn): number {
   const best = bestAttempt(t);
   if (!best) return 0;
-  return Math.round(best.points * (1 + bonusFor(t.attempts.length)));
+  const bonus = hasAttemptChoice(r.mode) ? bonusFor(t.attempts.length) : 0;
+  return Math.round(best.points * (1 + bonus));
 }
 
 export interface Rank {
@@ -125,6 +147,6 @@ export function byRank(a: { score: number; distance: number }, b: { score: numbe
 /** Rangliste einer Runde. */
 export function ranking(r: Round): Rank[] {
   return r.turns
-    .map((t) => ({ name: t.name, score: turnScore(t), distance: bestAttempt(t)?.distance ?? 0, attempts: t.attempts.length }))
+    .map((t) => ({ name: t.name, score: turnScore(r, t), distance: bestAttempt(t)?.distance ?? 0, attempts: t.attempts.length }))
     .sort(byRank);
 }

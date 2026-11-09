@@ -41,11 +41,14 @@ und keine Namen übernommen.
    gemerkte Namen werden vorgeschlagen). Ihr spielt **nacheinander auf
    demselben Gerät** («Jetzt spielt Anna – Gerät weitergeben»). Übers Heimnetz
    kommt die Challenge mit dem Server (Etappe 3).
-3. **Drei Versuche** je Spieler. Nach jedem Versuch: Ergebnis und die Wahl
+3. **Einzelspiel**: Jeder Versuch ist für sich eine Wertung – gleich nach
+   dem Boden kommen Punkte, Bestleistung und Bestenliste, dann «Nochmal» oder
+   «Menü». Keine drei Versuche, kein Bonus (Pascal 09.11., siehe unten).
+4. **Challenge: drei Versuche** je Spieler. Nach jedem Versuch: Ergebnis und die Wahl
    **«Versuch 2»** oder **«Werten»**. Werten nach dem 1. Versuch gibt
    + 50 %, nach dem 2. + 25 % auf den besten Versuch (wie im Konzept: weniger
    Versuche, mehr Bonus).
-4. **Wertung**: Einzelspiel mit Bestleistung («Neue Bestleistung!») und
+5. **Wertung**: Einzelspiel mit Bestleistung («Neue Bestleistung!») und
    Bestenliste; Challenge mit Rangliste. Alles wird auf dem Gerät gespeichert
    (die letzten 300 Ergebnisse).
 
@@ -97,24 +100,39 @@ steht, wie weit die nächste ist. Schon passierte Stationen werden grau.
 - Die Zahlen in `STYLE` sind Startwerte, gemessen nur in Tests; abgestimmt
   wird beim Spielen.
 
+## Rückmeldung Pascal 09.11.2026: drei Versuche nur in der Challenge
+
+> das mit den 3 versüchen gilt nur in Challenge. nicht im einzeln.
+
+Umgesetzt (`attemptsFor()` in `src/game.ts`): Im Einzelspiel hat ein Spieler
+einen Versuch je Runde, gewertet ohne Bonus und sofort gespeichert. Kein
+Zwischenstand, kein «Versuch 1/3» oben rechts, kein «Los»-Schritt vor dem
+Start. In der Challenge bleibt alles wie oben.
+
+Einzelspiel-Ergebnisse, die noch mit drei Versuchen und Bonus gespielt
+wurden (`attempts` über 1), bleiben gespeichert, zählen aber nicht mehr in
+Bestenliste und Bestleistung – sie wären mit Bonus kaum zu schlagen.
+
 ## Testanleitung für Pascal
 
 Link: kommt mit der Meldung (privates Artifact).
 
 1. Spiel öffnen: Startmenü erscheint. Ohne Namen «Einzelspiel» tippen – es
-   verlangt einen Namen. Namen eingeben, «Normal» wählen, «Einzelspiel», «Los».
+   verlangt einen Namen. Namen eingeben, «Normal» wählen, «Einzelspiel» – es
+   geht sofort los, oben rechts steht nur dein Name (kein «Versuch 1/3»).
 2. Schwingen: Oben rechts zählen Punkte, Meter und Style. Sauber quer
    einhaken und schräg nach oben lösen: «Perfekt +30» o. ä. erscheint, ab drei
    in Folge «STRIKE». In die Tiefe fallen und ins Seil rucken: «Nicht im
    Schwung», der Strike ist weg.
-3. Am Boden: Zwischenstand. Einmal «Versuch 2», dann «Werten» – die Punkte
-   zeigen + 25 %.
-4. Wertung: «Neue Bestleistung!» und deine Zeile in der Bestenliste. «Menü»:
-   Sie steht auch im Startmenü, auch nach Neuladen der Seite.
+3. Am Boden: gleich die Wertung dieses Versuchs mit «Neue Bestleistung!»
+   und deiner Zeile in der Bestenliste. «Nochmal» startet sofort neu.
+4. «Menü»: Die Bestenliste steht auch im Startmenü, auch nach Neuladen der
+   Seite.
 5. «Frei · mittel» wählen, Einzelspiel: grüne Kraftstation nach 300 m, beim
    Vorbeifliegen ist der Kraftbalken wieder voll.
-6. «Challenge»: zweiten Namen eintragen, «Los». Jeder spielt seine Versuche,
-   dazwischen «Jetzt spielt …». Am Ende Rangliste, im Startmenü unter
+6. «Challenge»: zweiten Namen eintragen, «Los». Jeder hat drei Versuche
+   («Versuch 1/3» oben rechts); nach dem ersten «Werten» tippen – die Punkte
+   zeigen + 50 %. Dazwischen «Jetzt spielt …». Am Ende Rangliste, im Startmenü unter
    «Letzte Challenges».
 7. Sagt dir die Strenge der Noten zu (zu leicht oder zu schwer im Strike zu
    bleiben)?

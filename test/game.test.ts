@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  attemptNumber, bestAttempt, bonusFor, cleanName, createRound, currentTurn, endAttempt, isRoundOver, ranking, ROUND,
+  afterAttemptStep, attemptNumber, attemptsFor, hasAttemptChoice, bestAttempt, bonusFor, cleanName, createRound, currentTurn, endAttempt, isRoundOver, ranking, ROUND,
   stopTurn, turnScore, type Attempt,
 } from '../src/game';
 import { bestSingles, KEYS, loadNames, loadResults, MAX_RESULTS, personalBest, recentChallenges, saveNames, saveRound, type KeyValue } from '../src/store';
@@ -36,14 +36,15 @@ describe('Runde', () => {
 
   it('nach dem dritten Versuch ist der nächste Spieler dran', () => {
     const r = createRound('challenge', ['Anna', 'Ben'], 'normal', 'r');
-    expect(attemptNumber(currentTurn(r)!)).toBe(1);
+    expect(attemptNumber(r, currentTurn(r)!)).toBe(1);
     endAttempt(r, att(100));
     endAttempt(r, att(300));
     expect(currentTurn(r)!.name).toBe('Anna');
-    expect(attemptNumber(currentTurn(r)!)).toBe(3);
+    expect(afterAttemptStep(r)).toBe('between');
+    expect(attemptNumber(r, currentTurn(r)!)).toBe(3);
     endAttempt(r, att(200));
     expect(currentTurn(r)!.name).toBe('Ben');
-    expect(turnScore(r.turns[0]!)).toBe(300); // bester Versuch, drei gebraucht: kein Bonus
+    expect(turnScore(r, r.turns[0]!)).toBe(300); // bester Versuch, drei gebraucht: kein Bonus
   });
 
   it('früher werten gibt Bonus: + 50 % nach dem 1., + 25 % nach dem 2. Versuch', () => {
@@ -51,23 +52,40 @@ describe('Runde', () => {
     expect(bonusFor(2)).toBe(0.25);
     expect(bonusFor(3)).toBe(0);
     expect(bonusFor(0)).toBe(0);
-    expect(turnScore({ name: 'A', attempts: [], done: false })).toBe(0);
+    expect(turnScore(createRound('challenge', ['A', 'B'], 'normal', 'r'), { name: 'A', attempts: [], done: false })).toBe(0);
     const r = createRound('challenge', ['Anna', 'Ben'], 'normal', 'r');
     endAttempt(r, att(400));
     stopTurn(r);
-    expect(turnScore(r.turns[0]!)).toBe(600);
+    expect(turnScore(r, r.turns[0]!)).toBe(600);
     endAttempt(r, att(300));
     endAttempt(r, att(500));
     stopTurn(r);
-    expect(turnScore(r.turns[1]!)).toBe(625);
+    expect(turnScore(r, r.turns[1]!)).toBe(625);
     expect(isRoundOver(r)).toBe(true);
     expect(ranking(r).map((x) => x.name)).toEqual(['Ben', 'Anna']);
   });
 
-  it('werten geht erst nach einem Versuch', () => {
+  it('Einzelspiel: jeder Versuch ist eine eigene Wertung, ohne Bonus (Pascal 09.11.)', () => {
+    expect(attemptsFor('single')).toBe(1);
+    expect(attemptsFor('challenge')).toBe(ROUND.attempts);
+    expect(hasAttemptChoice('single')).toBe(false);
+    expect(hasAttemptChoice('challenge')).toBe(true);
     const r = createRound('single', ['Anna'], 'normal', 'r');
-    stopTurn(r);
+    expect(attemptNumber(r, currentTurn(r)!)).toBe(1);
+    stopTurn(r); // ohne Versuch keine Wertung
     expect(isRoundOver(r)).toBe(false);
+    endAttempt(r, att(400));
+    expect(afterAttemptStep(r)).toBe('result');
+    expect(isRoundOver(r)).toBe(true);
+    expect(turnScore(r, r.turns[0]!)).toBe(400); // kein + 50 %
+    endAttempt(r, att(900)); // nach der Wertung zählt nichts mehr dazu
+    expect(r.turns[0]!.attempts).toHaveLength(1);
+  });
+
+  it('werten geht erst nach einem Versuch', () => {
+    const r = createRound('challenge', ['Anna', 'Ben'], 'normal', 'r');
+    stopTurn(r);
+    expect(currentTurn(r)!.name).toBe('Anna');
   });
 
   it('Gleichstand: die weitere Distanz liegt vorne', () => {
@@ -87,12 +105,11 @@ describe('Speicher', () => {
     for (const [name, pts, setting] of [['Anna', 400, 'normal'], ['Ben', 700, 'normal'], ['Anna', 900, 'free-hard']] as const) {
       const r = createRound('single', [name], setting, `${name}${pts}`);
       endAttempt(r, att(pts));
-      endAttempt(r, att(1));
-      endAttempt(r, att(1));
       saveRound(kv, r, new Date('2026-11-09T10:00:00Z'));
     }
     const all = loadResults(kv);
     expect(all).toHaveLength(3);
+    expect(all[0]).toMatchObject({ name: 'Anna', attempts: 1, score: 400 }); // ein Versuch, kein Bonus (sonst 600)
     expect(bestSingles(all, 'normal').map((x) => x.name)).toEqual(['Ben', 'Anna']);
     expect(personalBest(all, 'Anna', 'normal')?.score).toBe(400);
     expect(personalBest(all, 'Anna', 'free-hard')?.score).toBe(900);
@@ -104,8 +121,6 @@ describe('Speicher', () => {
     for (const [name, iso] of [['Ben', '2026-11-08T23:30:00Z'], ['Anna', '2026-11-09T00:30:00Z']] as const) {
       const r = createRound('single', [name], 'normal', name);
       endAttempt(r, att(500));
-      endAttempt(r, att(1));
-      endAttempt(r, att(1));
       saveRound(kv, r, new Date(iso));
     }
     expect(bestSingles(loadResults(kv), 'normal').map((x) => x.name)).toEqual(['Ben', 'Anna']);
@@ -125,6 +140,18 @@ describe('Speicher', () => {
     expect(ch.map((c) => c.round)).toEqual(['b', 'a']);
     expect(ch[0]!.ranks.map((x) => x.name)).toEqual(['Anna', 'Ben']);
     expect(ch[1]!.ranks.map((x) => x.name)).toEqual(['Ben', 'Anna']);
+  });
+
+  it('Einzelspiel-Ergebnisse mit drei Versuchen und Bonus (alte Regel) zählen nicht mehr in der Bestenliste', () => {
+    const kv = memory();
+    const old = { round: 'alt', mode: 'single', name: 'Anna', setting: 'normal', score: 900, distance: 600, style: 0, attempts: 2, bestStrike: 0, date: '2026-11-09T00:00:00Z' };
+    kv.data.set(KEYS.results, JSON.stringify([old]));
+    const r = createRound('single', ['Anna'], 'normal', 'neu');
+    endAttempt(r, att(500));
+    const all = saveRound(kv, r, new Date('2026-11-09T10:00:00Z'));
+    expect(all).toHaveLength(2); // die alte bleibt gespeichert
+    expect(bestSingles(all, 'normal').map((x) => x.round)).toEqual(['neu']);
+    expect(personalBest(all, 'Anna', 'normal')?.round).toBe('neu');
   });
 
   it('Kaputtes im Speicher fällt weg, ohne Speicher geht es trotzdem', () => {

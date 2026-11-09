@@ -30,3 +30,11 @@ datum: 2026-11-09
   Ablauf nach dem Versuch vereinfacht; Kommentar zu `spendJerk` korrigiert.
   Offen gelassen: Einstellung liest `main.ts` weiter direkt aus dem Speicher
   (älterer Code, nicht Teil dieses Auftrags).
+- Pascal: Die drei Versuche gelten nur in der Challenge, nicht im
+  Einzelspiel. Umgesetzt mit `attemptsFor()`: Einzelspiel startet sofort,
+  wertet jeden Versuch einzeln ohne Bonus und speichert ihn; «Nochmal» geht
+  direkt los. Entscheid ergänzt.
+- Gegenlesen dazu: Regel an einer Stelle (`hasAttemptChoice()` aus
+  `attemptsFor()`), Ablauf nach dem Versuch als `afterAttemptStep()` getestet;
+  alte Einzelspiel-Ergebnisse mit Bonus zählen nicht mehr in der Bestenliste
+  (bleiben gespeichert).

@@ -1,4 +1,4 @@
-import { attemptNumber, createRound, currentTurn, endAttempt, ROUND, stopTurn, type Mode, type Round } from './game';
+import { afterAttemptStep, attemptNumber, attemptsFor, hasAttemptChoice, createRound, currentTurn, endAttempt, stopTurn, type Mode, type Round } from './game';
 import { createState, resetState, settingByName, STEP, step, tap, TUNING, type Setting } from './physics';
 import { draw, onSideWall, screenToWorld, updateCamera, type Camera } from './render';
 import { attemptOf } from './score';
@@ -104,6 +104,7 @@ function showReady(): void {
   const r = round!;
   const turn = currentTurn(r);
   if (!turn) return showResult();
+  if (!hasAttemptChoice(r.mode)) return newAttempt(); // Einzelspiel: gleich los, kein Weitergeben
   menu.ready({ r, turn, onGo: newAttempt });
 }
 
@@ -120,12 +121,16 @@ function showResult(): void {
   });
 }
 
-/** Am Boden: Versuch werten, dann Zwischenstand mit «weiter» oder «werten». */
+/**
+ * Am Boden: Versuch werten. Einzelspiel: gleich die Wertung (jeder Versuch
+ * zählt für sich). Challenge: Zwischenstand mit «weiter» oder «werten».
+ */
 function attemptOver(): void {
   const r = round!;
   const turn = currentTurn(r)!;
   const attempt = attemptOf(state.maxX, TUNING.startPos.x, state.style);
   endAttempt(r, attempt);
+  if (afterAttemptStep(r) === 'result') return showResult();
   menu.afterAttempt({
     r,
     turn,
@@ -170,7 +175,10 @@ function frame(now: number): void {
   street.extendTo(state.pos.x + AHEAD);
   updateCamera(cam, state, width, height, dt);
   const turn = round ? currentTurn(round) : null;
-  draw(ctx, state, street, cam, width, height, turn && { name: turn.name, attempt: attemptNumber(turn), attempts: ROUND.attempts });
+  draw(ctx, state, street, cam, width, height, turn && {
+    name: turn.name,
+    attempt: hasAttemptChoice(round!.mode) ? { now: attemptNumber(round!, turn), of: attemptsFor(round!.mode) } : null,
+  });
   requestAnimationFrame(frame);
 }
 showStart();

@@ -72,7 +72,7 @@ export function saveRound(kv: KeyValue | null, r: Round, now: Date): Result[] {
     .map((t) => {
       const best = bestAttempt(t)!;
       return {
-        round: r.id, mode: r.mode, name: t.name, setting: r.setting, score: turnScore(t),
+        round: r.id, mode: r.mode, name: t.name, setting: r.setting, score: turnScore(r, t),
         distance: best.distance, style: best.style, attempts: t.attempts.length, bestStrike: best.bestStrike, date,
       };
     });
@@ -84,7 +84,8 @@ export function saveRound(kv: KeyValue | null, r: Round, now: Date): Result[] {
 /** Bestenliste im Einzelspiel für eine Einstellung: die besten n, bei Gleichstand das ältere vorne. */
 export function bestSingles(all: Result[], setting: string, n = 10): Result[] {
   return all
-    .filter((x) => x.mode === 'single' && x.setting === setting)
+    // attempts > 1: noch mit drei Versuchen und Bonus gespielt (bis 09.11.), nicht vergleichbar – bleibt gespeichert, zählt nicht
+    .filter((x) => x.mode === 'single' && x.setting === setting && x.attempts === 1)
     .sort((a, b) => b.score - a.score || a.date.localeCompare(b.date))
     .slice(0, n);
 }

@@ -181,8 +181,7 @@ export function strengthBox(h: number): ScreenBox {
 /** Was die Anzeige über die Runde wissen muss (main.ts). */
 export interface HudInfo {
   name: string;
-  attempt: number; // 1 … attempts
-  attempts: number;
+  attempt: { now: number; of: number } | null; // Versuch (nur Challenge), null im Einzelspiel
 }
 
 export const GRADE_LABEL: Record<Grade, string> = {
@@ -203,7 +202,7 @@ function drawHud(ctx: CanvasRenderingContext2D, s: State, w: number, h: number, 
   ctx.fillText(`${attemptPoints(dist, s.style)}`, right, h * 0.022);
   ctx.font = font(h * 0.022);
   ctx.fillText(`${dist} m · Style ${s.style.points}`, right, h * 0.075);
-  ctx.fillText(`${hud.name} · Versuch ${hud.attempt}/${hud.attempts}`, right, h * 0.105);
+  ctx.fillText(hud.attempt ? `${hud.name} · Versuch ${hud.attempt.now}/${hud.attempt.of}` : hud.name, right, h * 0.105);
   drawStyle(ctx, s, w, h);
 
   const weak = s.variant === 'free' && !s.rope && s.phase === 'flying' && tooWeakToHook(s);
