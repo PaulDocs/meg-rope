@@ -140,7 +140,7 @@ export interface Rope {
   pumpLimit: number | null; // Energie, bis zu der es Schwung holt: pumpLimitFor beim ersten Zug (null bis dahin), nach maxLoopTries misslungenen Anläufen gesenkt (trackLoopTry)
   age: number; // s seit dem Einhaken
   clean: boolean; // an diesem Seil noch kein Ruck, weder beim Einhaken noch danach (für den guten Schwung)
-  jerk: number; // m/s – grösster Ruck an diesem Seil (für die Style-Wertung, in jeder Variante)
+  lost: number; // 0 … 1 – grösster Anteil des Tempos, den ein Ruck an diesem Seil wegnahm (Style: «Schwung verloren»)
   loopTries: number; // Looping-Anläufe: so oft über die Hakenhöhe hinaus, noch ohne echten Looping
   looped: boolean; // schon einmal mit gespanntem Seil ganz oben durch (ein echter Looping, nicht nur darüber gefallen)
 }
@@ -275,7 +275,7 @@ export function tap(
     pumpLimit: null,
     age: 0,
     clean: true,
-    jerk: 0,
+    lost: 0,
     loopTries: s.pos.y > anchor.y ? 1 : 0, // über der Hakenhöhe eingehakt: das ist schon der erste Anlauf
     looped: false,
   };
@@ -302,15 +302,26 @@ function removeOutwardSpeed(s: State, n: Vec): number {
   return radial;
 }
 
+/**
+ * Anteil des Tempos, den ein Ruck wegnahm. Der Ruck nimmt nur den Teil vom Haken
+ * weg, der Rest (`after`) steht senkrecht dazu: vorher war es also √(after² + dv²).
+ */
+export function tempoLost(after: number, dv: number): number {
+  if (dv <= 0) return 0;
+  return 1 - after / Math.hypot(after, dv);
+}
+
 /** Was ein Ruck an Kraft kostet (Anteil), nach dem Tempo, das er wegnimmt. */
 export function jerkCost(dv: number): number {
   if (dv <= STRENGTH.jerkFrom) return 0;
   return STRENGTH.fullJerkCost * Math.min(1, (dv - STRENGTH.jerkFrom) / (STRENGTH.fullJerk - STRENGTH.jerkFrom));
 }
 
-/** Ruck verbuchen: grössten Ruck am Seil merken (Style, jede Variante); im Freien Schwung zusätzlich Kraft abziehen. */
+/** Ruck verbuchen: verlorenen Schwung am Seil merken (Style, jede Variante); im Freien Schwung zusätzlich Kraft abziehen. */
 function spendJerk(s: State, dv: number): void {
-  if (s.rope) s.rope.jerk = Math.max(s.rope.jerk, dv);
+  if (s.rope) {
+    s.rope.lost = Math.max(s.rope.lost, tempoLost(Math.hypot(s.vel.x, s.vel.y), dv));
+  }
   if (s.variant !== 'free') return;
   const cost = jerkCost(dv);
   if (cost > 0 && s.rope) s.rope.clean = false;
@@ -325,7 +336,7 @@ export function isGoodSwing(s: State): boolean {
 
 /** Messwerte des Schwungs am aktuellen Seil, kurz vor dem Lösen (für die Style-Wertung). */
 function swingEnd(s: State): SwingEnd {
-  return { jerk: s.rope!.jerk, hold: s.rope!.age, vx: s.vel.x, vy: s.vel.y, loops: turnsOnRope(s) };
+  return { lost: s.rope!.lost, hold: s.rope!.age, vx: s.vel.x, vy: s.vel.y, loops: turnsOnRope(s) };
 }
 
 /**

@@ -59,12 +59,13 @@ und keine Namen übernommen.
 Style zählt jeden **Übergang** (einhaken, schwingen, lösen) und gibt ihm eine
 Note. Es zählt die schlechtere von zwei Messungen:
 
-| Note | Einhaken: Ruck (Tempo, das das Seil wegnimmt) | Lösen: Abflug-Winkel («Flugzeitpunkt») | Grundpunkte |
+| Note | Schwung verloren (Anteil des Tempos, den der Ruck wegnimmt) | Lösen: Abflug-Winkel («Flugzeitpunkt») | Grundpunkte |
 |---|---|---|---|
-| Perfekt | bis 3 m/s | 20–55° nach vorne oben | 30 |
-| Gut | bis 10 m/s | 5–70° | 20 |
-| Knapp | bis 18 m/s | −20–85° | 10 |
-| Nicht im Schwung | mehr | flacher nach unten, steiler oder rückwärts | 0 |
+| Perfekt | bis 15 % | 20–55° nach vorne oben | 30 |
+| Gut | bis 40 % | 5–70° | 20 |
+| Knapp | bis 70 % | alles übrige (auch nach unten oder rückwärts) | 10 |
+| Nicht im Schwung | mehr als 70 % | – (der Winkel allein wirft nicht raus) | 0 |
+
 
 - **Nicht im Schwung** heisst auch: kürzer als 0,4 s am Seil (nur
   angetippt) oder langsamer als 12 m/s gelöst. Ebenso, wenn die Kraft weg ist
@@ -113,6 +114,29 @@ Einzelspiel-Ergebnisse, die noch mit drei Versuchen und Bonus gespielt
 wurden (`attempts` über 1), bleiben gespeichert, zählen aber nicht mehr in
 Bestenliste und Bestleistung – sie wären mit Bonus kaum zu schlagen.
 
+## Rückmeldung Pascal 09.11.2026: «Nicht im Schwung» kam viel zu oft
+
+> die berechnung der Folgen stimmt nicht, "nicht im Schwung" kommt viel zu
+> oft, auch wenn ich das gefühl habe es wäre im Schwung bin. Als einfach
+> gesagt, wenn ich nicht mehr als 70% schwung verliere bin ich im schwung.
+
+**Gemessen** (Zufalls-Spieler über die Übungsstrasse, 1057 Übergänge,
+Normal): 51 % waren «Nicht im Schwung». Gründe (Mehrfachnennung): Ruck 369,
+Abflug-Winkel 310, zu langsam 35, zu kurz 0. Der Ruck wurde in m/s gemessen
+(Grenze 18): wer mit 60 m/s fliegt, verliert bei 18 m/s Ruck nur 5 % seines
+Tempos und flog trotzdem raus. Von den 369 Ruck-«out» hätten 286 nicht mehr
+als 70 % Tempo verloren.
+
+**Neu:** Schwung = Tempo. «Schwung verloren» = Anteil des Tempos, den ein Ruck
+(Einhaken oder späteres Spannen) wegnimmt; vorher = √(nachher² + Ruck²).
+«Nicht im Schwung» nur noch bei mehr als 70 % verloren (Note «Knapp» bis 70 %,
+«Gut» bis 40 %, «Perfekt» bis 15 %), nur angetippt (unter 0,4 s) oder unter
+12 m/s gelöst. Der Abflug-Winkel gibt weiter die Note (Perfekt/Gut/Knapp),
+wirft aber nicht mehr aus dem Strike. Nachher im selben Test: 10 % «Nicht im
+Schwung» (Startwert, abgestimmt wird beim Spielen). Stellschrauben:
+`STYLE.lost`, `STYLE.angle`. Bekannt: Bleibt nach dem Ruck fast kein Tempo
+(Einhaken im Stand mit kleinem Ruck), gilt das als 100 % verloren.
+
 ## Testanleitung für Pascal
 
 Link: kommt mit der Meldung (privates Artifact).
@@ -122,8 +146,9 @@ Link: kommt mit der Meldung (privates Artifact).
    geht sofort los, oben rechts steht nur dein Name (kein «Versuch 1/3»).
 2. Schwingen: Oben rechts zählen Punkte, Meter und Style. Sauber quer
    einhaken und schräg nach oben lösen: «Perfekt +30» o. ä. erscheint, ab drei
-   in Folge «STRIKE». In die Tiefe fallen und ins Seil rucken: «Nicht im
-   Schwung», der Strike ist weg.
+   in Folge «STRIKE». Gerade in die Tiefe fallen und ins Seil rucken (fast kein Tempo quer zum
+   Seil, also über 70 % verloren): «Nicht im Schwung», der Strike ist weg.
+   Wer dabei schnell quer fliegt, bleibt im Strike.
 3. Am Boden: gleich die Wertung dieses Versuchs mit «Neue Bestleistung!»
    und deiner Zeile in der Bestenliste. «Nochmal» startet sofort neu.
 4. «Menü»: Die Bestenliste steht auch im Startmenü, auch nach Neuladen der
@@ -134,5 +159,7 @@ Link: kommt mit der Meldung (privates Artifact).
    («Versuch 1/3» oben rechts); nach dem ersten «Werten» tippen – die Punkte
    zeigen + 50 %. Dazwischen «Jetzt spielt …». Am Ende Rangliste, im Startmenü unter
    «Letzte Challenges».
-7. Sagt dir die Strenge der Noten zu (zu leicht oder zu schwer im Strike zu
+7. Fliegst du schnell (über 40 m/s) und hakst schräg ein: bleibt der Strike?
+   Fällst du gerade ins Seil: «Nicht im Schwung».
+8. Sagt dir die Strenge der Noten zu (zu leicht oder zu schwer im Strike zu
    bleiben)?
