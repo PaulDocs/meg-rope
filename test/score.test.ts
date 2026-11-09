@@ -72,6 +72,16 @@ describe('Direkt weiterschwingen', () => {
     expect(lostGrade(0.75, true)).toBe('ok');
     expect(angleGrade(12)).toBe('good');
     expect(angleGrade(12, true)).toBe('perfect');
+    expect(angleGrade(-5, true)).toBe('good');
+    expect(angleGrade(80, true)).toBe('good');
+    expect(angleGrade(-6, true)).toBe('ok');
+    expect(angleGrade(81, true)).toBe('ok');
+    expect(lostGrade(0.5, true)).toBe('good');
+    expect(lostGrade(0.8, true)).toBe('ok');
+    expect(lostGrade(0.81, true)).toBe('out');
+    expect(gradeSwing(swing(12, 30, 0, 1))).toBe('perfect');
+    expect(gradeSwing(swing(12, 30, 0, 3))).toBe('good');
+    expect(gradeSwing(swing(40, 30, 0.85, 1))).toBe('out');
     // lange gehalten: weiter die strengen Grenzen
     expect(gradeSwing(swing(40, 30, 0.75, 3))).toBe('out');
     expect(gradeSwing(swing(40, 30, 0.75, 1))).toBe('ok');
@@ -86,6 +96,11 @@ describe('Direkt weiterschwingen', () => {
     rateSwing(a, swing(40, 20, 0, 1), 0);
     rateSwing(b, swing(40, 20, 0, 3), 0);
     expect(a.points - b.points).toBe(STYLE.direct.points);
+    // mal Faktor der Folge; ein direkter «out» bringt nichts und beendet den Strike
+    rateSwing(a, swing(40, 20, 0, 1), 1);
+    expect(a.points).toBe((STYLE.points.perfect + STYLE.direct.points) * (1 + multiplier(2)));
+    rateSwing(a, swing(40, 20, 0.9, 1), 2);
+    expect(a.strike).toBe(0);
   });
 });
 

@@ -97,7 +97,7 @@ export function angleGrade(deg: number, direct = false): Grade {
 /**
  * Note eines Übergangs: die schlechtere von verlorenem Schwung und Abflug-Winkel.
  * «Out» (Nicht im Schwung) gibt es nur, wenn mehr als `STYLE.lost.ok` des Tempos
- * verloren ging, oder wenn es nur angetippt (zu kurz) oder kaum Tempo war.
+ * verloren ging (bei direktem Weiterschwingen `STYLE.direct.lost.ok`), oder wenn es nur angetippt (zu kurz) oder kaum Tempo war.
  */
 export function gradeSwing(e: SwingEnd): Grade {
   if (e.hold < STYLE.minHold || Math.hypot(e.vx, e.vy) < STYLE.minSpeed) return 'out';
