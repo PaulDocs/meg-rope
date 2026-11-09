@@ -23,3 +23,6 @@ coverage/
 *.MOV
 *.mp4
 *.MP4
+
+# Worktrees paralleler Claude-Sitzungen (eigene Zweige, nie hier einchecken)
+.claude/worktrees/
