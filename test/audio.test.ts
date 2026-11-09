@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { impactLevel, jerkLevel, jerkSpeed, loadMuted, MUTE_KEY, saveMuted, SOUND, Sound, SoundObserver, windParams } from '../src/audio';
+import { cryLevel, impactLevel, jerkLevel, jerkSpeed, loadMuted, MUTE_KEY, saveMuted, SOUND, Sound, SoundObserver, windParams } from '../src/audio';
 import { createState, noSideWalls, STEP, step, STRENGTH, tap, TUNING, type State } from '../src/physics';
 import type { Hold } from '../src/world';
 
@@ -54,6 +54,16 @@ describe('Ruck aus dem Anteil des verlorenen Tempos', () => {
     expect(jerkSpeed(10, 0.2)).toBeCloseTo(6, 6); // 10 · √(1 − 0,8²)
     expect(jerkSpeed(10, -0.5)).toBe(0); // geklemmt
     expect(jerkSpeed(10, 2)).toBeCloseTo(10, 6);
+  });
+});
+
+describe('Ruf beim Wegfliegen', () => {
+  it('langsam still, dann stärker bis voll', () => {
+    expect(cryLevel(SOUND.cryFrom - 1)).toBe(0);
+    expect(cryLevel(SOUND.cryFrom)).toBe(0);
+    expect(cryLevel(50)).toBeGreaterThan(0);
+    expect(cryLevel(50)).toBeLessThan(cryLevel(70));
+    expect(cryLevel(1000)).toBe(1);
   });
 });
 
@@ -183,6 +193,40 @@ describe('SoundObserver meldet Ereignisse aus dem Spielzustand', () => {
     expect(kind(ob.update(s))).toContain('jerk');
   });
 
+  it('Lösen im Flug-Tempo ruft «cry», langsam oder am Boden nicht', () => {
+    const { s, ob } = flying();
+    tap(s, { x: 0, y: 110 }, wall, noSideWalls);
+    s.time += 1;
+    s.vel = { x: 40, y: 30 };
+    ob.update(s);
+    tap(s, { x: 0, y: 110 }, wall, noSideWalls);
+    const ev = ob.update(s);
+    expect(kind(ev)).toEqual(['cry', 'points']);
+    expect((ev[0] as { level: number }).level).toBeCloseTo(cryLevel(50), 6);
+
+    const slow = flying();
+    tap(slow.s, { x: 0, y: 110 }, wall, noSideWalls);
+    slow.s.time += 1;
+    slow.s.vel = { x: 5, y: 5 };
+    slow.ob.update(slow.s);
+    tap(slow.s, { x: 0, y: 110 }, wall, noSideWalls);
+    expect(kind(slow.ob.update(slow.s))).not.toContain('cry');
+  });
+
+  it('Aufprall mit Seil gibt «ground», aber keinen Ruf', () => {
+    const { s, ob } = flying();
+    tap(s, { x: 0, y: 5 }, wall, noSideWalls); // Haken knapp über dem Boden
+    s.vel = { x: 0, y: -60 };
+    ob.update(s);
+    let heard: { type: string }[] = [];
+    for (let i = 0; i < 600 && s.phase !== 'down'; i++) {
+      step(s);
+      heard = heard.concat(ob.update(s));
+    }
+    expect(kind(heard)).toContain('ground');
+    expect(kind(heard)).not.toContain('cry');
+  });
+
   it('«points» trägt Note und Folge aus dem Style-Stand, auch «out»', () => {
     const { s, ob } = flying();
     s.style.swings++;
@@ -291,6 +335,13 @@ describe('Sound mit Fake-AudioContext', () => {
     return snd;
   }
   afterEach(() => vi.unstubAllGlobals());
+
+  it('Ruf und Aufprall nutzen Stimme und Knacken, bleiben aber unter dem Stimmenlimit', () => {
+    const snd = ready();
+    snd.play([{ type: 'cry', level: 1 }, { type: 'ground', level: 1 }, { type: 'loop' }]);
+    expect(made.osc.length).toBeGreaterThanOrEqual(3);
+    expect(made.osc.length).toBeLessThanOrEqual(SOUND.maxVoices);
+  });
 
   it('stumm: keine Töne', () => {
     const snd = ready(true);

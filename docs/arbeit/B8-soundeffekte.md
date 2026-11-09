@@ -12,7 +12,7 @@ angenommen).
 
 ## Was gebaut ist
 
-Alle Töne werden im Spiel selbst erzeugt (Web Audio: Schwingungen und
+Auch die Stimme des Männchens ist künstlich: ein Brummton, den zwei Filter zu Vokalen formen, keine Aufnahmen. Alle Töne werden im Spiel selbst erzeugt (Web Audio: Schwingungen und
 gefiltertes Rauschen). Keine Sounddateien, keine Töne aus Rope'n'Fly oder
 anderen Spielen.
 
@@ -20,9 +20,10 @@ anderen Spielen.
 |---|---|
 | Seil schiessen und einhaken | kurzes Zischen, dann ein Klick |
 | Wind | laufender Ton: lauter und höher mit dem Tempo, folgt weich; still im Menü und am Boden |
-| Ruck (Fall ins Seil) | dumpfer Schlag, Stärke nach dem weggenommenen Tempo |
-| Looping | kurzer steigender Akzent pro Umdrehung |
-| Aufprall am Boden | tiefer Schlag, Stärke nach dem Tempo |
+| Ruck (Fall ins Seil) | dumpfer Schlag, Stärke nach dem weggenommenen Tempo; bei hartem Ruck dazu ein «uff» |
+| Looping | kurzer steigender Akzent pro Umdrehung, dazu ein «wooo» des Männchens |
+| Loslassen im Flug (ab 20 m/s) | «yuuuh» des Männchens, länger, lauter und höher bei mehr Tempo |
+| Aufprall am Boden | tiefer Schlag, Stärke nach dem Tempo; ab mittlerem Tempo knacken Knochen (mehr Knackser bei härterem Aufprall), dann stöhnt das Männchen |
 | Punkte | kleines «Pling», höher bei besserer Note und längerer Folge; «Nicht im Schwung» klingt dumpf |
 | Strike (3. Übergang in Folge) | zweiter, höherer Ton dazu |
 | Serie guter Schwünge (Freier Schwung) | kleiner Zusatzton |
@@ -57,16 +58,17 @@ Browser merkt sich die Wahl (`meg-rope.muted`).
 1. Testseite öffnen, Seitenschalter des iPads auf «Ton», Lautstärke mittel. Name
    eingeben, «Einzelspiel» tippen. Das Spiel ist am Anfang still, bis du das
    erste Mal tippst.
-2. Auf ein Gebäude tippen: Zischen und Klick beim Einhaken.
+2. Auf ein Gebäude tippen: Zischen und Klick beim Einhaken. Schnell loslassen: «yuuuh».
 3. Schwingen und fliegen: Windrauschen wird mit dem Tempo lauter und höher; im
    Menü ist es still.
-4. Aus grosser Höhe ins Seil fallen lassen: dumpfer Schlag, stärker bei mehr
-   Tempo. Looping: kurzer Akzent pro Umdrehung.
+4. Aus grosser Höhe ins Seil fallen lassen: dumpfer Schlag und «uff», stärker bei
+   mehr Tempo. Looping: Akzent und «wooo» pro Umdrehung. Hart am Boden
+   aufprallen: Knacken und Stöhnen.
 5. Schön lösen (Perfekt/Gut): «Pling», höher bei längerer Folge. «Nicht im
    Schwung»: dumpfer Ton.
 6. Einstellung «Frei · mittel»: Kraft herunterfahren, bei unter 30 % kommt ein
    Warnton, einmal. Alle 300 m ein Akkord an der Kraftstation.
-7. Knopf unten rechts tippen: stumm; Seite neu laden: bleibt stumm.
+7. Knopf unten rechts (Stimme und Knacken sind dann auch weg) tippen: stumm; Seite neu laden: bleibt stumm.
 
 Rückmeldung zu Lautstärke und Klang bitte als Eindruck («zu laut», «Wind zu
 hoch»); die Gesamtwerte (Wind, Schwellen, Warnton) stehen in `SOUND`, die Klangrezepte der einzelnen Töne in `Sound.one()` (beide in `src/audio.ts`).

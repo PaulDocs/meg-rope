@@ -16,10 +16,12 @@ export const SOUND = {
   master: 0.5, // Gesamtlautstärke
   wind: { maxGain: 0.16, minFreq: 280, maxFreq: 2600, q: 0.7, follow: 0.12 }, // follow: s, mit der der Ton dem Tempo nachläuft
   windFrom: 4, // m/s – langsamer ist es still
+  cryFrom: 20, // m/s – langsamer gelöst ruft das Männchen nicht
+  cryFull: 80, // m/s – ab hier der volle Ruf
   impactFull: 80, // m/s – Aufprall in dieser Geschwindigkeit klingt voll
   jerkMin: 3, // m/s – kleiner Ruck (weggenommenes Tempo) bleibt lautlos
   weak: { below: 0.3, rearm: 0.45 }, // Kraft: Warnton beim Unterschreiten, wieder scharf erst über rearm
-  maxVoices: 10, // so viele kurze Töne gleichzeitig, mehr werden verworfen
+  maxVoices: 16, // so viele kurze Töne gleichzeitig, mehr werden verworfen
   seriesDelay: 0.14, // s – Serien-Ton kommt nach dem Punkte-Ton
 };
 
@@ -28,6 +30,7 @@ export type SoundEvent =
   | { type: 'hook' } // Seil schiessen und einhaken
   | { type: 'jerk'; level: number } // Ruck, Stärke 0 … 1
   | { type: 'loop' } // volle Umdrehung um den Haken
+  | { type: 'cry'; level: number } // Männchen lässt los und fliegt: «yuuuh», Stärke nach dem Tempo
   | { type: 'ground'; level: number } // Aufprall, Stärke 0 … 1
   | { type: 'points'; grade: Grade; strike: number } // Übergang gewertet
   | { type: 'series'; count: number } // guter Schwung in Folge (Freier Schwung)
@@ -56,6 +59,11 @@ export function jerkLevel(dv: number): number {
 export function jerkSpeed(before: number, lost: number): number {
   const keep = 1 - clamp01(lost);
   return before * Math.sqrt(1 - keep * keep);
+}
+
+/** Stärke des Rufs beim Wegfliegen 0 … 1 (langsam gelöst bleibt es still). */
+export function cryLevel(speed: number): number {
+  return speed < SOUND.cryFrom ? 0 : clamp01((speed - SOUND.cryFrom) / (SOUND.cryFull - SOUND.cryFrom));
 }
 
 /** Stärke eines Aufpralls 0 … 1 nach dem Tempo (voll bei `SOUND.impactFull`). */
@@ -117,6 +125,7 @@ export class SoundObserver {
       if (dv >= SOUND.jerkMin) out.push({ type: 'jerk', level: jerkLevel(dv) });
     }
     if (now.rope && now.rope === prev.rope && now.turns > prev.turns) out.push({ type: 'loop' });
+    if (prev.rope && !now.rope && !now.down && cryLevel(prev.speed) > 0) out.push({ type: 'cry', level: cryLevel(prev.speed) });
     if (now.down && !prev.down) out.push({ type: 'ground', level: impactLevel(prev.speed) });
     if (now.styleSwings > prev.styleSwings && s.style.last) out.push({ type: 'points', grade: s.style.last.grade, strike: s.style.last.strike });
     if (now.goodSwings > prev.goodSwings) out.push({ type: 'series', count: now.goodSwings });
@@ -251,13 +260,26 @@ export class Sound {
       case 'jerk':
         this.tone({ at: 0, dur: 0.18 + 0.12 * e.level, freq: 150, end: 55, gain: 0.12 + 0.3 * e.level, type: 'sine' });
         this.noiseBurst({ at: 0, dur: 0.08, from: 700, to: 300, gain: 0.04 + 0.18 * e.level, q: 0.8 });
+        if (e.level > 0.3) this.voice({ at: 0.02, dur: 0.16, f0: 150, f1: 90, from: [520, 1100], to: [400, 900], gain: 0.08 + 0.1 * e.level }); // «uff»
         break;
       case 'loop':
         this.tone({ at: 0, dur: 0.22, freq: semi(-5), end: semi(7), gain: 0.1, type: 'triangle' });
+        this.voice({ at: 0, dur: 0.38, f0: 250, f1: 420, from: [300, 800], to: [520, 1100], gain: 0.1 }); // «wooo»
+        break;
+      case 'cry':
+        this.voice({ at: 0.03, dur: 0.5 + 0.5 * e.level, f0: 200 + 60 * e.level, f1: 320 + 120 * e.level, from: [330, 2200], to: [300, 850], gain: 0.07 + 0.08 * e.level }); // «yuuuh»
         break;
       case 'ground':
         this.tone({ at: 0, dur: 0.3 + 0.2 * e.level, freq: 110, end: 40, gain: 0.15 + 0.35 * e.level, type: 'sine' });
         this.noiseBurst({ at: 0, dur: 0.22, from: 900, to: 200, gain: 0.08 + 0.22 * e.level, q: 0.6 });
+        if (e.level > 0.25) {
+          // Knochen knacken: kurze, helle Knackser, mehr bei härterem Aufprall
+          const cracks = 2 + Math.round(e.level * 5);
+          for (let i = 0; i < cracks; i++) {
+            this.noiseBurst({ at: 0.04 + i * 0.045 + (i % 2) * 0.012, dur: 0.025, from: 4200 - i * 250, to: 1400, gain: 0.12 + 0.12 * e.level, q: 4 });
+          }
+        }
+        this.voice({ at: 0.12, dur: 0.5, f0: 150, f1: 65, from: [700, 1200], to: [450, 800], gain: 0.06 + 0.07 * e.level }); // «aaah…» stöhnt
         break;
       case 'points': {
         if (e.grade === 'out') {
@@ -297,6 +319,33 @@ export class Sound {
     osc.stop(t + o.dur + 0.05);
   }
 
+  /**
+   * Stimme des Männchens: ein obertonreicher Ton (Sägezahn), den zwei Filter
+   * zu einem Vokal formen. Tonhöhe `f0` → `f1`, Vokalfilter `from` → `to` (F1, F2 in Hz).
+   */
+  private voice(o: { at: number; dur: number; f0: number; f1: number; from: [number, number]; to: [number, number]; gain: number }): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.master || this.voices >= SOUND.maxVoices) return;
+    const t = ctx.currentTime + o.at;
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(o.f0, t);
+    osc.frequency.exponentialRampToValueAtTime(o.f1, t + o.dur);
+    const mix = ctx.createGain();
+    mix.gain.value = 0.7;
+    o.from.forEach((f, i) => {
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.Q.value = 6;
+      filter.frequency.setValueAtTime(f, t);
+      filter.frequency.exponentialRampToValueAtTime(o.to[i]!, t + o.dur);
+      osc.connect(filter).connect(mix);
+    });
+    this.envelope(mix, t, o.dur, o.gain, osc);
+    osc.start(t);
+    osc.stop(t + o.dur + 0.05);
+  }
+
   /** Ein kurzes gefiltertes Rauschen, dessen Filter von `from` nach `to` gleitet. */
   private noiseBurst(o: { at: number; dur: number; from: number; to: number; gain: number; q: number }): void {
     const ctx = this.ctx;
@@ -327,6 +376,7 @@ export class Sound {
       this.voices--;
       g.disconnect();
       source.disconnect();
+      owner.disconnect();
     };
   }
 }
