@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { impactLevel, jerkLevel, loadMuted, MUTE_KEY, saveMuted, SOUND, SoundObserver, windParams } from '../src/audio';
+import { impactLevel, jerkLevel, jerkSpeed, loadMuted, MUTE_KEY, saveMuted, SOUND, SoundObserver, windParams } from '../src/audio';
 import { createState, noSideWalls, STEP, step, STRENGTH, tap, TUNING, type State } from '../src/physics';
 import type { Hold } from '../src/world';
 
@@ -45,6 +45,15 @@ describe('Stärke von Ruck und Aufprall', () => {
   });
 });
 
+describe('Ruck aus dem Anteil des verlorenen Tempos', () => {
+  it('kein Verlust: kein Ruck; voller Verlust: das ganze Tempo; dazwischen mehr bei mehr Verlust', () => {
+    expect(jerkSpeed(50, 0)).toBe(0);
+    expect(jerkSpeed(50, 1)).toBeCloseTo(50, 6);
+    expect(jerkSpeed(50, 0.3)).toBeLessThan(jerkSpeed(50, 0.7));
+    expect(jerkSpeed(0, 0.9)).toBe(0);
+  });
+});
+
 describe('Stummschalter wird gemerkt', () => {
   it('Standard: Ton an; gespeichert gilt die Wahl', () => {
     const mem = new Map<string, string>();
@@ -85,6 +94,7 @@ describe('SoundObserver meldet Ereignisse aus dem Spielzustand', () => {
   it('Einhaken meldet «hook», ein starker Ruck dazu «jerk» mit Stärke', () => {
     const { s, ob } = flying();
     s.vel = { x: 0, y: -60 };
+    ob.update(s); // Tempo vor dem Ruck
     expect(tap(s, { x: 0, y: 110 }, wall, noSideWalls)).toBe('attached');
     step(s);
     const ev = ob.update(s);
@@ -105,6 +115,7 @@ describe('SoundObserver meldet Ereignisse aus dem Spielzustand', () => {
   it('kleiner Ruck unter der Schwelle bleibt lautlos', () => {
     const { s, ob } = flying();
     s.vel = { x: 0, y: -SOUND.jerkMin / 2 };
+    ob.update(s);
     tap(s, { x: 0, y: 110 }, wall, noSideWalls);
     expect(kind(ob.update(s))).toEqual(['hook']);
   });

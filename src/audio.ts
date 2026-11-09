@@ -16,7 +16,7 @@ export const SOUND = {
   master: 0.5, // Gesamtlautstärke
   wind: { maxGain: 0.16, minFreq: 280, maxFreq: 2600, q: 0.7, follow: 0.12 }, // follow: s, mit der der Ton dem Tempo nachläuft
   windFrom: 4, // m/s – langsamer ist es still
-  jerkMin: 3, // m/s – kleiner Ruck bleibt lautlos
+  jerkMin: 3, // m/s – kleiner Ruck (weggenommenes Tempo) bleibt lautlos
   weak: { below: 0.3, rearm: 0.45 }, // Kraft: Warnton beim Unterschreiten, wieder scharf erst über rearm
   maxVoices: 10, // so viele kurze Töne gleichzeitig, mehr werden verworfen
   seriesDelay: 0.14, // s – Serien-Ton kommt nach dem Punkte-Ton
@@ -47,6 +47,16 @@ export function jerkLevel(dv: number): number {
   return clamp01(dv / STRENGTH.fullJerk);
 }
 
+/**
+ * Tempo (m/s), das ein Ruck wegnahm: Die Physik meldet nur den Anteil `lost`
+ * (Rope.lost). Vorher war das Tempo `before` (vom Bild davor), danach steht der
+ * Rest senkrecht zum Seil: before·(1 − lost); der Ruck nahm den Rest von √(before² − after²).
+ */
+export function jerkSpeed(before: number, lost: number): number {
+  const keep = 1 - clamp01(lost);
+  return before * Math.sqrt(1 - keep * keep);
+}
+
 /** Stärke eines Aufpralls 0 … 1 nach dem Tempo (voll bei 80 m/s). */
 export function impactLevel(speed: number): number {
   return clamp01(speed / 80);
@@ -56,7 +66,7 @@ export function impactLevel(speed: number): number {
 interface Snapshot {
   time: number;
   rope: Rope | null;
-  jerk: number;
+  lost: number;
   turns: number;
   down: boolean;
   speed: number;
@@ -69,7 +79,7 @@ function snapshot(s: State): Snapshot {
   return {
     time: s.time,
     rope: s.rope,
-    jerk: s.rope ? s.rope.jerk : 0,
+    lost: s.rope ? s.rope.lost : 0,
     turns: turnsOnRope(s),
     down: s.phase === 'down',
     speed: Math.hypot(s.vel.x, s.vel.y),
@@ -99,8 +109,11 @@ export class SoundObserver {
     }
     const out: SoundEvent[] = [];
     if (now.rope && now.rope !== prev.rope) out.push({ type: 'hook' });
-    const before = now.rope === prev.rope ? prev.jerk : 0;
-    if (now.rope && now.jerk > before && now.jerk >= SOUND.jerkMin) out.push({ type: 'jerk', level: jerkLevel(now.jerk) });
+    const before = now.rope === prev.rope ? prev.lost : 0;
+    if (now.rope && now.lost > before) {
+      const dv = jerkSpeed(prev.speed, now.lost);
+      if (dv >= SOUND.jerkMin) out.push({ type: 'jerk', level: jerkLevel(dv) });
+    }
     if (now.rope && now.rope === prev.rope && now.turns > prev.turns) out.push({ type: 'loop' });
     if (now.down && !prev.down) out.push({ type: 'ground', level: impactLevel(prev.speed) });
     if (now.styleSwings > prev.styleSwings && s.style.last) out.push({ type: 'points', grade: s.style.last.grade, strike: s.style.last.strike });

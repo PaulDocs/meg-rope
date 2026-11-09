@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { createState, noSideWalls, stationAt, step, STRENGTH, tap, TUNING, type State } from '../src/physics';
+import { createState, noSideWalls, stationAt, step, STRENGTH, tap, tempoLost, TUNING, type State } from '../src/physics';
 import {
-  angleGrade, attemptOf, attemptPoints, breakStrike, createStyle, distanceOf, gradeSwing, isStrike, jerkGrade, multiplier,
+  angleGrade, attemptOf, attemptPoints, breakStrike, createStyle, distanceOf, gradeSwing, isStrike, lostGrade, multiplier,
   rateSwing, releaseAngle, STYLE, type SwingEnd,
 } from '../src/score';
 import type { Hold } from '../src/world';
@@ -12,18 +12,29 @@ const wall: Hold[] = [{ kind: 'rect', x: -500, y: 0, w: 2000, h: 300 }];
 const g = TUNING.gravity;
 
 /** Ein Übergang mit Abflug unter `deg` Grad und Tempo v. */
-function swing(deg: number, v = 30, jerk = 0, hold = 1, loops = 0): SwingEnd {
+function swing(deg: number, v = 30, lost = 0, hold = 1, loops = 0): SwingEnd {
   const r = (deg * Math.PI) / 180;
-  return { jerk, hold, vx: v * Math.cos(r), vy: v * Math.sin(r), loops };
+  return { lost, hold, vx: v * Math.cos(r), vy: v * Math.sin(r), loops };
 }
 
 describe('Noten', () => {
-  it('Einhaken nach dem Ruck: perfekt, gut, knapp, raus', () => {
-    expect(jerkGrade(0)).toBe('perfect');
-    expect(jerkGrade(STYLE.jerk.perfect)).toBe('perfect');
-    expect(jerkGrade(8)).toBe('good');
-    expect(jerkGrade(15)).toBe('ok');
-    expect(jerkGrade(STYLE.jerk.ok + 0.1)).toBe('out');
+  it('verlorener Schwung: perfekt, gut, knapp, raus erst über 70 % des Tempos', () => {
+    expect(STYLE.lost.ok).toBe(0.7); // Pascal 09.11.
+    expect(lostGrade(0)).toBe('perfect');
+    expect(lostGrade(STYLE.lost.perfect)).toBe('perfect');
+    expect(lostGrade(0.3)).toBe('good');
+    expect(lostGrade(0.6)).toBe('ok');
+    expect(lostGrade(0.7)).toBe('ok');
+    expect(lostGrade(0.71)).toBe('out');
+  });
+
+  it('Anteil des Tempos, den ein Ruck wegnahm', () => {
+    expect(tempoLost(30, 0)).toBe(0);
+    expect(tempoLost(30, 40)).toBeCloseTo(0.4, 9); // vorher 50, nachher 30
+    expect(tempoLost(0, 25)).toBe(1); // alles weg
+    expect(tempoLost(3, 4)).toBeCloseTo(0.4, 9); // 3-4-5: vorher 5, nachher 3
+    expect(tempoLost(10, -5)).toBe(0); // kein Ruck
+    expect(tempoLost(60, 18)).toBeLessThan(0.05); // schnell: derselbe Ruck fällt kaum ins Gewicht
   });
 
   it('Lösen nach dem Abflug-Winkel: schräg nach vorne oben ist perfekt, rückwärts raus', () => {
@@ -31,14 +42,16 @@ describe('Noten', () => {
     expect(angleGrade(40)).toBe('perfect');
     expect(angleGrade(65)).toBe('good');
     expect(angleGrade(-10)).toBe('ok');
-    expect(angleGrade(-30)).toBe('out'); // steil nach unten
-    expect(angleGrade(120)).toBe('out'); // rückwärts
+    expect(angleGrade(-30)).toBe('ok'); // steil nach unten: nur «knapp», aber noch im Schwung
+    expect(angleGrade(120)).toBe('ok'); // rückwärts ebenso
   });
 
-  it('die schlechtere Note zählt; zu kurz oder zu langsam ist raus', () => {
+  it('die schlechtere Note zählt; zu kurz, zu langsam oder über 70 % Schwung verloren ist raus', () => {
     expect(gradeSwing(swing(40))).toBe('perfect');
-    expect(gradeSwing(swing(40, 30, 12))).toBe('ok');
-    expect(gradeSwing(swing(65, 30, 1))).toBe('good');
+    expect(gradeSwing(swing(40, 30, 0.6))).toBe('ok');
+    expect(gradeSwing(swing(40, 30, 0.75))).toBe('out');
+    expect(gradeSwing(swing(-40))).toBe('ok'); // Winkel allein wirft nicht raus
+    expect(gradeSwing(swing(65, 30, 0.05))).toBe('good');
     expect(gradeSwing(swing(40, 30, 0, STYLE.minHold - 0.01))).toBe('out');
     expect(gradeSwing(swing(40, STYLE.minSpeed - 1))).toBe('out');
   });
@@ -59,7 +72,7 @@ describe('Strike', () => {
     rateSwing(st, swing(-10), 3); // knapp: bleibt im Strike
     expect(st.strike).toBe(3);
     expect(isStrike(st)).toBe(true);
-    expect(rateSwing(st, swing(40, 30, 25), 4)).toBe('out');
+    expect(rateSwing(st, swing(40, 30, 0.9), 4)).toBe('out');
     expect(st.strike).toBe(0);
     expect(st.bestStrike).toBe(3);
     expect(st.swings).toBe(4);
@@ -125,12 +138,27 @@ describe('Style im Spiel', () => {
     s.pos = { x: 0, y: 100 };
     s.vel = { x: 0, y: -Math.sqrt(2 * g * 11) };
     tap(s, { x: 0, y: 110 }, wall, noSideWalls);
-    expect(s.rope!.jerk).toBeGreaterThan(STYLE.jerk.ok);
+    expect(s.rope!.lost).toBeGreaterThan(STYLE.lost.ok);
     for (let i = 0; i < 120; i++) step(s);
     tap(s, s.pos, wall, noSideWalls);
     expect(s.style.last?.grade).toBe('out');
     expect(s.style.strike).toBe(0);
     expect(s.style.bestStrike).toBe(2);
+  });
+
+  it('schnell eingehakt: derselbe Ruck wiegt wenig, der Strike bleibt (früher «out» ab 18 m/s Ruck)', () => {
+    const s = createState();
+    s.phase = 'flying';
+    s.hooked = true;
+    s.pos = { x: 0, y: 100 };
+    s.vel = { x: 60, y: -25 }; // 25 m/s vom Haken weg, aber 60 m/s quer dazu
+    tap(s, { x: 0, y: 110 }, wall, noSideWalls);
+    expect(s.rope!.lost).toBeLessThan(0.1);
+    for (let i = 0; i < 120; i++) step(s);
+    expect(s.rope!.lost).toBeLessThan(STYLE.lost.good);
+    tap(s, s.pos, wall, noSideWalls);
+    expect(s.style.last?.grade).not.toBe('out');
+    expect(s.style.strike).toBe(1);
   });
 
   it('am Boden ist der Strike vorbei, ein neuer Versuch beginnt bei null', () => {
