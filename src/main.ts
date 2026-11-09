@@ -1,3 +1,4 @@
+import { loadMuted, saveMuted, Sound, SoundObserver } from './audio';
 import { afterAttemptStep, attemptNumber, attemptsFor, hasAttemptChoice, createRound, currentTurn, endAttempt, stopTurn, type Mode, type Round } from './game';
 import { createState, resetState, settingByName, STEP, step, tap, TUNING, type Setting } from './physics';
 import { draw, onSideWall, screenToWorld, updateCamera, type Camera } from './render';
@@ -43,6 +44,27 @@ function storage(): KeyValue | null {
   }
 }
 const kv = storage();
+
+// Ton (src/audio.ts): startet erst bei der ersten Berührung; Stummschalter unten rechts
+const sound = new Sound(loadMuted(kv));
+const heard = new SoundObserver();
+const muteButton = document.getElementById('mute') as HTMLButtonElement;
+function showMuted(): void {
+  muteButton.textContent = sound.muted ? '🔇' : '🔊';
+  muteButton.setAttribute('aria-label', sound.muted ? 'Ton einschalten' : 'Ton ausschalten');
+}
+showMuted();
+muteButton.addEventListener('click', () => {
+  sound.unlock();
+  sound.setMuted(!sound.muted);
+  saveMuted(kv, sound.muted);
+  showMuted();
+});
+// iPad: Web Audio darf erst nach einer Berührung starten (touchend/click zählen, pointerdown nicht sicher)
+for (const ev of ['touchend', 'pointerup', 'click'] as const) {
+  window.addEventListener(ev, () => sound.unlock(), { passive: true });
+}
+document.addEventListener('visibilitychange', () => sound.pause(document.hidden));
 
 let width = 0;
 let height = 0;
@@ -172,6 +194,8 @@ function frame(now: number): void {
     downFor += dt;
     if (downFor >= DOWN_PAUSE) attemptOver();
   }
+  sound.play(heard.update(state));
+  sound.setWind(Math.hypot(state.vel.x, state.vel.y), !menu.open && state.phase === 'flying');
   street.extendTo(state.pos.x + AHEAD);
   updateCamera(cam, state, width, height, dt);
   const turn = round ? currentTurn(round) : null;

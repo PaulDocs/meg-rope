@@ -38,11 +38,17 @@
       #menu th, #menu td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #e9ecef; }
       #menu th { color: #6f7984; font-weight: 600; }
       #menu .challenge { margin-top: 10px; }
+      /* Stummschalter unten rechts, über allem (src/main.ts) */
+      #mute { position: fixed; right: max(14px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom));
+              z-index: 10; width: 52px; height: 52px; border-radius: 26px; border: 1px solid #262a31;
+              background: rgba(255, 255, 255, 0.85); font-size: 24px; line-height: 1; padding: 0;
+              touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
     </style>
   </head>
   <body>
     <canvas id="game"></canvas>
     <div id="menu" hidden></div>
+    <button id="mute" type="button" aria-label="Ton ausschalten" title="Ton an/aus">🔊</button>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

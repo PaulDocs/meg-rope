@@ -19,6 +19,7 @@ Format: `- **B‹n›** · ‹Bug|Unschön|Idee|Altlast› · Prio ‹hoch|mitte
 - **B1** · Idee · Prio hoch · Etappe 1 «Schwingen» → `B1-schwingen.md`
 - **B4** · Idee · Prio mittel · Spielvariante «Freier Schwung» (Looping aus dem Stand) mit Kraftlevel → `B4-kraft-variante.md` (gebaut, wartet auf Abnahme)
 - **B5** · Idee · Prio hoch · Wertung mit Style und Strike, Spielername, Einzelspiel und Challenge (auf einem Gerät), Kraftstationen → `B5-wertung-style.md` (gebaut, wartet auf Abnahme)
+- **B-neu-1** · Idee · Prio mittel · Soundeffekte im Code erzeugt, Stummschalter → `B-neu-1-soundeffekte.md` (gebaut, wartet auf Abnahme)
 - **B6** · Idee · Prio mittel · Kraft sinkt mit der Zeit wie Treibstoff, Kraftstationen füllen auf (Hill-Climb-Prinzip) – Entscheid Pascal
 - **B7** · Unschön · Prio tief · Zwei Folgen nebeneinander: «Serie» (gute Schwünge, lädt Kraft) und «Strike» (Style). Zusammenlegen auf eine Note prüfen
 
