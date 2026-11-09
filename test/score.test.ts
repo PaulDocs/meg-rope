@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createState, noSideWalls, stationAt, step, STRENGTH, tap, tempoLost, TUNING, type State } from '../src/physics';
 import {
-  angleGrade, attemptOf, attemptPoints, breakStrike, createStyle, distanceOf, gradeSwing, isStrike, lostGrade, multiplier,
+  angleGrade, isDirect, attemptOf, attemptPoints, breakStrike, createStyle, distanceOf, gradeSwing, isStrike, lostGrade, multiplier,
   rateSwing, releaseAngle, STYLE, type SwingEnd,
 } from '../src/score';
 import type { Hold } from '../src/world';
@@ -12,7 +12,7 @@ const wall: Hold[] = [{ kind: 'rect', x: -500, y: 0, w: 2000, h: 300 }];
 const g = TUNING.gravity;
 
 /** Ein Übergang mit Abflug unter `deg` Grad und Tempo v. */
-function swing(deg: number, v = 30, lost = 0, hold = 1, loops = 0): SwingEnd {
+function swing(deg: number, v = 30, lost = 0, hold = 3, loops = 0): SwingEnd {
   const r = (deg * Math.PI) / 180;
   return { lost, hold, vx: v * Math.cos(r), vy: v * Math.sin(r), loops };
 }
@@ -57,6 +57,38 @@ describe('Noten', () => {
   });
 });
 
+describe('Direkt weiterschwingen', () => {
+  it('nur ein Schwung (0,4 bis 1,5 s) ist direkt, Antippen nicht', () => {
+    expect(isDirect(STYLE.minHold - 0.01)).toBe(false);
+    expect(isDirect(STYLE.minHold)).toBe(true);
+    expect(isDirect(STYLE.direct.maxHold)).toBe(true);
+    expect(isDirect(STYLE.direct.maxHold + 0.01)).toBe(false);
+  });
+
+  it('Ein- und Ausstieg sind lockerer, solange die übrigen Regeln gelten', () => {
+    expect(lostGrade(0.2)).toBe('good');
+    expect(lostGrade(0.2, true)).toBe('perfect');
+    expect(lostGrade(0.75)).toBe('out');
+    expect(lostGrade(0.75, true)).toBe('ok');
+    expect(angleGrade(12)).toBe('good');
+    expect(angleGrade(12, true)).toBe('perfect');
+    // lange gehalten: weiter die strengen Grenzen
+    expect(gradeSwing(swing(40, 30, 0.75, 3))).toBe('out');
+    expect(gradeSwing(swing(40, 30, 0.75, 1))).toBe('ok');
+    // Mindesttempo und Mindestzeit bleiben
+    expect(gradeSwing(swing(40, STYLE.minSpeed - 1, 0, 1))).toBe('out');
+    expect(gradeSwing(swing(40, 30, 0, STYLE.minHold - 0.01))).toBe('out');
+  });
+
+  it('gibt Zusatzpunkte, lange gehalten nicht', () => {
+    const a = createStyle();
+    const b = createStyle();
+    rateSwing(a, swing(40, 20, 0, 1), 0);
+    rateSwing(b, swing(40, 20, 0, 3), 0);
+    expect(a.points - b.points).toBe(STYLE.direct.points);
+  });
+});
+
 describe('Strike', () => {
   it('Übergänge in Folge erhöhen den Faktor, bis zur Obergrenze', () => {
     expect(multiplier(1)).toBe(1);
@@ -83,7 +115,7 @@ describe('Strike', () => {
     const st = createStyle();
     rateSwing(st, swing(40, 20), 0); // perfekt, ohne Tempo-Bonus
     expect(st.points).toBe(STYLE.points.perfect);
-    rateSwing(st, swing(40, 40, 0, 1, 2), 0); // 2. in Folge, 20 m/s über speedFrom, 2 Loopings
+    rateSwing(st, swing(40, 40, 0, 3, 2), 0); // 2. in Folge, 20 m/s über speedFrom, 2 Loopings
     const second = (STYLE.points.perfect + 20 * STYLE.speedPoints + 2 * STYLE.loopPoints) * multiplier(2);
     expect(st.points).toBe(STYLE.points.perfect + Math.round(second));
   });

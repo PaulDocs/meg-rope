@@ -15,6 +15,15 @@ export const STYLE = {
     perfect: [20, 55] as [number, number],
     good: [5, 70] as [number, number],
   },
+  // Direkt weiterschwingen (Pascal 09.11.): nach höchstens einem Schwung gelöst. Dort sind
+  // Einstieg (verlorener Schwung) und Ausstieg (Winkel) grosszügiger und es gibt Zusatzpunkte.
+  // Mindestzeit und Mindesttempo gelten weiter.
+  direct: {
+    maxHold: 1.5, // s – so lange am Seil heisst noch «direkt»
+    lost: { perfect: 0.25, good: 0.5, ok: 0.8 },
+    angle: { perfect: [10, 65] as [number, number], good: [-5, 80] as [number, number] },
+    points: 10, // Zusatzpunkte (mal Faktor der Folge)
+  },
   minHold: 0.4, // s – kürzer am Seil ist kein Schwung, nur Antippen
   minSpeed: 12, // m/s – langsamer gelöst ist nicht im Schwung
   points: { perfect: 30, good: 20, ok: 10 }, // Grundpunkte je Übergang
@@ -57,11 +66,17 @@ function worst(a: Grade, b: Grade): Grade {
   return RANK[Math.max(RANK.indexOf(a), RANK.indexOf(b))]!;
 }
 
-/** Note für den verlorenen Schwung (Anteil des Tempos, den ein Ruck wegnahm). */
-export function lostGrade(lost: number): Grade {
-  if (lost <= STYLE.lost.perfect) return 'perfect';
-  if (lost <= STYLE.lost.good) return 'good';
-  if (lost <= STYLE.lost.ok) return 'ok';
+/** Direkt weiterschwingen: nur ein Schwung am Seil, aber lang genug, dass es kein Antippen ist. */
+export function isDirect(hold: number): boolean {
+  return hold >= STYLE.minHold && hold <= STYLE.direct.maxHold;
+}
+
+/** Note für den verlorenen Schwung (Anteil des Tempos, den ein Ruck wegnahm); `direct` mit grosszügigeren Grenzen. */
+export function lostGrade(lost: number, direct = false): Grade {
+  const l = direct ? STYLE.direct.lost : STYLE.lost;
+  if (lost <= l.perfect) return 'perfect';
+  if (lost <= l.good) return 'good';
+  if (lost <= l.ok) return 'ok';
   return 'out';
 }
 
@@ -71,10 +86,11 @@ export function releaseAngle(vx: number, vy: number): number {
 }
 
 /** Note für den Zeitpunkt des Lösens nach dem Abflug-Winkel; ausserhalb von «ok» gilt «ok» (kein «out»). */
-export function angleGrade(deg: number): Grade {
+export function angleGrade(deg: number, direct = false): Grade {
   const inside = ([a, b]: [number, number]) => deg >= a && deg <= b;
-  if (inside(STYLE.angle.perfect)) return 'perfect';
-  if (inside(STYLE.angle.good)) return 'good';
+  const a = direct ? STYLE.direct.angle : STYLE.angle;
+  if (inside(a.perfect)) return 'perfect';
+  if (inside(a.good)) return 'good';
   return 'ok';
 }
 
@@ -85,7 +101,8 @@ export function angleGrade(deg: number): Grade {
  */
 export function gradeSwing(e: SwingEnd): Grade {
   if (e.hold < STYLE.minHold || Math.hypot(e.vx, e.vy) < STYLE.minSpeed) return 'out';
-  return worst(lostGrade(e.lost), angleGrade(releaseAngle(e.vx, e.vy)));
+  const direct = isDirect(e.hold);
+  return worst(lostGrade(e.lost, direct), angleGrade(releaseAngle(e.vx, e.vy), direct));
 }
 
 /** Faktor für den n-ten Übergang in Folge (1 beim ersten). */
@@ -113,7 +130,7 @@ export function rateSwing(st: Style, e: SwingEnd, now: number): Grade {
   st.strike++;
   st.bestStrike = Math.max(st.bestStrike, st.strike);
   const speed = Math.hypot(e.vx, e.vy);
-  const base = STYLE.points[grade] + Math.max(0, speed - STYLE.speedFrom) * STYLE.speedPoints + e.loops * STYLE.loopPoints;
+  const base = STYLE.points[grade] + Math.max(0, speed - STYLE.speedFrom) * STYLE.speedPoints + e.loops * STYLE.loopPoints + (isDirect(e.hold) ? STYLE.direct.points : 0);
   const pts = Math.round(base * multiplier(st.strike));
   st.points += pts;
   st.last = { grade, points: pts, strike: st.strike, at: now };
