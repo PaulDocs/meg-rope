@@ -1,4 +1,8 @@
-import { isDropIn, pumpShare, stationAt, STRENGTH, tooWeakToHook, TUNING, type State, type Vec } from './physics';
+import { drawFarCity, drawFloor, drawSky } from './backdrop';
+import { circle, line, poly, type Proj } from './canvas';
+import { drawAnchor, drawFigure, drawRope } from './figure';
+import { dimmed, fromHex, hash, lookAt, type Look, type TowerLook } from './look';
+import { isDropIn, stationAt, STRENGTH, tooWeakToHook, TUNING, type State, type Vec } from './physics';
 import { attemptPoints, distanceOf, isStrike, multiplier, STYLE, type Grade } from './score';
 import { containerOf, extentOf, GRAB_SLACK, roofHeight, SHAPE, type Prop, type World } from './world';
 
@@ -22,53 +26,48 @@ export const CAMERA_FOLLOW = 0.35; // waagrecht: pro 1/60 s so viel des Abstands
 // Männchen aber immer zwischen diesen Anteilen von oben im Bild.
 export const CAMERA_FOLLOW_Y = 0.06;
 export const FIGURE_Y_RANGE = { top: 0.12, bottom: 0.6 };
-const LEG_FULL_SPEED = 4; // m/s quer zum Körper: ab diesem Tempo sind die Beine beim Schwung holen ganz gestreckt
-const FIGURE_SCALE = 1.6; // Figur so viel grösser zeichnen als in echt, damit man sie sieht
 const DEPTH = 9; // m – so tief sind Türme
 const PERSPECTIVE = 0.07; // wie stark man die Seiten sieht, je weiter ein Turm von der Bildmitte steht
 const LIFT = 2.2; // m – Rückseite liegt so viel höher (Blick leicht von oben)
 const HORIZON = LIFT * 3; // m – hier beginnt die Bodenfläche hinten; dort stehen die fernen Türme
 
-// Farben: helle, fast weisse Welt, Stadt in einem kühlen Schiefer-Ton
+// Feste Farben (Anzeige, Kran, Ballon, Luftschiff). Himmel, Stadt, Boden,
+// Männchen und Schrift richten sich nach der Tageszeit: look.ts.
 const C = {
-  skyTop: '#e4e8ec',
-  skyBottom: '#f7f8f9',
-  cloud: '#ffffff',
-  cloudShade: 'rgba(160, 172, 186, 0.28)',
-  farTower: '#d3dae2',
-  farTowerSide: '#c4ccd6',
-  floor: '#e9ecef',
-  floorFar: '#dde1e6',
-  shadow: 'rgba(90, 104, 122, 0.16)',
-  ink: '#262a31', // Männchen, Seil, Schrift
-  crane: '#e0b13a',
-  craneDark: '#b0841f',
-  hook: '#c8452f',
-  weak: '#c8452f', // Kraftbalken, solange Einhaken nicht geht
-  container: '#c8452f',
-  containerRib: 'rgba(80, 20, 10, 0.35)',
-  basket: '#8a5a33',
-  airship: '#9aa3ad',
-  airshipLight: '#c3cad2',
-  airshipDark: '#6f7984',
-  eye: '#ffffff',
-  towerRib: 'rgba(40, 56, 78, 0.18)',
+  weak: '#c8452f', // Kraftbalken, solange Einhaken nicht geht; Warnlicht
   strike: '#c8452f', // Strike-Anzeige
+  barBack: 'rgba(120, 130, 150, 0.3)',
+  containerRib: 'rgba(80, 20, 10, 0.35)',
   station: 'rgba(46, 160, 92, 0.22)', // Lichtsäule der Kraftstation
   stationSign: '#2ea05c',
   stationDone: 'rgba(120, 130, 140, 0.25)', // schon vorbei
 };
-// Türme: drei nahe Töne derselben Familie (Front, Seite, Dach)
-const TOWER = [
-  { front: '#7189a6', side: '#566d8a', top: '#93a8c1' },
-  { front: '#6a82a0', side: '#506784', top: '#8ca2bc' },
-  { front: '#7891ad', side: '#5d7592', top: '#9aaec6' },
-];
+// Kulissen-Farben, die nachts abgedunkelt werden (dimmed)
+const K = {
+  crane: fromHex('#e0b13a'),
+  craneDark: fromHex('#b0841f'),
+  hook: fromHex('#c8452f'),
+  container: fromHex('#c8452f'),
+  basket: fromHex('#8a5a33'),
+  airship: fromHex('#9aa3ad'),
+  airshipLight: fromHex('#c3cad2'),
+  airshipDark: fromHex('#6f7984'),
+};
 const BALLOON = [
-  ['#e8743b', '#f6d2a8'],
-  ['#3f8f8a', '#cfe7e2'],
-  ['#d9a630', '#fbefc6'],
-];
+  [fromHex('#e8743b'), fromHex('#f6d2a8')],
+  [fromHex('#3f8f8a'), fromHex('#cfe7e2')],
+  [fromHex('#d9a630'), fromHex('#fbefc6')],
+] as const;
+const WINDOW = { w: 2.2, h: 3.1, fillW: 0.56, fillH: 0.5, edge: 0.4, base: 0.9, litAtNight: 0.45 }; // m; Anteil beleuchtet in tiefer Nacht
+const ROOF = { antenna: 6, tankW: 2.4, tankH: 1.8 }; // m
+
+let L: Look = lookAt(0); // Stimmung des laufenden Bildes
+let T = 0; // Spielzeit des laufenden Bildes (Warnlichter)
+let lookShift = 0;
+/** Tageszeit um so viele Meter verschieben (nur zum Ansehen, `?tageszeit=1300`). */
+export function shiftLook(meters: number): void {
+  lookShift = Number.isFinite(meters) ? meters : 0;
+}
 
 /** Kamera nachziehen; `dt` ist die Zeit seit dem letzten Bild, damit es bei 60 und 120 Hz gleich wirkt. */
 export function updateCamera(cam: Camera, s: State, w: number, h: number, dt: number): void {
@@ -122,8 +121,6 @@ export function screenToWorld(cam: Camera, h: number, sx: number, sy: number): V
   return { x: cam.x + sx / cam.scale, y: cam.y + (h - sy) / cam.scale };
 }
 
-type Proj = { X: (x: number) => number; Y: (y: number) => number; m: number; mid: number };
-
 export function draw(ctx: CanvasRenderingContext2D, s: State, world: World, cam: Camera, w: number, h: number, hud: HudInfo | null): void {
   const viewW = w / cam.scale;
   const P: Proj = {
@@ -131,10 +128,14 @@ export function draw(ctx: CanvasRenderingContext2D, s: State, world: World, cam:
     Y: (y) => h - (y - cam.y) * cam.scale,
     m: cam.scale,
     mid: viewMid(cam, w),
+    lo: cam.y,
+    hi: cam.y + h / cam.scale,
   };
-  drawSky(ctx, cam, w, h);
-  drawFloor(ctx, P, w, h);
-  drawFarCity(ctx, cam, P, w);
+  L = lookAt(Math.max(0, s.maxX - TUNING.startPos.x) + lookShift);
+  T = s.time;
+  drawSky(ctx, L, cam, w, h, s.time);
+  drawFarCity(ctx, L, cam, P, HORIZON, w);
+  drawFloor(ctx, L, P, HORIZON, w, h);
 
   const visible = world.props.filter((p) => {
     const { left, right } = extentOf(p);
@@ -146,13 +147,12 @@ export function draw(ctx: CanvasRenderingContext2D, s: State, world: World, cam:
   for (const p of order) drawProp(ctx, p, P);
   drawStations(ctx, s, cam, P, w, h);
 
-  for (const r of s.looseRopes) drawRope(ctx, r.chain.points, P, 1 - r.age / TUNING.looseRopeTime);
+  for (const r of s.looseRopes) drawRope(ctx, L, r.chain.points, P, 1 - r.age / TUNING.looseRopeTime);
   if (s.rope) {
-    drawRope(ctx, s.rope.chain.points, P, 1);
-    ctx.fillStyle = C.ink;
-    circle(ctx, P.X(s.rope.anchor.x), P.Y(s.rope.anchor.y), Math.max(1.5, 0.3 * P.m));
+    drawRope(ctx, L, s.rope.chain.points, P, 1);
+    drawAnchor(ctx, L, s.rope.anchor, P);
   }
-  drawStickman(ctx, s, P);
+  drawFigure(ctx, L, s, P);
   if (hud) drawHud(ctx, s, w, h, hud); // ohne Runde (Startmenü): keine Anzeige
 }
 
@@ -163,6 +163,15 @@ function centerOf(p: Prop): number {
 
 function font(px: number): string {
   return `700 ${Math.round(px)}px -apple-system, system-ui, sans-serif`;
+}
+
+/** Schrift mit dünnem Rand in der Gegenfarbe: vor jedem Himmel lesbar. */
+function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number): void {
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = L.paper;
+  ctx.strokeText(text, x, y);
+  ctx.fillText(text, x, y);
 }
 
 /** Rechteck in Bildschirm-Pixeln (Bedienelemente). */
@@ -195,14 +204,14 @@ function drawHud(ctx: CanvasRenderingContext2D, s: State, w: number, h: number, 
   if (s.variant === 'free') drawStrength(ctx, s, strengthBox(h));
   const dist = distanceOf(s.maxX, TUNING.startPos.x);
   const right = w - h * 0.03;
-  ctx.fillStyle = C.ink;
+  ctx.fillStyle = L.ink;
   ctx.textAlign = 'right';
   ctx.textBaseline = 'top';
   ctx.font = font(h * 0.045);
-  ctx.fillText(`${attemptPoints(dist, s.style)}`, right, h * 0.022);
+  label(ctx, `${attemptPoints(dist, s.style)}`, right, h * 0.022);
   ctx.font = font(h * 0.022);
-  ctx.fillText(`${dist} m · Style ${s.style.points}`, right, h * 0.075);
-  ctx.fillText(hud.attempt ? `${hud.name} · Versuch ${hud.attempt.now}/${hud.attempt.of}` : hud.name, right, h * 0.105);
+  label(ctx, `${dist} m · Style ${s.style.points}`, right, h * 0.075);
+  label(ctx, hud.attempt ? `${hud.name} · Versuch ${hud.attempt.now}/${hud.attempt.of}` : hud.name, right, h * 0.105);
   drawStyle(ctx, s, w, h);
 
   const weak = s.variant === 'free' && !s.rope && s.phase === 'flying' && tooWeakToHook(s);
@@ -212,11 +221,11 @@ function drawHud(ctx: CanvasRenderingContext2D, s: State, w: number, h: number, 
       ? 'Keine Kraft mehr zum Einhaken'
       : '';
   if (msg) {
-    ctx.fillStyle = C.ink;
+    ctx.fillStyle = L.ink;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = font(h * 0.032);
-    ctx.fillText(msg, w / 2, h * 0.16);
+    label(ctx, msg, w / 2, h * 0.16);
   }
 }
 
@@ -227,17 +236,17 @@ function drawStyle(ctx: CanvasRenderingContext2D, s: State, w: number, h: number
   ctx.textBaseline = 'middle';
   if (st.strike > 0) {
     const strike = isStrike(st);
-    ctx.fillStyle = strike ? C.strike : C.ink;
+    ctx.fillStyle = strike ? C.strike : L.ink;
     ctx.font = font(h * (strike ? 0.036 : 0.026));
     const factor = multiplier(st.strike).toFixed(2).replace('.', ',');
-    ctx.fillText(strike ? `STRIKE ${st.strike} · ×${factor}` : `${st.strike} in Folge`, w / 2, h * 0.05);
+    label(ctx, strike ? `STRIKE ${st.strike} · ×${factor}` : `${st.strike} in Folge`, w / 2, h * 0.05);
   }
   const last = st.last;
   if (!last || s.time - last.at > STYLE.showFor) return;
   ctx.globalAlpha = 1 - (s.time - last.at) / STYLE.showFor;
-  ctx.fillStyle = last.grade === 'out' ? C.weak : C.ink;
+  ctx.fillStyle = last.grade === 'out' ? C.weak : L.ink;
   ctx.font = font(h * 0.034);
-  ctx.fillText(last.grade === 'out' ? GRADE_LABEL.out : `${GRADE_LABEL[last.grade]} +${last.points}`, w / 2, h * 0.1);
+  label(ctx, last.grade === 'out' ? GRADE_LABEL.out : `${GRADE_LABEL[last.grade]} +${last.points}`, w / 2, h * 0.1);
   ctx.globalAlpha = 1;
 }
 
@@ -245,25 +254,25 @@ function drawStyle(ctx: CanvasRenderingContext2D, s: State, w: number, h: number
 function drawStrength(ctx: CanvasRenderingContext2D, s: State, b: ScreenBox): void {
   const barH = b.h * 0.45;
   const y = b.y + (b.h - barH) / 2;
-  ctx.fillStyle = C.ink;
+  ctx.fillStyle = L.ink;
   ctx.font = font(b.h * 0.42);
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText('Kraft', b.x, b.y + b.h / 2);
+  label(ctx, 'Kraft', b.x, b.y + b.h / 2);
   const x = b.x + b.h * 1.3;
   const bw = b.w - b.h * 1.3;
-  ctx.fillStyle = C.shadow;
+  ctx.fillStyle = C.barBack;
   ctx.fillRect(x, y, bw, barH);
-  ctx.fillStyle = tooWeakToHook(s) ? C.weak : C.ink;
+  ctx.fillStyle = tooWeakToHook(s) ? C.weak : L.ink;
   ctx.fillRect(x, y, bw * s.strength, barH);
   // gute Schwünge in Folge: ab streakFrom gibt jeder Kraft zurück
   if (s.goodSwings > 0) {
-    ctx.fillStyle = C.ink;
-    ctx.fillText(`Serie ${s.goodSwings}`, b.x + b.w + b.h * 0.4, b.y + b.h / 2);
+    ctx.fillStyle = L.ink;
+    label(ctx, `Serie ${s.goodSwings}`, b.x + b.w + b.h * 0.4, b.y + b.h / 2);
   }
   // wie weit bis zur nächsten Kraftstation
   ctx.font = font(b.h * 0.34);
-  ctx.fillText(`Station in ${Math.max(0, Math.ceil(stationAt(s.stations + 1) - s.pos.x))} m`, b.x, b.y + b.h * 1.35);
+  label(ctx, `Station in ${Math.max(0, Math.ceil(stationAt(s.stations + 1) - s.pos.x))} m`, b.x, b.y + b.h * 1.35);
 }
 
 /**
@@ -285,7 +294,7 @@ function drawStations(ctx: CanvasRenderingContext2D, s: State, cam: Camera, P: P
     const cy = h * 0.3;
     ctx.fillStyle = passed ? C.stationDone : C.stationSign;
     circle(ctx, x, cy, r);
-    ctx.fillStyle = C.eye;
+    ctx.fillStyle = '#ffffff';
     poly(ctx, [
       [x + r * 0.15, cy - r * 0.7],
       [x - r * 0.4, cy + r * 0.1],
@@ -297,65 +306,11 @@ function drawStations(ctx: CanvasRenderingContext2D, s: State, cam: Camera, P: P
   }
 }
 
-/** Heller Himmel und Wolken (ziehen langsamer vorbei). */
-function drawSky(ctx: CanvasRenderingContext2D, cam: Camera, w: number, h: number): void {
-  const sky = ctx.createLinearGradient(0, 0, 0, h);
-  sky.addColorStop(0, C.skyTop);
-  sky.addColorStop(1, C.skyBottom);
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, w, h);
-  const m = cam.scale;
-  const cs = 80;
-  const cshift = cam.x * 0.5;
-  const cfirst = Math.floor(cshift / cs) - 1;
-  for (let i = cfirst; (i * cs - cshift) * m < w + cs * m; i++) {
-    const n = (((i * 37) % 11) + 11) % 11;
-    const cx = (i * cs - cshift + ((n * 3) % 20)) * m;
-    const cy = h - (55 + n * 6 - cam.y * 0.6) * m;
-    const r = (6 + (n % 4)) * m;
-    for (const [dx, dy, k] of [[0, 0, 1], [1.1, 0.25, 0.8], [-1, 0.3, 0.75], [0.4, -0.55, 0.85], [-0.4, -0.4, 0.7]] as const) {
-      ctx.fillStyle = C.cloudShade;
-      circle(ctx, cx + dx * r + r * 0.1, cy + dy * r + r * 0.14, r * k);
-      ctx.fillStyle = C.cloud;
-      circle(ctx, cx + dx * r, cy + dy * r, r * k);
-    }
-  }
-}
-
-/** Boden als helle Fläche, nach hinten etwas dunkler (Blick leicht von oben). */
-function drawFloor(ctx: CanvasRenderingContext2D, P: Proj, w: number, h: number): void {
-  const top = P.Y(HORIZON);
-  const g = ctx.createLinearGradient(0, top, 0, h);
-  g.addColorStop(0, C.floorFar);
-  g.addColorStop(1, C.floor);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, top, w, h - top);
-}
-
-/** Blasse Türme weit hinten: ziehen langsamer vorbei, man kann sie nicht greifen. */
-function drawFarCity(ctx: CanvasRenderingContext2D, cam: Camera, P: Proj, w: number): void {
-  const m = cam.scale;
-  const step = 26;
-  const shift = cam.x * 0.45;
-  const first = Math.floor(shift / step) - 1;
-  const base = P.Y(HORIZON);
-  for (let i = first; (i * step - shift) * m < w + step * m; i++) {
-    const n = (((i * 53) % 31) + 31) % 31;
-    const bh = (40 + n * 2) * m * 0.7;
-    const x = (i * step - shift + (n % 7)) * m;
-    const bw = (6 + (n % 5)) * m * 0.7;
-    ctx.fillStyle = C.farTowerSide;
-    ctx.fillRect(x + bw, base - bh + 0.8 * m, bw * 0.25, bh - 0.8 * m);
-    ctx.fillStyle = C.farTower;
-    ctx.fillRect(x, base - bh, bw, bh);
-  }
-}
-
 /** Weicher Schatten eines Turms auf dem Boden, schräg nach hinten links. */
 function drawShadow(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'tower' }>, P: Proj): void {
   const base = p.blocks[0]!; // unterster Block steht auf dem Boden
   const len = Math.min(roofHeight(p) * 0.18, 18);
-  ctx.fillStyle = C.shadow;
+  ctx.fillStyle = `rgba(60, 72, 104, ${L.shadow})`;
   poly(ctx, [
     [P.X(base.x), P.Y(0)],
     [P.X(base.x + base.w), P.Y(0)],
@@ -378,7 +333,7 @@ function drawProp(ctx: CanvasRenderingContext2D, p: Prop, P: Proj): void {
  * Greifbar sind Front (Haltepunkte in world.ts) und Seite (onSideWall); das
  * Dach ist Kulisse. So entschieden von Pascal am 08.11.2026.
  */
-function box(ctx: CanvasRenderingContext2D, P: Proj, x: number, y: number, w: number, h: number, col: (typeof TOWER)[number]): void {
+function box(ctx: CanvasRenderingContext2D, P: Proj, x: number, y: number, w: number, h: number, col: TowerLook, seed: number): void {
   const { dx, sideX } = sideFace(x, w, P.mid);
   const dy = LIFT;
   // Seite
@@ -397,19 +352,49 @@ function box(ctx: CanvasRenderingContext2D, P: Proj, x: number, y: number, w: nu
     [P.X(x + w + dx), P.Y(y + h + dy)],
     [P.X(x + dx), P.Y(y + h + dy)],
   ]);
-  // Front
+  // Front mit heller Dachkante
   ctx.fillStyle = col.front;
   ctx.fillRect(P.X(x), P.Y(y + h), w * P.m, h * P.m);
-  // senkrechte Rillen auf der Front
-  ctx.fillStyle = C.towerRib;
-  const ribs = Math.max(2, Math.round(w / 1.6));
-  for (let i = 1; i < ribs; i++) ctx.fillRect(P.X(x + (i * w) / ribs), P.Y(y + h), Math.max(1, 0.18 * P.m), h * P.m);
+  ctx.fillStyle = col.top;
+  ctx.fillRect(P.X(x), P.Y(y + h), w * P.m, Math.max(1, 0.3 * P.m));
+  windows(ctx, P, x, y, w, h, seed);
+}
+
+/**
+ * Fensterraster auf der Front: tagsüber spiegelndes Glas, nachts brennt in
+ * einem Teil davon Licht (fester Zufall je Fenster, flackert nicht). Gezeichnet
+ * werden nur die Reihen im Bild, je Farbe in einem Zug.
+ */
+function windows(ctx: CanvasRenderingContext2D, P: Proj, x: number, y: number, w: number, h: number, seed: number): void {
+  const cols = Math.max(1, Math.floor((w - 2 * WINDOW.edge) / WINDOW.w));
+  const rows = Math.floor((h - WINDOW.base - WINDOW.edge) / WINDOW.h);
+  if (rows < 1) return;
+  const cw = (w - 2 * WINDOW.edge) / cols;
+  const r0 = Math.max(0, Math.floor((P.lo - y - WINDOW.base) / WINDOW.h));
+  const r1 = Math.min(rows - 1, Math.floor((P.hi - y - WINDOW.base) / WINDOW.h));
+  const ww = cw * WINDOW.fillW * P.m;
+  const wh = WINDOW.h * WINDOW.fillH * P.m;
+  const litShare = L.night * WINDOW.litAtNight * 100;
+  for (const lit of [false, true]) {
+    if (lit && litShare <= 0) break;
+    ctx.fillStyle = lit ? L.lit : L.col.glass;
+    ctx.beginPath();
+    for (let r = r0; r <= r1; r++) {
+      const top = P.Y(y + WINDOW.base + r * WINDOW.h + WINDOW.h * WINDOW.fillH);
+      for (let c = 0; c < cols; c++) {
+        if (hash(c, r, seed) % 100 < litShare !== lit) continue;
+        ctx.rect(P.X(x + WINDOW.edge + c * cw + (cw * (1 - WINDOW.fillW)) / 2), top, ww, wh);
+      }
+    }
+    ctx.fill();
+  }
 }
 
 function drawTower(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'tower' }>, P: Proj): void {
-  const col = TOWER[p.color % TOWER.length]!;
+  const col = L.towers[p.color % L.towers.length]!;
+  const seed = Math.round(p.blocks[0]!.x * 10);
   // Blöcke von unten nach oben, dann die Spitze
-  for (const b of p.blocks) box(ctx, P, b.x, b.y, b.w, b.h, col);
+  p.blocks.forEach((b, i) => box(ctx, P, b.x, b.y, b.w, b.h, col, seed + i));
   if (p.spire) {
     const sp = p.spire;
     ctx.fillStyle = col.side;
@@ -418,6 +403,27 @@ function drawTower(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'towe
       [P.X(sp.x + sp.w), P.Y(sp.y)],
       [P.X(sp.x + sp.w / 2), P.Y(sp.y + sp.h)],
     ]);
+    return;
+  }
+  // Dachaufbau (Kulisse): Antenne mit Warnlicht oder Wassertank, je Turm fest
+  const roof = p.blocks[p.blocks.length - 1]!;
+  const top = roof.y + roof.h + LIFT * 0.5;
+  const kind = hash(seed, 5, 9) % 3;
+  if (kind === 0) {
+    const ax = roof.x + roof.w * 0.8;
+    ctx.strokeStyle = col.side;
+    ctx.lineWidth = Math.max(1, 0.18 * P.m);
+    line(ctx, P.X(ax), P.Y(top), P.X(ax), P.Y(top + ROOF.antenna));
+    if (L.night > 0.3 && Math.floor(T * 1.3 + seed) % 2 === 0) {
+      ctx.fillStyle = C.weak;
+      circle(ctx, P.X(ax), P.Y(top + ROOF.antenna), Math.max(1.5, 0.3 * P.m));
+    }
+  } else if (kind === 1 && roof.w > ROOF.tankW * 2) {
+    const tx = roof.x + roof.w * 0.15;
+    ctx.fillStyle = col.side;
+    ctx.fillRect(P.X(tx), P.Y(top + ROOF.tankH + 0.5), ROOF.tankW * P.m, ROOF.tankH * P.m);
+    ctx.fillRect(P.X(tx + 0.2), P.Y(top + 0.5), Math.max(1, 0.2 * P.m), 0.5 * P.m);
+    ctx.fillRect(P.X(tx + ROOF.tankW - 0.4), P.Y(top + 0.5), Math.max(1, 0.2 * P.m), 0.5 * P.m);
   }
 }
 
@@ -427,7 +433,7 @@ function drawCrane(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'cran
   const b0 = p.base;
   const top = b0 + p.h;
   const jh = SHAPE.craneJibHeight;
-  ctx.strokeStyle = C.crane;
+  ctx.strokeStyle = dimmed(L, K.crane);
   ctx.lineWidth = Math.max(1, 0.25 * m);
   // Mast: zwei Holme und Zickzack
   const l = p.x - SHAPE.craneMastHalf;
@@ -457,22 +463,22 @@ function drawCrane(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'cran
   line(ctx, X(p.x), Y(top + 5), X(b - 2), Y(top + jh));
   line(ctx, X(p.x), Y(top + 5), X(a), Y(top + jh));
   // Gegengewicht und Führerhaus
-  ctx.fillStyle = C.craneDark;
+  ctx.fillStyle = dimmed(L, K.craneDark);
   ctx.fillRect(X(a), Y(top + 0.2), 3 * m, 2.2 * m);
   ctx.fillRect(X(p.x + 0.8), Y(top - 0.2), 2.2 * m, 2 * m);
   // Lastseil mit Haken, oft mit hängendem Container
   const hookX = p.x + p.jib * SHAPE.craneHookAt;
   const load = containerOf(p);
   const hookY = load ? load.y + load.h : Math.max(b0 + 2, top - Math.min(16, p.h * 0.6));
-  ctx.strokeStyle = C.ink;
+  ctx.strokeStyle = L.ink;
   line(ctx, X(hookX), Y(top), X(hookX), Y(hookY));
   if (load) {
-    ctx.fillStyle = C.container;
+    ctx.fillStyle = dimmed(L, K.container);
     ctx.fillRect(X(load.x), Y(load.y + load.h), load.w * m, load.h * m);
     ctx.fillStyle = C.containerRib;
     for (let i = 1; i < 8; i++) ctx.fillRect(X(load.x + (i * load.w) / 8), Y(load.y + load.h), Math.max(1, 0.12 * m), load.h * m);
   } else {
-    ctx.fillStyle = C.hook;
+    ctx.fillStyle = dimmed(L, K.hook);
     ctx.fillRect(X(hookX - 0.6), Y(hookY), 1.2 * m, 1 * m);
   }
 }
@@ -492,23 +498,23 @@ function drawBalloon(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'ba
     ctx.lineTo(cx - r * 0.3, cy + r * 1.15);
     ctx.closePath();
   };
-  ctx.fillStyle = main!;
+  ctx.fillStyle = dimmed(L, main);
   env();
   ctx.fill();
   ctx.save();
   env();
   ctx.clip();
-  ctx.fillStyle = light!;
+  ctx.fillStyle = dimmed(L, light);
   for (const k of [-0.55, 0.1]) ctx.fillRect(cx + k * r, cy - r, r * 0.3, r * 2.3);
   ctx.restore();
   // Leinen und Korb
-  ctx.strokeStyle = C.ink;
+  ctx.strokeStyle = L.ink;
   ctx.lineWidth = Math.max(1, 0.08 * m);
   const bk = SHAPE.basket;
   const by = p.y - p.r * bk.below + bk.h;
   line(ctx, X(p.x - 1.2), Y(p.y - p.r * 0.9), X(p.x - bk.w / 2 + 0.1), Y(by));
   line(ctx, X(p.x + 1.2), Y(p.y - p.r * 0.9), X(p.x + bk.w / 2 - 0.1), Y(by));
-  ctx.fillStyle = C.basket;
+  ctx.fillStyle = dimmed(L, K.basket);
   ctx.fillRect(X(p.x - bk.w / 2), Y(by), bk.w * m, bk.h * m);
 }
 
@@ -519,7 +525,7 @@ function drawAirship(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'ai
   const cx = X(p.x);
   const cy = Y(p.y);
   // Leitwerk hinten (links), nur Kulisse
-  ctx.fillStyle = C.airshipDark;
+  ctx.fillStyle = dimmed(L, K.airshipDark);
   const t = SHAPE.airshipTail;
   const end = p.x - p.len / 2;
   poly(ctx, [
@@ -529,104 +535,16 @@ function drawAirship(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'ai
     [X(end), Y(p.y - hh * t.span)],
   ]);
   // Hülle
-  ctx.fillStyle = C.airship;
+  ctx.fillStyle = dimmed(L, K.airship);
   ctx.beginPath();
   ctx.ellipse(cx, cy, (p.len / 2) * m, hh * m, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = C.airshipLight;
+  ctx.fillStyle = dimmed(L, K.airshipLight);
   ctx.beginPath();
   ctx.ellipse(cx, cy - hh * m * 0.35, (p.len / 2) * m * 0.85, hh * m * 0.35, 0, 0, Math.PI * 2);
   ctx.fill();
   // Gondel
   const g = SHAPE.gondola;
-  ctx.fillStyle = C.airshipDark;
+  ctx.fillStyle = dimmed(L, K.airshipDark);
   ctx.fillRect(X(p.x - (p.len * g.w) / 2), Y(p.y - hh), p.len * g.w * m, g.h * m);
-}
-
-/** Seil: dünne dunkle Schnur. */
-function drawRope(ctx: CanvasRenderingContext2D, pts: Vec[], P: Proj, alpha: number): void {
-  if (pts.length < 2 || alpha <= 0) return;
-  ctx.save();
-  ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  ctx.lineWidth = Math.max(1.2, 0.12 * P.m);
-  ctx.strokeStyle = C.ink;
-  ctx.beginPath();
-  ctx.moveTo(P.X(pts[0]!.x), P.Y(pts[0]!.y));
-  for (let i = 1; i < pts.length; i++) ctx.lineTo(P.X(pts[i]!.x), P.Y(pts[i]!.y));
-  ctx.stroke();
-  ctx.restore();
-}
-
-/** Strichmännchen, gedreht nach state.angle; holt am Seil mit den Beinen Schwung. */
-function drawStickman(ctx: CanvasRenderingContext2D, s: State, P: Proj): void {
-  const k = FIGURE_SCALE;
-  const m = P.m * k;
-  const cx = s.pos.x;
-  const cy = s.pos.y;
-  ctx.strokeStyle = C.ink;
-  ctx.fillStyle = C.ink;
-  ctx.lineWidth = Math.max(1.5, 0.13 * m);
-  ctx.lineCap = 'round';
-
-  if (s.phase === 'down') {
-    const y = 0.15 * k;
-    line(ctx, P.X(cx - 0.8 * k), P.Y(y), P.X(cx + 0.6 * k), P.Y(y));
-    circle(ctx, P.X(cx + 0.95 * k), P.Y(y + 0.15 * k), 0.3 * m);
-    return;
-  }
-
-  // Körperachse: Kopf zeigt in Richtung (ux, uy)
-  const ux = -Math.sin(s.angle);
-  const uy = Math.cos(s.angle);
-  const px = -uy; // quer zum Körper
-  const py = ux;
-  const hip = { x: cx - ux * 0.35 * k, y: cy - uy * 0.35 * k };
-  const neck = { x: cx + ux * 0.45 * k, y: cy + uy * 0.45 * k };
-  const head = { x: cx + ux * 0.85 * k, y: cy + uy * 0.85 * k };
-
-  line(ctx, P.X(hip.x), P.Y(hip.y), P.X(neck.x), P.Y(neck.y));
-  circle(ctx, P.X(head.x), P.Y(head.y), 0.32 * m);
-  ctx.fillStyle = C.eye;
-  circle(ctx, P.X(head.x + px * 0.1 * k * Math.sign(s.vel.x || 1)), P.Y(head.y + py * 0.1 * k), 0.09 * m);
-
-  // Beine: beim Schwungholen in die Schwungrichtung gestreckt wie auf einer
-  // Schaukel – so kräftig, wie es gerade Schwung holt (pumpShare: beim Anlauf
-  // sacht, bei Looping-Versuchen über Hakenhöhe mässig); sonst leicht pendeln
-  const share = pumpShare(s);
-  const across = s.vel.x * px + s.vel.y * py;
-  const kick = share > 0 ? Math.max(-1, Math.min(1, across / LEG_FULL_SPEED)) * (0.2 + 0.5 * share) : Math.sin(s.time * 6) * 0.15;
-  for (const side of [-1, 1]) {
-    const spread = (side * 0.22 + kick) * k;
-    line(ctx, P.X(hip.x), P.Y(hip.y), P.X(hip.x - ux * 0.8 * k + px * spread), P.Y(hip.y - uy * 0.8 * k + py * spread));
-  }
-  // Arme: am Seil nach oben zum Haken, im Flug ausgebreitet
-  for (const side of [-1, 1]) {
-    const reach = s.rope
-      ? { x: (ux * 0.75 + px * side * 0.1) * k, y: (uy * 0.75 + py * side * 0.1) * k }
-      : { x: (px * side * 0.65 + ux * 0.15) * k, y: (py * side * 0.65 + uy * 0.15) * k };
-    line(ctx, P.X(neck.x), P.Y(neck.y), P.X(neck.x + reach.x), P.Y(neck.y + reach.y));
-  }
-}
-
-function line(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number): void {
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
-}
-
-function circle(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-function poly(ctx: CanvasRenderingContext2D, pts: [number, number][]): void {
-  ctx.beginPath();
-  ctx.moveTo(pts[0]![0], pts[0]![1]);
-  for (const [x, y] of pts.slice(1)) ctx.lineTo(x, y);
-  ctx.closePath();
-  ctx.fill();
 }

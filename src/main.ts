@@ -1,7 +1,7 @@
 import { loadMuted, saveMuted, Sound, SoundObserver } from './audio';
 import { afterAttemptStep, attemptNumber, attemptsFor, hasAttemptChoice, createRound, currentTurn, endAttempt, stopTurn, type Mode, type Round } from './game';
 import { createState, resetState, settingByName, STEP, step, tap, TUNING, type Setting } from './physics';
-import { draw, onSideWall, screenToWorld, updateCamera, type Camera } from './render';
+import { draw, onSideWall, screenToWorld, shiftLook, updateCamera, type Camera } from './render';
 import { attemptOf } from './score';
 import { bestSingles, loadNames, loadResults, personalBest, recentChallenges, saveNames, saveRound, type KeyValue } from './store';
 import { Menu } from './ui';
@@ -35,6 +35,8 @@ function saveSetting(x: Setting): void {
 let setting = loadSetting();
 const state = createState(setting.variant, setting.level);
 const cam: Camera = { x: 0, y: 0, scale: 1 };
+// Nur zum Ansehen: ?tageszeit=1300 zeigt die Stimmung, die sonst nach 1300 m käme
+shiftLook(Number(new URLSearchParams(location.search).get('tageszeit') ?? 0));
 const menu = new Menu(document.getElementById('menu')!);
 function storage(): KeyValue | null {
   try {
