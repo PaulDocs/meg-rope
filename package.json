@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite --host",
     "build": "tsc --noEmit && vite build",
+    "build:cloud": "tsc --noEmit && VITE_CLOUD=1 vite build",
     "preview": "vite preview --host",
     "test": "vitest run --dir test",
     "einzelseite": "vite build && node scripts/einzelseite.mjs"

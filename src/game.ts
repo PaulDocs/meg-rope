@@ -46,7 +46,7 @@ export interface Round {
 
 /** Name aufräumen: Leerzeichen weg, gekürzt; leer bleibt leer. */
 export function cleanName(raw: string): string {
-  return raw.replace(/\s+/g, ' ').trim().slice(0, ROUND.maxName);
+  return raw.replace(/\s+/g, ' ').trim().slice(0, ROUND.maxName).trim(); // nach dem Kürzen nochmals: kein Leerzeichen am Ende
 }
 
 export function createRound(mode: Mode, names: string[], setting: Setting['name'], id: string): Round {

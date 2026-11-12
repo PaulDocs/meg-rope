@@ -5,6 +5,7 @@
 # Abhaengigkeiten und Build-Ausgaben
 node_modules/
 dist/
+dist-cloud/
 .astro/
 .next/
 coverage/

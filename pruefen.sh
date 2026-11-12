@@ -9,6 +9,7 @@ source /home/node/work/20-Infra/pruefung/lauf.sh
 abhaengigkeiten .
 schritt "Typpruefung" npx tsc --noEmit
 schritt "Tests" npm test
+schritt "Bau Cloud" env VITE_CLOUD=1 npx vite build --outDir dist-cloud
 schritt "Bau" npx vite build
 seite dist
 fertig

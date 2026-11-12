@@ -3,6 +3,7 @@
 // Nur Darstellung und Buttons; was passiert, entscheidet main.ts.
 // Namen kommen nur als Text ins Bild (textContent), nie als HTML.
 
+import type { Board } from './board';
 import { GAME, studioBadge, TAGLINE } from './brand';
 import { attemptNumber, attemptsFor, bestAttempt, bonusFor, cleanName, ranking, ROUND, turnScore, type Attempt, type Round, type Turn } from './game';
 import { SETTINGS, type Setting } from './physics';
@@ -20,12 +21,12 @@ export function settingLabel(name: string): string {
   return (SETTING_LABEL as Record<string, string>)[name] ?? name;
 }
 
-type Child = Node | string | null | false;
+type Child = Node | string | null | false | undefined;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, ...children: Child[]): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
-  for (const c of children) if (c !== null && c !== false) e.append(c);
+  for (const c of children) if (c !== null && c !== false && c !== undefined) e.append(c);
   return e;
 }
 
@@ -69,6 +70,33 @@ function countUp(node: HTMLElement, to: number, text: (n: number) => string): vo
   };
   node.textContent = text(0);
   requestAnimationFrame(tick);
+}
+
+const NO_RESULTS = 'Noch keine Ergebnisse in dieser Einstellung.';
+const OFFLINE = 'Online-Bestenliste gerade nicht erreichbar.';
+
+/** Bestenliste als Tabelle – dieselbe für «online» und «auf diesem Gerät». */
+function bestTable(list: { name: string; score: number; distance: number; bestStrike: number }[]): HTMLElement {
+  return table(['#', 'Name', 'Punkte', 'm', 'Strike'], list.map((x, i) => [i + 1, x.name, x.score, x.distance, x.bestStrike]));
+}
+
+/** Zeile in der Wertung nach einer Meldung an die Online-Bestenliste. */
+export function rankText(b: Board | null): string {
+  if (!b) return OFFLINE;
+  return b.rank === null ? `Online: ${b.players} Spieler` : `Online: Platz ${b.rank} von ${b.players}`;
+}
+
+/** Online-Bestenliste (B12): zuerst «Lädt …», dann die Liste oder ein Hinweis. Namen nur als Text. */
+function onlineBoard(online: Promise<Board | null>): HTMLElement {
+  const box = el('div', 'online', el('p', 'quiet', 'Lädt …'));
+  void online.then((b) => {
+    if (!b) return box.replaceChildren(el('p', 'quiet', OFFLINE));
+    box.replaceChildren(
+      b.best.length ? bestTable(b.best) : el('p', 'quiet', NO_RESULTS),
+      el('p', 'note', 'Name und Punkte aus dem Einzelspiel sehen alle, die Zugang zum Spiel haben.'),
+    );
+  });
+  return box;
 }
 
 /** Was das Menü hörbar macht: dieselben Namen wie die Ton-Ereignisse in audio.ts (main.ts spielt sie). */
@@ -125,6 +153,7 @@ export class Menu {
    */
   start(o: {
     entrance?: boolean;
+    online?: Promise<Board | null>; // nur im Bau für Cloudflare: die Online-Bestenliste dieser Einstellung
     name: string;
     setting: Setting;
     results: { best: Result[]; challenges: { setting: string; date: string; ranks: Result[] }[] };
@@ -151,8 +180,8 @@ export class Menu {
       button(SETTING_LABEL[x.name], () => o.onSetting(x, name.value), x.name === o.setting.name ? 'chosen' : ''),
     ));
     const best = o.results.best.length
-      ? table(['#', 'Name', 'Punkte', 'm', 'Strike'], o.results.best.map((x, i) => [i + 1, x.name, x.score, x.distance, x.bestStrike]))
-      : el('p', 'quiet', 'Noch keine Ergebnisse in dieser Einstellung.');
+      ? bestTable(o.results.best)
+      : el('p', 'quiet', NO_RESULTS);
     const challenges = o.results.challenges.map((c) =>
       el('div', 'challenge',
         el('p', 'quiet', `${day(c.date)} · ${settingLabel(c.setting)}`),
@@ -174,7 +203,9 @@ export class Menu {
             el('div', 'row big', button('Einzelspiel', go(o.onSingle), 'main'), button('Challenge', go(o.onChallenge))),
           ),
           el('div', 'card board',
-            el('h2', '', `Bestenliste · ${SETTING_LABEL[o.setting.name]}`),
+            o.online && el('h2', '', `Online-Bestenliste · ${SETTING_LABEL[o.setting.name]}`),
+            o.online && onlineBoard(o.online),
+            el('h2', '', o.online ? 'Auf diesem Gerät' : `Bestenliste · ${SETTING_LABEL[o.setting.name]}`),
             best,
             challenges.length > 0 && el('h2', '', 'Letzte Challenges'),
             ...challenges,
@@ -260,7 +291,9 @@ export class Menu {
   }
 
   /** Ende der Runde: Wertung, Bestleistung bzw. Rangliste. */
-  result(o: { r: Round; best: Result[]; personal: Result | null; onAgain: () => void; onMenu: () => void }): void {
+  result(o: { r: Round; best: Result[]; personal: Result | null; online?: Promise<Board | null>; onAgain: () => void; onMenu: () => void }): void {
+    const online = o.online && el('p', 'quiet', 'Online: wird gemeldet …');
+    if (o.online && online) void o.online.then((b) => (online.textContent = rankText(b)));
     const ranks = ranking(o.r);
     const setting = settingLabel(o.r.setting);
     const fx = resultFx(o.r, o.personal);
@@ -275,8 +308,9 @@ export class Menu {
         points,
         el('p', '', `${me.distance} m + Style ${a.style} · bester Strike ${a.bestStrike}`),
         record ? el('p', 'news', 'Neue Bestleistung!') : o.personal && el('p', 'quiet', `Deine Bestleistung: ${o.personal.score}`),
+        online,
         el('h2', '', `Bestenliste · ${setting}`),
-        table(['#', 'Name', 'Punkte', 'm', 'Strike'], o.best.map((x, i) => [i + 1, x.name, x.score, x.distance, x.bestStrike])),
+        bestTable(o.best),
         el('div', 'row big', button('Menü', o.onMenu), button('Nochmal', o.onAgain, 'main')),
       );
       return;

@@ -5,6 +5,7 @@ sammelt «Unveröffentlicht».
 
 ## [Unveröffentlicht]
 
+- 12.11.2026 · B12: Hosting auf Cloudflare Pages vorbereitet (Bau `npm run build:cloud`, Kopfzeilen, Anleitung in `docs/betrieb.md`) und Online-Bestenliste: Einzelspiel-Ergebnisse gehen an eine Cloudflare-Funktion mit D1-Datenbank, das Startmenü zeigt die Online-Liste, die Wertung den eigenen Rang; die Funktion prüft das Access-Token selbst, live geht nur der Zweig `live`. Auf der Testseite und im normalen Bau ausgeschaltet.
 - 12.11.2026 · B11: «Freier Schwung» holt Schwung wie Normal – kein Looping mehr aus dem Stand; die Variante unterscheidet sich nur noch durch die Kraft.
 - 12.11.2026 · B10: Neue Titelseite (Titelschild an zwei Seilen, dunkle Glasflächen, dahinter schwingt das Männchen und die Tageszeit zieht durch), Intro beim Laden mit dem Label «megene games», Töne für Buttons, Punkte zählen in der Wertung hoch, Fanfare bei Bestleistung und Sieg, Medaillenfarben in den Ranglisten.
 - 12.11.2026 · B9: Neue Grafik – die Tageszeit läuft mit der Strecke (Tag, Abendrot, Nacht mit beleuchteten Fenstern, Morgen), Türme mit Fenstern und Dachaufbauten, Strasse, ferne Stadt in zwei Schichten; Männchen mit flatterndem rotem Schal.

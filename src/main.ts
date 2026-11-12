@@ -1,4 +1,5 @@
 import { loadMuted, saveMuted, Sound, SoundObserver } from './audio';
+import { CLOUD, loadBoard, sendResult, submissionOf } from './cloud';
 import { demoShift, demoStart } from './demo';
 import { afterAttemptStep, attemptNumber, attemptsFor, hasAttemptChoice, createRound, currentTurn, endAttempt, stopTurn, type Mode, type Round } from './game';
 import { createState, resetState, settingByName, STEP, step, tap, TUNING, type Setting } from './physics';
@@ -119,6 +120,7 @@ function showStart(name = loadNames(kv)[0] ?? '', entrance = false): void {
   const all = loadResults(kv);
   menu.start({
     entrance,
+    online: CLOUD ? loadBoard(setting.name) : undefined,
     name,
     setting,
     results: { best: bestSingles(all, setting.name), challenges: recentChallenges(all, 3) },
@@ -157,8 +159,11 @@ function showResult(): void {
   const r = round!;
   const all = saveRound(kv, r, new Date());
   const me = r.turns[0]!.name;
+  // Online-Bestenliste (nur im Bau für Cloudflare): Einzelspiel mit Punkten melden
+  const mine = CLOUD ? submissionOf(all.find((x) => x.round === r.id)) : null;
   menu.result({
     r,
+    online: mine ? sendResult(mine) : undefined,
     best: bestSingles(all, r.setting),
     personal: r.mode === 'single' ? personalBest(all, me, r.setting) : null,
     onAgain: () => begin(r.mode, r.turns.map((t) => t.name)),

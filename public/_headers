@@ -1,0 +1,9 @@
+# Cloudflare Pages: Kopfzeilen für alle Dateien des Spiels (docs/betrieb.md).
+# Für Antworten der Funktion /api/scores gelten sie nicht; die setzt ihre eigenen.
+# Das Spiel ist privat: nicht in Suchmaschinen, nicht in fremden Rahmen.
+/*
+  X-Robots-Tag: noindex, nofollow
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: no-referrer
+  Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
