@@ -24,8 +24,9 @@ Einrichten und Alltag: `docs/betrieb.md`.
   Rahmen, nur eigene Skripte und Verbindungen. Dazu `noindex` in `index.html`.
 - **Live nur aus dem Zweig `live`**: `main` bleibt Arbeitsstand. Was Claude
   mergt, geht nicht live; live schaltet Pascal (PR von `main` nach `live`).
-  Das ist heute eine Abmachung, technisch noch nicht gesperrt
-  (`docs/betrieb.md`, Schritt 4).
+  Gegen Claude gesperrt seit 12.11.2026: Der Hook weist jeden `git push` auf
+  `live` ab (`AGENTS.md`, Zeile «Live»; `docs/betrieb.md`, Schritt 4). Ein
+  Zweigschutz bei GitHub wäre die Sperre für alle, nicht geprüft.
 - **Zugangsprüfung** (`server/access.ts`): Die Funktion prüft bei jeder
   Anfrage das Token von Cloudflare Access selbst und antwortet sonst mit 403,
   auch wenn `ACCESS_TEAM` oder `ACCESS_AUD` fehlen.

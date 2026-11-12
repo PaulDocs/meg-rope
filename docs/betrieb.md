@@ -22,9 +22,11 @@ anders heissen. Grundlage: `docs/entscheide/2026-11-12-hosting-cloudflare.md`.
 
 **Live geht nur der Zweig `live`.** `main` bleibt der Arbeitsstand: Was Claude
 nach `main` mergt, sehen die Freunde nicht. Live schaltest du selbst, siehe
-«Neue Version». **Stand 12.11.2026 ist das eine Abmachung, technisch nicht
-gesperrt:** Der Deploy-Key darf in jeden Zweig schieben, und kein Hook weist
-einen Push nach `live` ab. Gesperrt wird es in Schritt 4.
+«Neue Version». **Gesperrt seit 12.11.2026 für Claude:** Der Hook
+`live-schutz.sh` weist jeden `git push` auf `live` ab (Zeile «Live» in
+`AGENTS.md`, Schritt 4). Der Deploy-Key selbst darf weiter in jeden Zweig
+schieben; wer ohne den Hook arbeitet (du selbst, ein anderes Werkzeug), ist
+nicht gebremst. Wer auch das sperren will: Zweigschutz bei GitHub.
 
 ## Einrichten (einmal)
 
@@ -94,24 +96,22 @@ Die Reihenfolge ist Absicht: zuerst der Zugang, dann die Daten.
    Und im privaten Fenster: `https://meg-rope.pages.dev/api/scores?setting=normal`
    → Anmeldeseite, keine Liste.
 
-### 4. `live` sperren und Regeln nachführen
+### 4. `live` gegen Claude gesperrt (erledigt 12.11.2026)
 
-Am besten **vor** Schritt 1, spätestens bevor Freunde den Link haben:
-
-1. **Sperren**, eine der beiden Möglichkeiten:
-   - GitHub → Repo → Einstellungen → Branches → Schutzregel für `live`:
-     Änderungen nur per Pull Request, ohne Ausnahme für den Deploy-Key. Ob
-     GitHub das für dieses private Repo anbietet, hängt vom Abo ab (nicht
-     geprüft).
-   - Oder in einer Sitzung in `20-Infra/` den Hook `live-schutz.sh` um ein
-     Muster ergänzen, das einen Push mit Ziel `live` abweist. Heute kennt der
-     Hook nur feste Muster (Ports, erzwungene Pushes, übersprungene
-     Prüfungen), den Zweig `live` nicht.
-2. In `AGENTS.md`, Abschnitt «Sitzungen», die Zeile **Live** füllen (heute
-   `_noch offen_`): Cloudflare Pages `meg-rope` aus dem Zweig `live`, Adresse,
-   «`live` schiebt nur Pascal nach».
-3. Den Absatz «Live geht nur der Zweig `live`» oben so umschreiben, wie es
-   dann wirklich gesichert ist.
+- Die Zeile **Live** in `AGENTS.md` nennt den Live-Zweig `live`. Der Hook
+  (`~/.claude/hooks/sitzungen.py`, aufgerufen von `live-schutz.sh`) liest sie
+  und weist jeden `git push` ab, der `live` träfe: `main:live`, `live`,
+  `HEAD:refs/heads/live`, erzwungen, Löschen, `--all`, auch ohne Angabe auf dem
+  Zweig `live`. In jedem Checkout und Worktree dieses Repos, auch wenn die
+  `AGENTS.md` dort alt ist (die Wahrheit auf dem Remote zählt mit).
+- **Grenze:** Der Hook erkennt nur direkte `git push`-Befehle. Ein Push über
+  `bash -c`, eine Variable oder ein Skript wird nicht erkannt, und der Hook
+  bremst nur Claude. Ein Zweigschutz bei GitHub (Einstellungen → Branches →
+  Regel für `live`: nur per Pull Request) würde für alle gelten; ob das Abo ihn
+  für ein privates Repo anbietet, ist nicht geprüft.
+- Wird Cloudflare eingerichtet, kommt in `AGENTS.md` bei **Live** noch die
+  Adresse dazu; den Namen des Zweigs nicht ändern, sonst greift der Hook nicht
+  mehr.
 
 ## Im Alltag
 

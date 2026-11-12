@@ -59,7 +59,9 @@ Ein Browserspiel fürs iPad, in dem man mit einem Strichmännchen von Gebäude z
   Nachführen; bleibt ein Blocker: melden, nicht mergen; kein Force-Push)
 - **GitHub-API:** keine; Push per Deploy key (SSH `github-meg-rope`, nur dieses Repo)
 - **Dev nachziehen:** _noch offen_ (kein Dev-Checkout)
-- **Live:** _noch offen_ (Live bedient nur Pascal)
+- **Live:** Cloudflare Pages `meg-rope`, gebaut aus dem Live-Zweig `live` (vorbereitet, noch nicht eingerichtet:
+  `docs/betrieb.md`). `main` ist nur der Arbeitsstand. Den Zweig `live` schiebt nur Pascal nach (Pull Request von
+  `main` nach `live` auf GitHub); der Hook `live-schutz.sh` weist jeden `git push` auf `live` ab.
 
 ## Definition of Done
 
