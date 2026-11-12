@@ -60,14 +60,22 @@ dort. Claude hat keinen Zugang zu Cloudflare.
 
 ## Nicht geprüft
 
-- **Bei Cloudflare selbst lief noch nichts**: Bau auf Pages, D1 und Access
-  sind ungetestet. Die Menünamen in `docs/betrieb.md` stammen aus dem
-  Gedächtnis.
+- **Stand 12.11.2026:** Pascal hat Pages, Access und D1 eingerichtet und nach
+  dem Binden der Datenbank «ok läuft» gemeldet (Meldung der Hauptsitzung; die
+  Antwort selbst habe ich nicht gesehen). Die Anleitung ist gegen die Cloudflare-Doku geprüft
+  (Abschnitt «Geprüft» in `docs/betrieb.md`, Chronik `261112-cloudflare-anleitung-geprueft.md`).
+  Offen bleiben die Prüflisten dort: Anmeldeseite vor Hauptadresse und
+  Lauf-Adresse im privaten Fenster, Eintrag auf einem zweiten Gerät.
+- Nicht in der Doku belegt: D1-Konsole im Dashboard, Ort von AUD-Tag und
+  Team-Name im neuen Dashboard, eigene Domain in derselben Access-Anwendung.
 - Die Zeile «Online: Platz …» in der Wertung war im Browser nicht zu sehen
   (der Prüflauf kommt nicht auf Punkte); ihr Text und die Meldung sind getestet.
 - Die Browserprüfung in `pruefen.sh` läuft auf dem normalen Bau, nicht auf dem
   Cloud-Bau (der bräuchte die Funktion dahinter). Bekannte Lücke.
-- Die D1-Schnittstelle und der Ablauf der Token-Prüfung sind von Hand nach der
-  Cloudflare-Doku geschrieben, aus dem Gedächtnis, ohne installierte Typen.
-  Ob Pages `functions/api/scores.ts` mit den Importen aus `src/` und `server/`
-  so bündelt, zeigt erst der erste Bau dort.
+- Die D1-Schnittstelle (`prepare`, `bind`, `all`, `run`, `batch`) und der Ablauf
+  der Token-Prüfung sind jetzt gegen die Cloudflare-Doku verglichen und stimmen.
+  Es gibt weiter keine installierten Typen dazu. Dass Pages die Funktion mit den
+  Importen aus `src/` und `server/` bündelt und echte Tokens die Prüfung
+  bestehen, zeigt der Lauf bei Cloudflare (Antworten der Funktion). Die
+  Meldung eines Ergebnisses (`POST`) bei Cloudflare ist noch nicht gesehen
+  (Prüfliste Schritt 3).

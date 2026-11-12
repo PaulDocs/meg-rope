@@ -5,6 +5,7 @@ sammelt «Unveröffentlicht».
 
 ## [Unveröffentlicht]
 
+- 12.11.2026 · B12: Anleitung `docs/betrieb.md` gegen die Cloudflare-Doku und Pascals Einrichtung geprüft und korrigiert: «Zugriffsrichtlinie aktivieren» schützt nur Vorschau-Adressen (Hauptadresse eigene Access-Anwendung mit zwei Hostnamen), `ACCESS_TEAM` ist nur der Name, Tabelle der Antworten von `/api/scores`, deutsche Menünamen, Vorschau-Bauten ausschalten, Abschnitt «Geprüft». Code unverändert (passt zur Doku).
 - 12.11.2026 · B12: Zweig `live` ist gegen Claude gesperrt – der Hook weist jeden `git push` auf `live` ab; Zeile «Live» in `AGENTS.md` nennt ihn.
 - 12.11.2026 · B12: Hosting auf Cloudflare Pages vorbereitet (Bau `npm run build:cloud`, Kopfzeilen, Anleitung in `docs/betrieb.md`) und Online-Bestenliste: Einzelspiel-Ergebnisse gehen an eine Cloudflare-Funktion mit D1-Datenbank, das Startmenü zeigt die Online-Liste, die Wertung den eigenen Rang; die Funktion prüft das Access-Token selbst, live geht nur der Zweig `live`. Auf der Testseite und im normalen Bau ausgeschaltet.
 - 12.11.2026 · B11: «Freier Schwung» holt Schwung wie Normal – kein Looping mehr aus dem Stand; die Variante unterscheidet sich nur noch durch die Kraft.
