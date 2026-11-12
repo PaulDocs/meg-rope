@@ -1,6 +1,8 @@
 import { loadMuted, saveMuted, Sound, SoundObserver } from './audio';
+import { demoShift, demoStart } from './demo';
 import { afterAttemptStep, attemptNumber, attemptsFor, hasAttemptChoice, createRound, currentTurn, endAttempt, stopTurn, type Mode, type Round } from './game';
 import { createState, resetState, settingByName, STEP, step, tap, TUNING, type Setting } from './physics';
+import { introWanted, runIntro } from './intro';
 import { draw, onSideWall, screenToWorld, updateCamera, type Camera } from './render';
 import { attemptOf } from './score';
 import { bestSingles, loadNames, loadResults, personalBest, recentChallenges, saveNames, saveRound, type KeyValue } from './store';
@@ -38,7 +40,6 @@ const cam: Camera = { x: 0, y: 0, scale: 1 };
 // Nur zum Ansehen, auch im gebauten Spiel aktiv: ?tageszeit=1300 zeigt die Stimmung,
 // die sonst nach 1300 m käme. Wirkt nur auf die Farben, nicht auf Strecke oder Punkte.
 const lookShift = Number(new URLSearchParams(location.search).get('tageszeit') ?? 0);
-const menu = new Menu(document.getElementById('menu')!);
 function storage(): KeyValue | null {
   try {
     return localStorage;
@@ -68,6 +69,10 @@ for (const ev of ['touchend', 'pointerup', 'click'] as const) {
   window.addEventListener(ev, () => sound.unlock(), { passive: true });
 }
 document.addEventListener('visibilitychange', () => sound.pause(document.hidden));
+const menu = new Menu(document.getElementById('menu')!, (kind) => {
+  sound.unlock(); // der Druck auf den Button ist die Berührung, die den Ton freigibt
+  sound.play([{ type: kind }]);
+});
 
 let width = 0;
 let height = 0;
@@ -94,11 +99,26 @@ function newAttempt(): void {
   menu.hide();
 }
 
-function showStart(name = loadNames(kv)[0] ?? ''): void {
+// Titelbild (src/demo.ts): Ohne Runde schwingt hinter dem Startmenü ein Männchen an einem
+// Seil. Es hat seinen eigenen Zustand – vom Spiel (state) gelangt nichts hinein und nichts heraus.
+const demoState = createState('normal');
+let demoTime = 0; // s seit das Titelbild läuft
+function startDemo(): void {
+  demoTime = 0;
+  resetState(demoState, 'normal');
+  const d = demoStart(street.holds);
+  if (!d) return; // kein passendes Haus: das Männchen fällt und das Titelbild beginnt neu
+  demoState.pos = d.pos;
+  tap(demoState, d.anchor, street.holds, () => false);
+}
+
+function showStart(name = loadNames(kv)[0] ?? '', entrance = false): void {
+  if (round) startDemo(); // zurück aus einer Runde: Titelbild von vorne
   round = null;
   resetState(state, setting.variant, setting.level);
   const all = loadResults(kv);
   menu.start({
+    entrance,
     name,
     setting,
     results: { best: bestSingles(all, setting.name), challenges: recentChallenges(all, 3) },
@@ -189,24 +209,43 @@ function frame(now: number): void {
   const dt = Math.min(0.25, (now - last) / 1000);
   acc += dt;
   last = now;
+  const demo = round === null; // ohne Runde läuft das Titelbild
+  if (demo) {
+    demoTime += dt;
+    if (demoState.phase === 'down') startDemo();
+  }
   while (acc >= STEP) {
-    if (!menu.open) step(state); // hinter dem Menü steht das Spiel still
+    if (demo) step(demoState);
+    else if (!menu.open) step(state); // hinter dem Menü steht das Spiel still
     acc -= STEP;
   }
+  const shown = demo ? demoState : state; // was Kamera und Bild zeigen
   if (round && !menu.open && state.phase === 'down') {
     downFor += dt;
     if (downFor >= DOWN_PAUSE) attemptOver();
   }
-  sound.play(heard.update(state));
-  sound.setWind(Math.hypot(state.vel.x, state.vel.y), !menu.open && state.phase === 'flying');
-  street.extendTo(state.pos.x + AHEAD);
-  updateCamera(cam, state, width, height, dt);
+  sound.play(heard.update(state)); // nur das Spiel klingt, das Titelbild bleibt still
+  sound.setWind(Math.hypot(state.vel.x, state.vel.y), !demo && !menu.open && state.phase === 'flying');
+  street.extendTo(shown.pos.x + AHEAD);
+  updateCamera(cam, shown, width, height, dt);
   const turn = round ? currentTurn(round) : null;
-  draw(ctx, state, street, cam, width, height, turn && {
+  draw(ctx, shown, street, cam, width, height, turn && {
     name: turn.name,
     attempt: hasAttemptChoice(round!.mode) ? { now: attemptNumber(round!, turn), of: attemptsFor(round!.mode) } : null,
-  }, lookShift);
+  }, lookShift + (demo ? demoShift(demoTime) : 0));
   requestAnimationFrame(frame);
 }
-showStart();
+
+// Laden: Intro mit dem Label, dann fällt das Titelschild ins Bild (src/intro.ts)
+startDemo();
+const enter = (): void => {
+  showStart(undefined, true);
+  sound.unlock(); // wirkt nur, wenn das Intro weggetippt wurde: das iPad gibt Ton erst nach einer Berührung frei
+  sound.play([{ type: 'title' }]);
+};
+if (introWanted(location.search, window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)) {
+  runIntro(document.getElementById('intro')!, enter);
+} else {
+  showStart();
+}
 requestAnimationFrame(frame);

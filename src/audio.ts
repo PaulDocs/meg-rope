@@ -25,7 +25,7 @@ export const SOUND = {
   seriesDelay: 0.14, // s – Serien-Ton kommt nach dem Punkte-Ton
 };
 
-/** Ereignisse, die der Spielzustand auslöst. */
+/** Ereignisse, die einen Ton auslösen: aus dem Spielzustand (SoundObserver) oder direkt vom Menü (`ui`, `title`, `record`). */
 export type SoundEvent =
   | { type: 'hook' } // Seil schiessen und einhaken
   | { type: 'jerk'; level: number } // Ruck, Stärke 0 … 1
@@ -36,6 +36,9 @@ export type SoundEvent =
   | { type: 'series'; count: number } // guter Schwung in Folge (Freier Schwung)
   | { type: 'station' } // Kontrollpunkt (Kraftstation)
   | { type: 'weak' } // Kraft fast leer
+  | { type: 'ui' } // Button im Menü gedrückt
+  | { type: 'title' } // Titelschild fällt ins Bild
+  | { type: 'record' }; // neue Bestleistung oder Sieg
 
 const clamp01 = (x: number): number => Math.min(1, Math.max(0, x));
 
@@ -301,6 +304,18 @@ export class Sound {
       case 'weak':
         this.tone({ at: 0, dur: 0.12, freq: 440, gain: 0.09, type: 'square' });
         this.tone({ at: 0.18, dur: 0.12, freq: 440, gain: 0.09, type: 'square' });
+        break;
+      case 'ui':
+        this.tone({ at: 0, dur: 0.06, freq: semi(12), end: semi(7), gain: 0.06, type: 'triangle' });
+        break;
+      case 'title':
+        this.noiseBurst({ at: 0, dur: 0.5, from: 500, to: 3200, gain: 0.1, q: 0.8 }); // das Schild saust herunter
+        this.tone({ at: 0.45, dur: 0.35, freq: 110, end: 50, gain: 0.3, type: 'sine' }); // und hängt (das Schild fällt 0,95 s: index.html, @keyframes drop)
+        for (const [i, n] of [0, 7, 12].entries()) this.tone({ at: 0.5 + i * 0.07, dur: 0.6, freq: semi(n), gain: 0.07, type: 'triangle' });
+        break;
+      case 'record':
+        for (const [i, n] of [0, 4, 7, 12, 16].entries()) this.tone({ at: i * 0.09, dur: 0.4, freq: semi(n + 12), gain: 0.08, type: 'triangle' });
+        this.tone({ at: 0.45, dur: 0.7, freq: semi(24), gain: 0.05, type: 'sine' });
         break;
     }
   }

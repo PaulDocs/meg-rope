@@ -3,6 +3,7 @@
 // Nur Darstellung und Buttons; was passiert, entscheidet main.ts.
 // Namen kommen nur als Text ins Bild (textContent), nie als HTML.
 
+import { GAME, studioBadge, TAGLINE } from './brand';
 import { attemptNumber, attemptsFor, bestAttempt, bonusFor, cleanName, ranking, ROUND, turnScore, type Attempt, type Round, type Turn } from './game';
 import { SETTINGS, type Setting } from './physics';
 import type { Result } from './store';
@@ -39,12 +40,51 @@ function pct(x: number): string {
   return `+ ${Math.round(x * 100)} %`;
 }
 
-/** Tabelle mit Rang, Name und Werten. */
+/** Tabelle mit Rang, Name und Werten; die erste Spalte ist der Rang (Plätze 1–3 als Medaille). */
 function table(head: string[], rows: (string | number)[][]): HTMLElement {
   const t = el('table', '');
   t.append(el('tr', '', ...head.map((x) => el('th', '', x))));
-  for (const r of rows) t.append(el('tr', '', ...r.map((x) => el('td', '', String(x)))));
+  for (const r of rows) t.append(el('tr', '', ...r.map((x, i) => el('td', i === 0 ? `rank rank-${x}` : '', String(x)))));
   return t;
+}
+
+export const COUNT_UP = 900; // ms – so lange zählt die Punktzahl in der Wertung hoch; danach springt «Neue Bestleistung!» ins Bild (index.html, #menu .news: gleiche Zeit als Verzögerung)
+
+/** Wert nach `elapsed` ms Hochzählen: schnell los, weich ans Ziel, am Ende genau `to`. */
+export function countUpValue(to: number, elapsed: number, ms = COUNT_UP): number {
+  const k = Math.min(1, Math.max(0, elapsed / ms));
+  return Math.round(to * (1 - (1 - k) ** 3));
+}
+
+/** Zahl in `node` hochzählen lassen; ohne Bildtakt (Tests) steht sie sofort. */
+function countUp(node: HTMLElement, to: number, text: (n: number) => string): void {
+  if (to <= 0 || typeof requestAnimationFrame !== 'function') {
+    node.textContent = text(to);
+    return;
+  }
+  const t0 = performance.now();
+  const tick = (now: number): void => {
+    node.textContent = text(countUpValue(to, now - t0));
+    if (now - t0 < COUNT_UP) requestAnimationFrame(tick);
+  };
+  node.textContent = text(0);
+  requestAnimationFrame(tick);
+}
+
+/** Was das Menü hörbar macht: dieselben Namen wie die Ton-Ereignisse in audio.ts (main.ts spielt sie). */
+export type MenuFx = 'ui' | 'record';
+
+/**
+ * Fanfare zur Wertung? Im Einzelspiel bei neuer Bestleistung, in der Challenge
+ * für den Sieg – nicht bei Gleichstand und nie für 0 Punkte.
+ */
+export function resultFx(r: Round, personal: Result | null): MenuFx | null {
+  const ranks = ranking(r);
+  const first = ranks[0];
+  if (!first || first.score <= 0) return null;
+  if (r.mode === 'single') return personal !== null && personal.round === r.id ? 'record' : null;
+  const second = ranks[1];
+  return second && second.score === first.score && second.distance === first.distance ? null : 'record';
 }
 
 function day(iso: string): string {
@@ -53,7 +93,11 @@ function day(iso: string): string {
 }
 
 export class Menu {
-  constructor(private root: HTMLElement) {}
+  constructor(private root: HTMLElement, private fx: (kind: MenuFx) => void = () => {}) {
+    root.addEventListener('click', (e) => {
+      if (e.target instanceof Element && e.target.closest('button')) this.fx('ui');
+    });
+  }
 
   get open(): boolean {
     return !this.root.hidden;
@@ -65,12 +109,22 @@ export class Menu {
   }
 
   private show(...children: Child[]): void {
-    this.root.replaceChildren(el('div', 'card', ...children));
+    this.showRaw(el('div', 'card', ...children));
+  }
+
+  private showRaw(child: HTMLElement): void {
+    this.root.replaceChildren(child);
+    this.root.scrollTop = 0;
     this.root.hidden = false;
   }
 
-  /** Startmenü: Name, Einstellung, Einzelspiel oder Challenge, Bestenliste und letzte Challenges. */
+  /**
+   * Startmenü (die Titelseite): Titelschild an zwei Seilen, dann Name, Einstellung,
+   * Einzelspiel oder Challenge; daneben Bestenliste und letzte Challenges, unten das Label.
+   * `entrance`: Das Schild fällt ins Bild (nach dem Intro), sonst steht es gleich.
+   */
   start(o: {
+    entrance?: boolean;
     name: string;
     setting: Setting;
     results: { best: Result[]; challenges: { setting: string; date: string; ranks: Result[] }[] };
@@ -105,17 +159,29 @@ export class Menu {
         table(['#', 'Name', 'Punkte', 'm'], c.ranks.map((x, i) => [i + 1, x.name, x.score, x.distance])),
       ),
     );
-    this.show(
-      el('h1', '', 'Meg Rope'),
-      el('label', '', 'Spielername', name),
-      warn,
-      el('p', 'label', 'Einstellung'),
-      settings,
-      el('div', 'row big', button('Einzelspiel', go(o.onSingle), 'main'), button('Challenge', go(o.onChallenge), 'main')),
-      el('h2', '', `Bestenliste Einzelspiel · ${SETTING_LABEL[o.setting.name]}`),
-      best,
-      challenges.length > 0 && el('h2', '', 'Letzte Challenges'),
-      ...challenges,
+    settings.classList.add('chips');
+    const logo = el('h1', 'logo', el('span', '', GAME.first), el('span', '', GAME.second));
+    logo.setAttribute('aria-label', `${GAME.first} ${GAME.second}`);
+    this.showRaw(
+      el('div', o.entrance ? 'title enter' : 'title',
+        el('header', 'sign', logo, el('p', 'tagline', TAGLINE)),
+        el('div', 'cols',
+          el('div', 'card play',
+            el('label', '', 'Spielername', name),
+            warn,
+            el('p', 'label', 'Einstellung'),
+            settings,
+            el('div', 'row big', button('Einzelspiel', go(o.onSingle), 'main'), button('Challenge', go(o.onChallenge))),
+          ),
+          el('div', 'card board',
+            el('h2', '', `Bestenliste · ${SETTING_LABEL[o.setting.name]}`),
+            best,
+            challenges.length > 0 && el('h2', '', 'Letzte Challenges'),
+            ...challenges,
+          ),
+        ),
+        el('footer', 'foot', studioBadge(22)),
+      ),
     );
   }
 
@@ -197,12 +263,16 @@ export class Menu {
   result(o: { r: Round; best: Result[]; personal: Result | null; onAgain: () => void; onMenu: () => void }): void {
     const ranks = ranking(o.r);
     const setting = settingLabel(o.r.setting);
+    const fx = resultFx(o.r, o.personal);
+    if (fx) this.fx(fx);
     if (o.r.mode === 'single') {
       const me = ranks[0]!;
       const a = bestAttempt(o.r.turns[0]!)!; // im Einzelspiel der eine Versuch (Style, Strike)
       const record = me.score > 0 && o.personal !== null && o.personal.round === o.r.id;
+      const points = el('h1', 'score');
+      countUp(points, me.score, (n) => `${me.name}: ${n}`);
       this.show(
-        el('h1', '', `${me.name}: ${me.score}`),
+        points,
         el('p', '', `${me.distance} m + Style ${a.style} · bester Strike ${a.bestStrike}`),
         record ? el('p', 'news', 'Neue Bestleistung!') : o.personal && el('p', 'quiet', `Deine Bestleistung: ${o.personal.score}`),
         el('h2', '', `Bestenliste · ${setting}`),

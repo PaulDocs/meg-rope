@@ -336,6 +336,20 @@ describe('Sound mit Fake-AudioContext', () => {
   }
   afterEach(() => vi.unstubAllGlobals());
 
+  it('Menü-Töne: Knopf, Titelschild und Bestleistung erzeugen je eigene Töne', () => {
+    const snd = ready();
+    snd.play([{ type: 'ui' }]);
+    expect(made.osc.length).toBe(1);
+    snd.play([{ type: 'title' }]);
+    expect(made.osc.length).toBe(5);
+    expect(made.src).toBe(1); // das Sausen
+    snd.play([{ type: 'record' }]);
+    expect(made.osc.length).toBe(11);
+    const quiet = ready(true);
+    quiet.play([{ type: 'ui' }, { type: 'title' }, { type: 'record' }]);
+    expect(made.osc.length).toBe(0); // stumm bleibt stumm
+  });
+
   it('Ruf und Aufprall nutzen Stimme und Knacken, bleiben aber unter dem Stimmenlimit', () => {
     const snd = ready();
     snd.play([{ type: 'cry', level: 1 }, { type: 'ground', level: 1 }, { type: 'loop' }]);

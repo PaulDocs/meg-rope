@@ -5,6 +5,8 @@ sammelt «Unveröffentlicht».
 
 ## [Unveröffentlicht]
 
+- 12.11.2026 · B11: «Freier Schwung» holt Schwung wie Normal – kein Looping mehr aus dem Stand; die Variante unterscheidet sich nur noch durch die Kraft.
+- 12.11.2026 · B10: Neue Titelseite (Titelschild an zwei Seilen, dunkle Glasflächen, dahinter schwingt das Männchen und die Tageszeit zieht durch), Intro beim Laden mit dem Label «megene games», Töne für Buttons, Punkte zählen in der Wertung hoch, Fanfare bei Bestleistung und Sieg, Medaillenfarben in den Ranglisten.
 - 12.11.2026 · B9: Neue Grafik – die Tageszeit läuft mit der Strecke (Tag, Abendrot, Nacht mit beleuchteten Fenstern, Morgen), Türme mit Fenstern und Dachaufbauten, Strasse, ferne Stadt in zwei Schichten; Männchen mit flatterndem rotem Schal.
 - 09.11.2026 · B8: Stimme des Männchens (künstlich, aus Formant-Filtern): «yuuuh» beim Loslassen im Flug, «wooo» im Looping, «uff» bei hartem Ruck, Knochenknacken und Stöhnen beim Aufprall.
 - 09.11.2026 · B5: Direkt weiterschwingen (nur ein Schwung, 0,4 bis 1,5 s am Seil) wird belohnt: +10 Punkte und lockerere Grenzen für verlorenen Schwung und Abflug-Winkel.

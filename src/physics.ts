@@ -21,8 +21,8 @@ export const TUNING = {
   // Es holt aber nur Schwung, solange seine Energie unter einer Grenze liegt
   // (pumpLimitFor, festgelegt, sobald das Seil zum ersten Mal zieht):
   // - Aus dem Stand höchstens bis auf Hakenhöhe – kein Looping aus dem Stand
-  //   (Pascal 08.11.; in der Spielvariante «Freier Schwung» bis zur
-  //   Energiegrenze, siehe standingLimit()). Bis dorthin bleibt das Seil gespannt, es fällt also
+  //   (Pascal 08.11.; seit 12.11. in beiden Spielvarianten gleich, siehe
+  //   standingLimit()). Bis dorthin bleibt das Seil gespannt, es fällt also
   //   nicht zurück ins Seil und stockt nicht.
   // - Mit Tempo vom Flug (Energie über flightEnergy) bis swingSpeedAtHookHeight:
   //   über Hakenhöhe zuerst nur schwach (pumpHigh, höchstens maxLoopTries
@@ -30,7 +30,7 @@ export const TUNING = {
   //   als unten, wie bei einer echten Schaukel; in den ersten maxPumpTurns
   //   Umdrehungen ist der Unterschied klein, danach wieder voll. Danach dreht
   //   es mit dem gewonnenen Tempo weiter. Wie stark es holt: pumpAccel().
-  pump: 22, // m/s² – volles Schwung holen: Obergrenze unter Hakenhöhe (pumpAccel), nach dem ersten Looping und im Freien Schwung; 0 schaltet alles ab
+  pump: 22, // m/s² – volles Schwung holen: Obergrenze unter Hakenhöhe (pumpAccel) und nach dem ersten Looping; 0 schaltet alles ab
   swingSpeedAtHookHeight: 80, // m/s – Energiegrenze als Tempo auf Hakenhöhe: steil gelöst rund 80 m Wurfhöhe (v²/2g); unten je nach Seillänge schneller
   // Ab dieser Energie über Hakenhöhe (Anteil von g·Seillänge) zählt es als «vom Flug».
   // Pascal 09.11.: 0,2 war mit dem Trick zu leicht («20 % mehr»): Fallen lassen
@@ -103,7 +103,7 @@ export function stationAt(k: number): number {
 export type Level = keyof typeof STRENGTH.gain;
 export const DEFAULT_LEVEL: Level = 'medium';
 
-/** Spielvariante: «normal» (aus dem Stand kein Looping) oder «free» = Freier Schwung mit Kraft. */
+/** Spielvariante: «normal» oder «free» = Freier Schwung mit Kraft. Schwung holen ist in beiden gleich. */
 export type Variant = 'normal' | 'free';
 
 export const STEP = 1 / 120; // feste Zeitschritte: überall gleiche Ergebnisse
@@ -541,7 +541,7 @@ function trackLoopTry(s: State, prevY: number): void {
     return;
   }
   const fellBack = prevY > r.anchor.y && s.pos.y <= r.anchor.y;
-  if (fellBack && r.loopTries >= TUNING.maxLoopTries) r.pumpLimit = standingLimit(s);
+  if (fellBack && r.loopTries >= TUNING.maxLoopTries) r.pumpLimit = standingLimit();
 }
 
 /**
@@ -560,7 +560,7 @@ export function turnsOnRope(s: State): number {
  */
 export function isPumping(s: State): boolean {
   if (!s.rope || !isTaut(s) || turnsOnRope(s) >= TUNING.maxPumpTurns) return false;
-  return swingEnergy(s) < (s.rope.pumpLimit ?? standingLimit(s)); // bis das Seil zieht wie aus dem Stand
+  return swingEnergy(s) < (s.rope.pumpLimit ?? standingLimit()); // bis das Seil zieht wie aus dem Stand
 }
 
 /** Energiegrenze je kg fürs Schwung holen mit Tempo vom Flug. */
@@ -582,11 +582,12 @@ function ropePulls(s: State): boolean {
 }
 
 /**
- * Energiegrenze je kg fürs Schwung holen aus dem Stand: die Hakenhöhe. In der
- * Variante «Freier Schwung» die volle Energiegrenze – Looping aus dem Stand.
+ * Energiegrenze je kg fürs Schwung holen aus dem Stand: die Hakenhöhe, in
+ * beiden Spielvarianten (Pascal 12.11.: «Freier Schwung» beschleunigt wie
+ * Normal; bis dahin galt dort die volle Energiegrenze, Looping aus dem Stand).
  */
-export function standingLimit(s: State): number {
-  return s.variant === 'free' ? energyLimit() : 0;
+export function standingLimit(): number {
+  return 0;
 }
 
 /**
@@ -597,7 +598,7 @@ export function standingLimit(s: State): number {
  */
 function pumpLimitFor(s: State): number {
   const fromFlight = swingEnergy(s) > TUNING.flightEnergy * TUNING.gravity * s.rope!.length;
-  return fromFlight ? energyLimit() : standingLimit(s);
+  return fromFlight ? energyLimit() : standingLimit();
 }
 
 /**
@@ -623,15 +624,14 @@ function tangent(s: State): Vec {
  *   des Tempos (pumpStart + pumpGrowth·v), höchstens pump;
  * - über Hakenhöhe, noch ohne Looping: nur pumpHigh – Looping-Anläufe,
  *   höchstens maxLoopTries; misslingt der letzte, nur noch bis Hakenhöhe
- *   (step setzt die Grenze des Seils zurück; in der Variante «Freier Schwung» voll, dort geht
- *   der Looping aus dem Stand);
+ *   (step setzt die Grenze des Seils zurück);
  * - nach dem ersten Looping: pump (die Loopings werden schneller).
  * 0, wenn es gerade keinen Schwung holt; pump 0 schaltet alles ab.
  */
 export function pumpAccel(s: State): number {
   if (!isPumping(s) || TUNING.pump <= 0) return 0;
   if (s.rope!.looped) return TUNING.pump;
-  if (swingEnergy(s) >= 0) return standingLimit(s) > 0 ? TUNING.pump : TUNING.pumpHigh; // Freier Schwung: voll
+  if (swingEnergy(s) >= 0) return TUNING.pumpHigh;
   const t = tangent(s);
   const vt = Math.abs(s.vel.x * t.x + s.vel.y * t.y);
   return Math.min(TUNING.pump, TUNING.pumpStart + TUNING.pumpGrowth * vt);

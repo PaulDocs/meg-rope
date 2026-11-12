@@ -6,48 +6,118 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#dfe7ee" />
+    <meta name="theme-color" content="#0e1320" />
     <title>Meg Rope</title>
     <style>
-      html, body { margin: 0; height: 100%; overflow: hidden; background: #dfe7ee; }
+      html, body { margin: 0; height: 100%; overflow: hidden; background: var(--night); }
       canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none;
                -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+      /* Farben der Menüs: dunkles Glas über der Stadt, Koralle vom Schal des Männchens (--accent = SCARF.night in src/look.ts) */
+      :root { --ink: #141a26; --glass: rgba(16, 22, 36, 0.74); --line: rgba(255, 255, 255, 0.16);
+              --text: #f4f6f9; --quiet: #aab5c5; --accent: #ff8a5c; --accent-deep: #b9482a; --gold: #ffd166;
+              --good: #74e3a4; --warn: #ffb4a3; --rope: rgba(244, 246, 249, 0.85); --night: #0e1320;
+              --display: "Avenir Next Condensed", "Futura", "Arial Narrow", "Helvetica Neue", Impact, sans-serif; }
       /* Menüs über dem Spiel (src/ui.ts) */
       #menu { position: fixed; inset: 0; display: flex; align-items: flex-start; justify-content: center;
-              overflow-y: auto; background: rgba(228, 232, 236, 0.82); padding: 4vh 16px;
-              box-sizing: border-box; font: 17px/1.4 -apple-system, system-ui, sans-serif; color: #262a31; }
+              overflow-x: hidden; overflow-y: auto; padding: max(4vh, env(safe-area-inset-top)) 16px 4vh; box-sizing: border-box;
+              background: radial-gradient(ellipse at 50% 28%, rgba(10, 14, 24, 0.18), rgba(10, 14, 24, 0.6));
+              font: 17px/1.4 "Avenir Next", -apple-system, system-ui, sans-serif; color: var(--text); }
       #menu[hidden] { display: none; }
-      #menu .card { background: #fff; border-radius: 14px; padding: 20px 22px; width: 100%; max-width: 520px;
-                    box-shadow: 0 6px 24px rgba(40, 56, 78, 0.18); }
-      #menu h1 { margin: 0 0 12px; font-size: 28px; }
-      #menu h2 { margin: 22px 0 6px; font-size: 18px; }
+      #menu .card { background: var(--glass); -webkit-backdrop-filter: blur(14px) saturate(1.2); backdrop-filter: blur(14px) saturate(1.2);
+                    border: 1px solid var(--line); border-radius: 20px; padding: 20px 22px; width: 100%; max-width: 520px;
+                    box-sizing: border-box; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35); animation: rise 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.15) both; }
+      #menu h1 { margin: 0 0 12px; font: italic 800 34px/1.05 var(--display); letter-spacing: 0.01em; text-wrap: balance; }
+      #menu h1.score { font-size: 44px; font-variant-numeric: tabular-nums; }
+      #menu h2 { margin: 22px 0 8px; font-size: 13px; font-weight: 700; line-height: 1.2; letter-spacing: 0.09em; text-transform: uppercase; color: var(--quiet); }
+      #menu .card > h2:first-child { margin-top: 0; }
       #menu p { margin: 6px 0; }
-      #menu .quiet, #menu .label { color: #6f7984; }
-      #menu .warn { color: #c8452f; min-height: 1.4em; }
-      #menu .news { color: #2ea05c; font-weight: 700; }
-      #menu label { display: block; font-weight: 600; }
-      #menu input { display: block; width: 100%; box-sizing: border-box; margin: 6px 0; padding: 10px 12px;
-                    font-size: 18px; border: 1px solid #c4ccd6; border-radius: 8px; }
+      #menu .quiet, #menu .label { color: var(--quiet); }
+      #menu .label, #menu label { font-size: 13px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--quiet); }
+      #menu .warn { color: var(--warn); min-height: 1.4em; }
+      #menu .news { display: inline-block; margin: 6px 0; padding: 4px 12px; border-radius: 999px; background: var(--gold); color: var(--ink);
+                    font-weight: 800; animation: pop 0.5s 0.9s cubic-bezier(0.3, 1.6, 0.5, 1) both; } /* 0.9s = COUNT_UP in src/ui.ts */
+      #menu label { display: block; }
+      #menu input { display: block; width: 100%; box-sizing: border-box; margin: 6px 0; padding: 11px 13px; font-family: inherit;
+                    font-size: 19px; font-weight: 600; line-height: 1.2; letter-spacing: 0; text-transform: none; color: var(--text); background: rgba(255, 255, 255, 0.08);
+                    border: 1px solid var(--line); border-radius: 12px; outline: none; }
+      #menu input::placeholder { color: var(--quiet); }
+      #menu input:focus { border-color: var(--accent); }
       #menu .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
-      #menu .row.big button { flex: 1; min-height: 52px; font-size: 19px; }
-      #menu button { padding: 9px 14px; font-size: 16px; border-radius: 8px; border: 1px solid #262a31;
-                     background: #fff; color: #262a31; font-weight: 600; touch-action: manipulation; }
-      #menu button.chosen, #menu button.main { background: #262a31; color: #fff; }
-      #menu button.small { font-size: 15px; padding: 6px 10px; }
-      #menu table { width: 100%; border-collapse: collapse; font-size: 16px; }
-      #menu th, #menu td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #e9ecef; }
-      #menu th { color: #6f7984; font-weight: 600; }
+      #menu .row.big { margin-top: 16px; }
+      #menu .row.big button { flex: 1; min-height: 56px; font-size: 20px; }
+      #menu button { padding: 10px 15px; font-family: inherit; font-size: 16px; font-weight: 700; line-height: 1.2; border-radius: 12px; border: 1px solid var(--line);
+                     background: rgba(255, 255, 255, 0.09); color: var(--text); touch-action: manipulation;
+                     -webkit-tap-highlight-color: transparent; transition: transform 0.06s ease-out, box-shadow 0.06s ease-out; }
+      #menu button:active { transform: translateY(2px) scale(0.98); }
+      #menu button.chosen { background: var(--text); color: var(--ink); border-color: var(--text); }
+      #menu button.main { background: var(--accent); color: var(--ink); border-color: var(--accent); box-shadow: 0 4px 0 var(--accent-deep); }
+      #menu button.main:active { transform: translateY(4px); box-shadow: 0 0 0 var(--accent-deep); }
+      #menu button.small { font-size: 15px; padding: 7px 11px; }
+      #menu .chips { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      #menu .chips button { border-radius: 999px; }
+      #menu table { width: 100%; border-collapse: collapse; font-size: 16px; font-variant-numeric: tabular-nums; }
+      #menu th, #menu td { text-align: left; padding: 6px 6px; border-bottom: 1px solid var(--line); }
+      #menu th { color: var(--quiet); font-size: 13px; font-weight: 700; }
+      #menu td.rank { width: 1.9em; font-weight: 800; color: var(--quiet); }
+      #menu td.rank-1 { color: var(--gold); }
+      #menu td.rank-2 { color: #d5dde8; }
+      #menu td.rank-3 { color: #e0a070; }
       #menu .challenge { margin-top: 10px; }
+      /* Startmenü: Titelschild an zwei Seilen, darunter Spielen und Bestenliste */
+      #menu .title { width: 100%; max-width: 940px; display: grid; gap: 18px; justify-items: center; }
+      #menu .sign { position: relative; margin: 5vh 0 4px; padding: 0 22px; text-align: center; transform-origin: 50% -60vh;
+                    transform: rotate(-1.5deg); animation: sway 6.5s ease-in-out infinite; }
+      #menu .sign::before, #menu .sign::after { content: ""; position: absolute; bottom: calc(100% - 30px); width: 3px; height: 70vh;
+                    border-radius: 2px; background: var(--rope); }
+      #menu .sign::before { left: 16%; }
+      #menu .sign::after { right: 16%; }
+      #menu .logo { margin: 0; font: italic 800 clamp(72px, 17vw, 168px)/0.8 var(--display); letter-spacing: 0.005em; text-transform: uppercase;
+                    color: #fff; text-shadow: 0.035em 0.045em 0 var(--accent), 0.07em 0.09em 0 rgba(10, 14, 24, 0.9); }
+      #menu .logo span { display: block; }
+      #menu .logo span + span { margin-left: 0.55em; }
+      #menu .tagline { margin: 14px 0 0; font: italic 600 clamp(16px, 2.4vw, 22px)/1.2 var(--display); letter-spacing: 0.06em;
+                    text-shadow: 0 1px 6px rgba(10, 14, 24, 0.8); }
+      #menu .cols { width: 100%; display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); justify-items: center; }
+      #menu .foot { padding: 4px 0 2vh; color: var(--text); opacity: 0.85; }
+      .studio { display: inline-flex; align-items: center; gap: 0.5em; font: 700 15px/1 "Avenir Next", -apple-system, system-ui, sans-serif;
+                letter-spacing: 0.16em; text-transform: lowercase; text-shadow: 0 1px 6px rgba(10, 14, 24, 0.8); }
+      @media (min-width: 860px) {
+        #menu .cols { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+        #menu .cols .card { max-width: none; }
+      }
+      #menu .enter .sign { animation: drop 0.95s cubic-bezier(0.3, 1.35, 0.5, 1) both, sway 6.5s 0.95s ease-in-out infinite; }
+      #menu .enter .card { animation: rise 0.5s 0.75s cubic-bezier(0.2, 0.9, 0.3, 1.15) both; }
+      #menu .enter .card.board { animation-delay: 0.9s; }
+      #menu .enter .foot { animation: fade 0.6s 1.2s both; }
+      @keyframes rise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+      @keyframes drop { from { transform: translateY(-110vh) rotate(-7deg); } to { transform: rotate(-1.5deg); } }
+      @keyframes sway { 0%, 100% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.1deg); } }
+      @keyframes pop { from { opacity: 0; transform: scale(0.4); } to { opacity: 1; transform: none; } }
+      @keyframes fade { from { opacity: 0; } to { opacity: 0.85; } }
+      /* Intro beim Laden (src/intro.ts): Label auf dunklem Grund, blendet dann aus */
+      #intro { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: var(--night); color: var(--text);
+               transition: opacity 0.7s ease-in, visibility 0s 0.7s; } /* 0.7s = INTRO.fade in src/intro.ts */
+      #intro[hidden] { display: none; }
+      #intro.out { opacity: 0; visibility: hidden; pointer-events: none; }
+      #intro .studio-card { display: grid; justify-items: center; gap: 14px; animation: studio 2.1s ease-out both; } /* 2.1s = INTRO.studio */
+      #intro .studio { font-size: clamp(26px, 5vw, 44px); gap: 0.45em; text-shadow: none; }
+      #intro p { margin: 0; font: 600 14px/1 "Avenir Next", -apple-system, system-ui, sans-serif; letter-spacing: 0.32em;
+                 text-transform: uppercase; color: var(--quiet); }
+      @keyframes studio { 0% { opacity: 0; transform: scale(0.92); } 22% { opacity: 1; transform: none; } 82% { opacity: 1; } 100% { opacity: 0; transform: scale(1.04); } }
+      @media (prefers-reduced-motion: reduce) {
+        #menu .card, #menu .sign, #menu .news, #menu .foot, #menu .enter .sign, #menu .enter .card, #intro .studio-card { animation: none; }
+      }
       /* Stummschalter unten rechts, über allem (src/main.ts) */
       #mute { position: fixed; right: max(14px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom));
-              z-index: 10; width: 52px; height: 52px; border-radius: 26px; border: 1px solid #262a31;
-              background: rgba(255, 255, 255, 0.85); font-size: 24px; line-height: 1; padding: 0;
+              z-index: 10; width: 52px; height: 52px; border-radius: 26px; border: 1px solid var(--line);
+              background: var(--glass); font-size: 24px; line-height: 1; padding: 0;
               touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
     </style>
   </head>
   <body>
     <canvas id="game"></canvas>
     <div id="menu" hidden></div>
+    <div id="intro" hidden></div>
     <button id="mute" type="button" aria-label="Ton ausschalten" title="Ton an/aus">🔊</button>
     <script type="module" src="/src/main.ts"></script>
   </body>

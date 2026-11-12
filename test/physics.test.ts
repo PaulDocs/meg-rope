@@ -196,11 +196,11 @@ describe('Schwung holen und Loopings', () => {
     expect(high.rope!.pumpLimit).toBe(energyLimit());
     expect(pumpAccel(high)).toBe(TUNING.pumpHigh);
     expect(pumpShare(high)).toBeCloseTo(TUNING.pumpHigh / TUNING.pump, 9);
-    // in der Variante «Freier Schwung» dort voll
+    // in der Variante «Freier Schwung» genauso (seit 12.11.)
     const free = hang({ x: 10, y: 50 }, { x: 10, y: 55 }, { x: 26, y: 0 });
     free.variant = 'free';
     step(free);
-    expect(pumpAccel(free)).toBe(TUNING.pump);
+    expect(pumpAccel(free)).toBe(TUNING.pumpHigh);
     // nicht am Seil: 0; pump 0 schaltet alles ab
     expect(pumpAccel(createState())).toBe(0);
     TUNING.pump = 0;
@@ -261,7 +261,7 @@ describe('Schwung holen und Loopings', () => {
       expect(ok).toBeLessThanOrEqual(3);
       expect(tries(L, 1).n).toBe(1);
     }
-  });
+  }, 30_000); // rechnet viele lange Schwünge: auf belasteter Maschine über 10 s (12.11.2026), sonst unter 5 s
 
   it('nach 3 misslungenen Looping-Anläufen holt es an diesem Seil nur noch bis Hakenhöhe Schwung', () => {
     const L = 10;

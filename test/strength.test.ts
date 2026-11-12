@@ -43,20 +43,34 @@ function hangStill(variant: 'normal' | 'free', L: number): State {
 }
 
 describe('Variante «Freier Schwung»', () => {
-  it('aus dem Stand ist ein Looping möglich, in der normalen Variante nicht', () => {
+  it('Schwung holen wie in Normal: aus dem Stand in beiden Varianten kein Looping (seit 12.11.)', () => {
     for (const L of [5, 10, 20]) {
-      const free = hangStill('free', L);
-      let looped = false;
-      // Anlauf von Schwung zu Schwung (09.11.): gemessen 5 m 7,0 s, 10 m 8,9 s, 20 m 10,2 s
-      for (let i = 0; i < 120 * 12 && !looped; i++) {
-        step(free);
-        looped = free.rope !== null && free.rope.looped;
+      for (const variant of ['free', 'normal'] as const) {
+        const s = hangStill(variant, L);
+        run(s, 15);
+        expect(s.rope).not.toBeNull(); // hängt noch, die Kraft hat es nicht gelöst
+        expect(s.rope!.looped).toBe(false);
+        expect(turnsOnRope(s)).toBe(0);
       }
-      expect(looped).toBe(true);
-      const normal = hangStill('normal', L);
-      run(normal, 15);
-      expect(turnsOnRope(normal)).toBe(0);
     }
+  });
+
+  it('beide Varianten schwingen aus dem Stand gleich: gleiche Bahn, Schritt für Schritt', () => {
+    const free = hangStill('free', 10);
+    const normal = hangStill('normal', 10);
+    let highest = -Infinity;
+    for (let i = 0; i < 120 * 15; i++) {
+      step(free);
+      step(normal);
+      highest = Math.max(highest, free.pos.y);
+    }
+    expect(highest).toBeGreaterThan(150 - 1); // bis an die Hakenhöhe gekommen: dort unterschieden sich die Varianten früher
+    expect(free.pos.x).toBeCloseTo(normal.pos.x, 9);
+    expect(free.pos.y).toBeCloseTo(normal.pos.y, 9);
+    expect(free.vel.x).toBeCloseTo(normal.vel.x, 9);
+    expect(free.vel.y).toBeCloseTo(normal.vel.y, 9);
+    expect(free.rope!.pumpLimit).toBe(0); // Grenze aus dem Stand: Hakenhöhe
+    expect(free.strength).toBe(1); // ruhiges Schwingen kostet keine Kraft
   });
 
   it('neuer Versuch behält die Variante, mit voller Kraft', () => {
@@ -328,7 +342,12 @@ describe('Kraft', () => {
   });
 
   it('Loopings strapazieren: am kurzen Seil ist die Kraft nach einigen Umdrehungen weg', () => {
-    const s = hangStill('free', 5);
+    // mit Tempo vom Flug quer ins 5-m-Seil: reicht für den Looping (aus dem Stand geht er nicht mehr)
+    const s = createState('free');
+    s.phase = 'flying';
+    s.pos = { x: 0, y: 145 };
+    s.vel = { x: Math.sqrt(5.2 * g * 5), y: 0 };
+    expect(tap(s, { x: 0, y: 150 }, wall, noSideWalls)).toBe('attached');
     let released = -1;
     let turnsBefore = 0;
     for (let i = 0; i < 120 * 20 && released < 0; i++) {

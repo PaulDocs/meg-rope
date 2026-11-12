@@ -27,7 +27,11 @@ Energiegrenze, nicht die Hakenhöhe). Die Normal-Variante bleibt wie jetzt
 (`06718c4`: aus dem Stand nur bis Hakenhöhe). Der Ruck beim Fall ins Seil
 gilt in beiden.
 
-Umsetzung: `standingLimit()` gibt in der Variante `energyLimit()` zurück.
+**Geändert am 12.11.2026 (B11):** Schwung holen ist in beiden Varianten
+gleich, im Freien Schwung gibt es keinen Looping aus dem Stand mehr. Die
+Variante unterscheidet sich nur noch durch die Kraft.
+
+Umsetzung bis 12.11.: `standingLimit()` gab in der Variante `energyLimit()` zurück.
 Die Variante wählt man mit dem Schalter oben links (`variantButton`), nur
 vor dem ersten Einhaken und am Boden; der Browser merkt sich die Wahl.
 
@@ -103,8 +107,11 @@ Link: https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW
 
 1. Oben links auf «Normal ⇄» tippen: Frei · leicht, nochmals: mittel,
    schwer, wieder Normal.
-2. Einhaken: Oben links steht jetzt der Kraftbalken. Hängen lassen: Es
-   holt Schwung bis zum Looping, die Kraft sinkt, irgendwann lässt es los.
+2. Einhaken: Oben links steht jetzt der Kraftbalken. Hängen lassen: Seit
+   B11 (12.11.) schwingt es nur noch bis etwa auf Hakenhöhe, ohne Looping,
+   und die Kraft bleibt voll. (Vorher: Schwung bis zum Looping, die Kraft
+   sank, irgendwann liess es los.) Loopings kosten weiter Kraft, brauchen
+   aber Tempo vom Flug.
 3. Aus grosser Höhe fallen und dann einhaken: Der Ruck kostet sichtbar Kraft.
    Zweimal hintereinander so – beim dritten Mal hakt es nicht mehr ein
    (Balken rot, «Keine Kraft mehr zum Einhaken»).
