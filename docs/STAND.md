@@ -2,28 +2,47 @@
 objekt: stand
 bereich: meg-rope
 erstellt: 2026-11-08
-stand: 2026-11-08
+stand: 2026-11-12
 ---
 # Stand – Meg Rope
 
-**08.11.2026: Etappe 1 «Schwingen» gebaut, wartet auf Pascals Test auf dem iPad (B1).** Ein Browserspiel fürs iPad, in dem man mit einem Strichmännchen von Gebäude zu Gebäude schwingt, mit Challenge-Modus für mindestens zwei Spieler im lokalen Netzwerk
+**12.11.2026: Alles Gebaute (B1, B4, B5, B8–B12) liegt in `main` (letzter Commit `64c980f`) und wartet auf Pascals Abnahme – kein Punkt ist bisher abgenommen.** Ein Browserspiel fürs iPad, in dem man mit einem Strichmännchen von Gebäude zu Gebäude schwingt, mit Challenge-Modus für mindestens zwei Spieler im lokalen Netzwerk
+
+## Wo wir stehen
+
+- **Spiel:** Schwingen mit Seil und Pendel (B1), Spielvariante «Freier Schwung» mit Kraft in drei Stufen (B4, seit B11 mit demselben Schwung-holen wie «Normal»), Wertung mit Style und Strike, Spielername, Einzelspiel und Challenge nacheinander **auf einem Gerät**, Bestenliste auf dem Gerät (B5), Soundeffekte im Code erzeugt mit Stummschalter (B8), Tageszeit läuft mit der Strecke, Türme mit Fenstern, Männchen mit Schal (B9), neue Titelseite mit Intro und Label «megene games» (B10).
+- **Nicht gebaut:** Challenge übers Netz (Etappe 3), Turnier mit mehreren Runden (Etappe 4). Wo der Server für Etappe 3 laufen soll (NAS wie im Konzept oder Cloudflare), ist nicht entschieden (`docs/entscheide/2026-11-12-hosting-cloudflare.md`).
+- **Hosting (B12):** Vorbereitet, nicht eingerichtet: Cloudflare Pages hinter Access, gebaut aus dem Zweig `live` mit `npm run build:cloud`, Online-Bestenliste (Pages Function mit D1-Datenbank). Bei Cloudflare lief laut Karte B12 noch nichts. Der Zweig `live` besteht auf GitHub (am 12.11. gleicher Stand wie `main`, per `git ls-remote` gesehen); ob Pages-Projekt, Access und Datenbank eingerichtet sind, ist **ungeklärt** – die Sitzung `meg-rope-cloudflare` begleitet das. Claude pusht nie auf `live` (Hook `live-schutz.sh`); Anleitung und Prüflisten: `docs/betrieb.md`.
+- **GitHub:** `PaulDocs/meg-rope`, Zweig `main` ist die Wahrheit; Push per Deploy-Key (SSH `github-meg-rope`), keine GitHub-API (`AGENTS.md`, «Sitzungen»).
+- **Alle Karten** (`docs/arbeit/`) stehen auf `abnahme`. Nur Pascal nimmt ab.
 
 ## Offen / Nächster Zug
 
 ### Dringend
 
-- **B5 Wertung, Style, Strike, Challenge testen**: Testanleitung in `docs/arbeit/B5-wertung-style.md`.
-- **B4 «Freier Schwung» mit Kraft testen**: Testanleitung in `docs/arbeit/B4-kraft-variante.md`.
-- **B1 auf dem iPad testen**: Testanleitung in `docs/arbeit/B1-schwingen.md`,
-  privater Link https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW.
-- **Projekt schärfen**: harte Regeln in `AGENTS.md`.
+- **iPad-Tests, je mit Testanleitung in der Karte**:
+  - **B1 Schwingen**: `docs/arbeit/B1-schwingen.md`
+  - **B4 Kraft («Freier Schwung»)**: `docs/arbeit/B4-kraft-variante.md`
+  - **B5 Wertung, Style, Strike, Challenge**: `docs/arbeit/B5-wertung-style.md`
+  - **B8 Soundeffekte**: `docs/arbeit/B8-soundeffekte.md` (Seitenschalter des iPads auf «Ton»)
+  - **B9 Grafik, Tageszeit**: `docs/arbeit/B9-grafik-tageszeit.md` (läuft es auf dem iPad flüssig? Tageslänge 2400 m recht?)
+  - **B10 Titelseite, Intro, Label**: `docs/arbeit/B10-titelseite-intro.md` (Titelschrift auf dem iPad ungeprüft)
+  - **B11 «Freier Schwung» wie Normal**: `docs/arbeit/B11-freier-schwung-wie-normal.md`
+  - Testlink (privat): https://claude.ai/artifact/8QQcGgVaD9Fa4fCDFUw6GW. **Ungeklärt**, ob er den neuesten Bau zeigt; neu erzeugen mit `npm run einzelseite -- ‹ziel.html›`, dann veröffentlichen (siehe B1). Die Karten B5, B8, B10, B11 nennen keinen Link.
+- **Cloudflare einrichten** (Pascal, im Dashboard): vier Schritte in `docs/betrieb.md` (Zweig `live` und Pages-Projekt, Access, Datenbank mit Zugangsprüfung, Regeln nachführen). Begleitet von der Sitzung `meg-rope-cloudflare`; Stand ungeklärt. Erst nach Schritt 2 (Access) ist das Spiel nicht mehr für alle offen.
+- **Projekt schärfen**: In `AGENTS.md` steht bei den harten Regeln «noch keine»; die Zeilen «Gesperrt», «Merge-Weg» und «Dev nachziehen» sind noch offen.
 
 ### Entscheid Pascal
 
-- Häuser nur noch Kulisse bestätigen (`docs/entscheide/2026-11-08-haeuser-kulisse.md`).
-- Spielgefühl nach dem zweiten Umbau (Tempo, Loopings, Abstände, Grafik): Werte in `src/physics.ts` (`TUNING`) und `src/world.ts`.
-- GitHub-Push: erster Commit liegt lokal, Push nach `PaulDocs/meg-rope` auf dein Wort.
+- **B11 bestätigen**: «Beschleunigungskonzept» ist als «Schwung holen» ausgelegt; dabei fiel der Looping aus dem Stand im Freien Schwung weg. Gespeicherte Bestleistungen im Freien Schwung stammen aus der alten Regel und sind mit neuen nicht ganz vergleichbar (B11).
+- **Name «Freier Schwung»** passt nicht mehr genau (stammte vom Looping aus dem Stand). Vorschlag: «Kraft · leicht/mittel/schwer». Nicht geändert, weil gespeicherte Ergebnisse und die Doku den Namen tragen.
+- **B6 und B7 aus dem Eingang** (`docs/arbeit/eingang.md`): B6 Kraft sinkt mit der Zeit wie Treibstoff (mit Kraftstationen); B7 «Serie» und «Strike» auf eine Note zusammenlegen.
+- **Häuser nur noch Kulisse bestätigen**: `docs/entscheide/2026-11-08-haeuser-kulisse.md` steht noch auf «Bestätigung durch Pascal offen».
+- **GitHub-Repo privat?** Der Entscheid zu Cloudflare geht davon aus, dass es privat bleibt; ob es privat ist, ist nicht geprüft. Der Testlink (Artifact, «jeder mit dem Link») steht in `docs/arbeit/B1`, `B4`, `B9` und in dieser Datei.
+- **Zweigschutz bei GitHub für `live`?** Heute sperrt nur der Hook Claude; er erkennt nur direkte `git push`-Befehle und bremst sonst niemanden. Ob das GitHub-Abo den Schutz für ein privates Repo anbietet, ist nicht geprüft (`docs/betrieb.md`, Schritt 4).
+- **Server für die Challenge übers Netz** (Etappe 3): NAS oder Cloudflare, offen. Bis dahin gilt das Konzept; kein zweites Backend ohne Entscheid.
 
 ### Später
 
-- Grafik in echtem 3D (three.js) – Vorschlag, Entscheid Pascal nach dem Physik-Test. Pascal 08.11.2026: Das Vorbild zeigt die Welt perspektivisch, nicht als Frontansicht; das gehört in die Grafikumsetzung (heute nur einfache Perspektive in `box()`).
+- Grafik in echtem 3D (three.js) – Vorschlag vom 08.11.2026, Entscheid Pascal nach dem Physik-Test; B9 hat die Grafik inzwischen im bestehenden 2D-Aufbau verbessert, ob 3D noch gewollt ist, ist **ungeklärt**. Pascal 08.11.2026: Das Vorbild zeigt die Welt perspektivisch, nicht als Frontansicht.
+- Etappe 4 «Turnier» und Etappe 5 «Feinschliff» (`docs/konzept.md`).
