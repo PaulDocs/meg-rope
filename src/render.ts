@@ -1,17 +1,12 @@
 import { drawFarCity, drawFloor, drawSky } from './backdrop';
-import { circle, line, poly, type Proj } from './canvas';
+import { circle, line, poly, type Camera, type Proj } from './canvas';
 import { drawAnchor, drawFigure, drawRope } from './figure';
-import { dimmed, fromHex, hash, lookAt, type Look, type TowerLook } from './look';
+import { dimmed, fromHex, hash, isLit, lookAt, WINDOW, windowGrid, type Look, type TowerLook } from './look';
 import { isDropIn, stationAt, STRENGTH, tooWeakToHook, TUNING, type State, type Vec } from './physics';
 import { attemptPoints, distanceOf, isStrike, multiplier, STYLE, type Grade } from './score';
 import { containerOf, extentOf, GRAB_SLACK, roofHeight, SHAPE, type Prop, type World } from './world';
 
-/** Kamera: welcher Weltausschnitt auf dem Bildschirm liegt. */
-export interface Camera {
-  x: number; // Weltkoordinate am linken Bildrand
-  y: number; // Weltkoordinate am unteren Bildrand
-  scale: number; // Pixel pro Meter
-}
+export type { Camera } from './canvas';
 
 const VIEW_HEIGHT = 70; // (Häuserhöhen in world.ts TOWER_STYLES sind darauf geeicht) so viele Meter sieht man in der Höhe – nah dran wie im Vorbild, Türme ragen oben hinaus
 // Wo das Männchen im Bild steht (Anteil von links / von oben). Im Vorbild-Video
@@ -58,15 +53,15 @@ const BALLOON = [
   [fromHex('#3f8f8a'), fromHex('#cfe7e2')],
   [fromHex('#d9a630'), fromHex('#fbefc6')],
 ] as const;
-const WINDOW = { w: 2.2, h: 3.1, fillW: 0.56, fillH: 0.5, edge: 0.4, base: 0.9, litAtNight: 0.45 }; // m; Anteil beleuchtet in tiefer Nacht
 const ROOF = { antenna: 6, tankW: 2.4, tankH: 1.8 }; // m
 
-let L: Look = lookAt(0); // Stimmung des laufenden Bildes
-let T = 0; // Spielzeit des laufenden Bildes (Warnlichter)
-let lookShift = 0;
-/** Tageszeit um so viele Meter verschieben (nur zum Ansehen, `?tageszeit=1300`). */
-export function shiftLook(meters: number): void {
-  lookShift = Number.isFinite(meters) ? meters : 0;
+/**
+ * Strecke, nach der sich die Stimmung richtet: die weiteste erreichte Stelle
+ * (beim Zurückschwingen läuft die Tageszeit nicht rückwärts), plus `shift`
+ * Meter zum Ansehen (`?tageszeit=1300`, main.ts). Unsinniges zählt als 0.
+ */
+export function lookDistance(s: State, shift = 0): number {
+  return Math.max(0, s.maxX - TUNING.startPos.x) + (Number.isFinite(shift) ? Math.max(0, shift) : 0);
 }
 
 /** Kamera nachziehen; `dt` ist die Zeit seit dem letzten Bild, damit es bei 60 und 120 Hz gleich wirkt. */
@@ -121,7 +116,8 @@ export function screenToWorld(cam: Camera, h: number, sx: number, sy: number): V
   return { x: cam.x + sx / cam.scale, y: cam.y + (h - sy) / cam.scale };
 }
 
-export function draw(ctx: CanvasRenderingContext2D, s: State, world: World, cam: Camera, w: number, h: number, hud: HudInfo | null): void {
+export function draw(ctx: CanvasRenderingContext2D, s: State, world: World, cam: Camera, w: number, h: number, hud: HudInfo | null, lookShift = 0): void {
+  const L = lookAt(lookDistance(s, lookShift));
   const viewW = w / cam.scale;
   const P: Proj = {
     X: (x) => (x - cam.x) * cam.scale,
@@ -130,9 +126,9 @@ export function draw(ctx: CanvasRenderingContext2D, s: State, world: World, cam:
     mid: viewMid(cam, w),
     lo: cam.y,
     hi: cam.y + h / cam.scale,
+    look: L,
+    time: s.time,
   };
-  L = lookAt(Math.max(0, s.maxX - TUNING.startPos.x) + lookShift);
-  T = s.time;
   drawSky(ctx, L, cam, w, h, s.time);
   drawFarCity(ctx, L, cam, P, HORIZON, w);
   drawFloor(ctx, L, P, HORIZON, w, h);
@@ -153,7 +149,7 @@ export function draw(ctx: CanvasRenderingContext2D, s: State, world: World, cam:
     drawAnchor(ctx, L, s.rope.anchor, P);
   }
   drawFigure(ctx, L, s, P);
-  if (hud) drawHud(ctx, s, w, h, hud); // ohne Runde (Startmenü): keine Anzeige
+  if (hud) drawHud(ctx, L, s, w, h, hud); // ohne Runde (Startmenü): keine Anzeige
 }
 
 function centerOf(p: Prop): number {
@@ -166,7 +162,7 @@ function font(px: number): string {
 }
 
 /** Schrift mit dünnem Rand in der Gegenfarbe: vor jedem Himmel lesbar. */
-function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number): void {
+function label(ctx: CanvasRenderingContext2D, L: Look, text: string, x: number, y: number): void {
   ctx.lineJoin = 'round';
   ctx.lineWidth = 3;
   ctx.strokeStyle = L.paper;
@@ -200,19 +196,19 @@ export const GRADE_LABEL: Record<Grade, string> = {
   out: 'Nicht im Schwung',
 };
 
-function drawHud(ctx: CanvasRenderingContext2D, s: State, w: number, h: number, hud: HudInfo): void {
-  if (s.variant === 'free') drawStrength(ctx, s, strengthBox(h));
+function drawHud(ctx: CanvasRenderingContext2D, L: Look, s: State, w: number, h: number, hud: HudInfo): void {
+  if (s.variant === 'free') drawStrength(ctx, L, s, strengthBox(h));
   const dist = distanceOf(s.maxX, TUNING.startPos.x);
   const right = w - h * 0.03;
   ctx.fillStyle = L.ink;
   ctx.textAlign = 'right';
   ctx.textBaseline = 'top';
   ctx.font = font(h * 0.045);
-  label(ctx, `${attemptPoints(dist, s.style)}`, right, h * 0.022);
+  label(ctx, L, `${attemptPoints(dist, s.style)}`, right, h * 0.022);
   ctx.font = font(h * 0.022);
-  label(ctx, `${dist} m · Style ${s.style.points}`, right, h * 0.075);
-  label(ctx, hud.attempt ? `${hud.name} · Versuch ${hud.attempt.now}/${hud.attempt.of}` : hud.name, right, h * 0.105);
-  drawStyle(ctx, s, w, h);
+  label(ctx, L, `${dist} m · Style ${s.style.points}`, right, h * 0.075);
+  label(ctx, L, hud.attempt ? `${hud.name} · Versuch ${hud.attempt.now}/${hud.attempt.of}` : hud.name, right, h * 0.105);
+  drawStyle(ctx, L, s, w, h);
 
   const weak = s.variant === 'free' && !s.rope && s.phase === 'flying' && tooWeakToHook(s);
   const msg = isDropIn(s)
@@ -225,12 +221,12 @@ function drawHud(ctx: CanvasRenderingContext2D, s: State, w: number, h: number, 
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.font = font(h * 0.032);
-    label(ctx, msg, w / 2, h * 0.16);
+    label(ctx, L, msg, w / 2, h * 0.16);
   }
 }
 
 /** Übergänge in Folge (ab strikeFrom «Strike» mit Faktor) und kurz die Note des letzten. */
-function drawStyle(ctx: CanvasRenderingContext2D, s: State, w: number, h: number): void {
+function drawStyle(ctx: CanvasRenderingContext2D, L: Look, s: State, w: number, h: number): void {
   const st = s.style;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -239,26 +235,26 @@ function drawStyle(ctx: CanvasRenderingContext2D, s: State, w: number, h: number
     ctx.fillStyle = strike ? C.strike : L.ink;
     ctx.font = font(h * (strike ? 0.036 : 0.026));
     const factor = multiplier(st.strike).toFixed(2).replace('.', ',');
-    label(ctx, strike ? `STRIKE ${st.strike} · ×${factor}` : `${st.strike} in Folge`, w / 2, h * 0.05);
+    label(ctx, L, strike ? `STRIKE ${st.strike} · ×${factor}` : `${st.strike} in Folge`, w / 2, h * 0.05);
   }
   const last = st.last;
   if (!last || s.time - last.at > STYLE.showFor) return;
   ctx.globalAlpha = 1 - (s.time - last.at) / STYLE.showFor;
   ctx.fillStyle = last.grade === 'out' ? C.weak : L.ink;
   ctx.font = font(h * 0.034);
-  label(ctx, last.grade === 'out' ? GRADE_LABEL.out : `${GRADE_LABEL[last.grade]} +${last.points}`, w / 2, h * 0.1);
+  label(ctx, L, last.grade === 'out' ? GRADE_LABEL.out : `${GRADE_LABEL[last.grade]} +${last.points}`, w / 2, h * 0.1);
   ctx.globalAlpha = 1;
 }
 
 /** Kraftbalken (Variante «Freier Schwung»); rot, solange es nicht einhaken kann; daneben die Serie guter Schwünge. */
-function drawStrength(ctx: CanvasRenderingContext2D, s: State, b: ScreenBox): void {
+function drawStrength(ctx: CanvasRenderingContext2D, L: Look, s: State, b: ScreenBox): void {
   const barH = b.h * 0.45;
   const y = b.y + (b.h - barH) / 2;
   ctx.fillStyle = L.ink;
   ctx.font = font(b.h * 0.42);
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  label(ctx, 'Kraft', b.x, b.y + b.h / 2);
+  label(ctx, L, 'Kraft', b.x, b.y + b.h / 2);
   const x = b.x + b.h * 1.3;
   const bw = b.w - b.h * 1.3;
   ctx.fillStyle = C.barBack;
@@ -268,11 +264,11 @@ function drawStrength(ctx: CanvasRenderingContext2D, s: State, b: ScreenBox): vo
   // gute Schwünge in Folge: ab streakFrom gibt jeder Kraft zurück
   if (s.goodSwings > 0) {
     ctx.fillStyle = L.ink;
-    label(ctx, `Serie ${s.goodSwings}`, b.x + b.w + b.h * 0.4, b.y + b.h / 2);
+    label(ctx, L, `Serie ${s.goodSwings}`, b.x + b.w + b.h * 0.4, b.y + b.h / 2);
   }
   // wie weit bis zur nächsten Kraftstation
   ctx.font = font(b.h * 0.34);
-  label(ctx, `Station in ${Math.max(0, Math.ceil(stationAt(s.stations + 1) - s.pos.x))} m`, b.x, b.y + b.h * 1.35);
+  label(ctx, L, `Station in ${Math.max(0, Math.ceil(stationAt(s.stations + 1) - s.pos.x))} m`, b.x, b.y + b.h * 1.35);
 }
 
 /**
@@ -308,6 +304,7 @@ function drawStations(ctx: CanvasRenderingContext2D, s: State, cam: Camera, P: P
 
 /** Weicher Schatten eines Turms auf dem Boden, schräg nach hinten links. */
 function drawShadow(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'tower' }>, P: Proj): void {
+  const L = P.look;
   const base = p.blocks[0]!; // unterster Block steht auf dem Boden
   const len = Math.min(roofHeight(p) * 0.18, 18);
   ctx.fillStyle = `rgba(60, 72, 104, ${L.shadow})`;
@@ -366,23 +363,21 @@ function box(ctx: CanvasRenderingContext2D, P: Proj, x: number, y: number, w: nu
  * werden nur die Reihen im Bild, je Farbe in einem Zug.
  */
 function windows(ctx: CanvasRenderingContext2D, P: Proj, x: number, y: number, w: number, h: number, seed: number): void {
-  const cols = Math.max(1, Math.floor((w - 2 * WINDOW.edge) / WINDOW.w));
-  const rows = Math.floor((h - WINDOW.base - WINDOW.edge) / WINDOW.h);
+  const L = P.look;
+  const { cols, rows, cw } = windowGrid(w, h);
   if (rows < 1) return;
-  const cw = (w - 2 * WINDOW.edge) / cols;
   const r0 = Math.max(0, Math.floor((P.lo - y - WINDOW.base) / WINDOW.h));
   const r1 = Math.min(rows - 1, Math.floor((P.hi - y - WINDOW.base) / WINDOW.h));
   const ww = cw * WINDOW.fillW * P.m;
   const wh = WINDOW.h * WINDOW.fillH * P.m;
-  const litShare = L.night * WINDOW.litAtNight * 100;
   for (const lit of [false, true]) {
-    if (lit && litShare <= 0) break;
+    if (lit && L.night <= 0) break;
     ctx.fillStyle = lit ? L.lit : L.col.glass;
     ctx.beginPath();
     for (let r = r0; r <= r1; r++) {
       const top = P.Y(y + WINDOW.base + r * WINDOW.h + WINDOW.h * WINDOW.fillH);
       for (let c = 0; c < cols; c++) {
-        if (hash(c, r, seed) % 100 < litShare !== lit) continue;
+        if (isLit(c, r, seed, L.night) !== lit) continue;
         ctx.rect(P.X(x + WINDOW.edge + c * cw + (cw * (1 - WINDOW.fillW)) / 2), top, ww, wh);
       }
     }
@@ -391,6 +386,7 @@ function windows(ctx: CanvasRenderingContext2D, P: Proj, x: number, y: number, w
 }
 
 function drawTower(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'tower' }>, P: Proj): void {
+  const L = P.look;
   const col = L.towers[p.color % L.towers.length]!;
   const seed = Math.round(p.blocks[0]!.x * 10);
   // Blöcke von unten nach oben, dann die Spitze
@@ -414,7 +410,7 @@ function drawTower(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'towe
     ctx.strokeStyle = col.side;
     ctx.lineWidth = Math.max(1, 0.18 * P.m);
     line(ctx, P.X(ax), P.Y(top), P.X(ax), P.Y(top + ROOF.antenna));
-    if (L.night > 0.3 && Math.floor(T * 1.3 + seed) % 2 === 0) {
+    if (L.night > 0.3 && Math.floor(P.time * 1.3 + seed) % 2 === 0) {
       ctx.fillStyle = C.weak;
       circle(ctx, P.X(ax), P.Y(top + ROOF.antenna), Math.max(1.5, 0.3 * P.m));
     }
@@ -429,6 +425,7 @@ function drawTower(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'towe
 
 /** Baukran: Gittermast, Ausleger mit Gegengewicht, Seil mit Haken. Steht auf dem Boden oder auf einem Dach. */
 function drawCrane(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'crane' }>, P: Proj): void {
+  const L = P.look;
   const { X, Y, m } = P;
   const b0 = p.base;
   const top = b0 + p.h;
@@ -485,6 +482,7 @@ function drawCrane(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'cran
 
 /** Heissluftballon mit Streifen, Korb und Leinen. */
 function drawBalloon(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'balloon' }>, P: Proj): void {
+  const L = P.look;
   const { X, Y, m } = P;
   const [main, light] = BALLOON[p.color % BALLOON.length]!;
   const cx = X(p.x);
@@ -520,6 +518,7 @@ function drawBalloon(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'ba
 
 /** Luftschiff: lange Hülle mit Leitwerk und Gondel. */
 function drawAirship(ctx: CanvasRenderingContext2D, p: Extract<Prop, { kind: 'airship' }>, P: Proj): void {
+  const L = P.look;
   const { X, Y, m } = P;
   const hh = (p.len * SHAPE.airshipHeight) / 2;
   const cx = X(p.x);

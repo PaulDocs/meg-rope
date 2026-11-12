@@ -1,21 +1,14 @@
 // Kulisse hinter der Stadt (B9): Himmel mit Sonne, Mond, Sternen und Wolken,
 // ferne Stadt in zwei Schichten, Boden mit Strasse. Farben aus look.ts.
 
-import { circle, type Proj } from './canvas';
+import { circle, type Camera, type Proj } from './canvas';
 import { css, hash, mix, type Look } from './look';
-
-/** Kamera-Ausschnitt, den die Kulisse braucht. */
-interface View {
-  x: number;
-  y: number;
-  scale: number;
-}
 
 const STARS = 70;
 const STREET = { near: -7.5, far: -2.2, dashAt: -4.8, dashEvery: 9, dashLen: 4, dashThick: 0.32 }; // m, vor den Türmen
 
 /** Himmel: Verlauf, Sterne, Sonne oder Mond, Wolken (ziehen langsamer vorbei). */
-export function drawSky(ctx: CanvasRenderingContext2D, L: Look, cam: View, w: number, h: number, time: number): void {
+export function drawSky(ctx: CanvasRenderingContext2D, L: Look, cam: Camera, w: number, h: number, time: number): void {
   const sky = ctx.createLinearGradient(0, 0, 0, h);
   sky.addColorStop(0, L.col.skyTop);
   sky.addColorStop(1, L.col.skyBottom);
@@ -96,7 +89,7 @@ export function drawFloor(ctx: CanvasRenderingContext2D, L: Look, P: Proj, horiz
 }
 
 /** Ferne Stadt in zwei Schichten: Sie ziehen langsamer vorbei, greifen kann man sie nicht. Nachts brennt Licht. */
-export function drawFarCity(ctx: CanvasRenderingContext2D, L: Look, cam: View, P: Proj, horizon: number, w: number): void {
+export function drawFarCity(ctx: CanvasRenderingContext2D, L: Look, cam: Camera, P: Proj, horizon: number, w: number): void {
   const m = cam.scale;
   const base = P.Y(horizon);
   // hinten: breite, blasse Blöcke

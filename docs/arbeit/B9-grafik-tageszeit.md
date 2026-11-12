@@ -36,13 +36,17 @@ gezeichnet, ohne Bilddateien und ohne Grafik aus anderen Spielen.
 
 ## Zum Ansehen ohne zu spielen
 
-Lokal (`npm run dev`) zeigt `?tageszeit=1300` die Stimmung, die sonst nach
-1300 m käme. Im Testlink geht das nicht (er gibt keine Adress-Zusätze weiter).
+Der Adress-Zusatz `?tageszeit=1300` zeigt die Stimmung, die sonst nach 1300 m
+käme (z. B. lokal mit `npm run dev`). Er ist auch im gebauten Spiel aktiv,
+wirkt aber nur auf die Farben, nicht auf Strecke oder Punkte. Im Testlink
+geht er nicht (der gibt keine Adress-Zusätze weiter).
 
 ## Geprüft und nicht geprüft
 
-- Tests `test/look.test.ts`: Ablauf des Tages, Schwelle für helle Schrift,
-  Wiederholung, gültige Farben, Zufall der Fenster.
+- Tests `test/look.test.ts`: Ablauf des Tages hin und zurück, Farbwechsel bei
+  rund 864 m, Morgen und Naht am Tagesende, Wiederholung, gültige Farben auch
+  bei unsinniger Strecke, Strecke nach weitester Stelle, Fensterraster und
+  Licht.
 - Im Browser angesehen (1180 × 820): Tag, Abendrot, Nacht; Männchen im Fall
   mit Schal und Tempostrichen.
 - **Nicht geprüft:** Tempo auf dem iPad (viele Fenster je Bild), Morgen und

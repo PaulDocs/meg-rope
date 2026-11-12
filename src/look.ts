@@ -11,8 +11,8 @@ export const DAY_CYCLE = 2400;
 const KEYS = ['skyTop', 'skyBottom', 'sun', 'cloud', 'cloudShade', 'far', 'farSide', 'far2', 'floor', 'floorFar', 'lane', 'front', 'side', 'top', 'glass'] as const;
 type Key = (typeof KEYS)[number];
 
-/** Eine Stimmung: Farben und wie viel Nacht darin steckt. */
-interface Mood {
+/** Stützpunkt im Tagesablauf (Tag, Abendrot, Dämmerung, Nacht, Morgen); die Stimmung (`Look`) liegt dazwischen. */
+interface Stage {
   col: Record<Key, RGB>;
   night: number; // 0 Tag … 1 Nacht: Sterne, Mond, beleuchtete Fenster
   dim: number; // so stark werden Kräne, Ballone und Luftschiffe abgedunkelt
@@ -21,7 +21,7 @@ interface Mood {
   moonY: number;
 }
 
-const DAY: Mood = {
+const DAY: Stage = {
   col: {
     skyTop: [196, 220, 240], skyBottom: [240, 246, 250], sun: [255, 244, 214],
     cloud: [255, 255, 255], cloudShade: [160, 172, 186],
@@ -31,7 +31,7 @@ const DAY: Mood = {
   },
   night: 0, dim: 0, shadow: 0.16, sunY: 0.14, moonY: 1.3,
 };
-const SUNSET: Mood = {
+const SUNSET: Stage = {
   col: {
     skyTop: [92, 110, 170], skyBottom: [255, 186, 120], sun: [255, 214, 140],
     cloud: [255, 214, 190], cloudShade: [190, 110, 110],
@@ -41,7 +41,7 @@ const SUNSET: Mood = {
   },
   night: 0.15, dim: 0.15, shadow: 0.2, sunY: 0.56, moonY: 1.3,
 };
-const DUSK: Mood = {
+const DUSK: Stage = {
   col: {
     skyTop: [38, 44, 92], skyBottom: [196, 110, 130], sun: [255, 170, 120],
     cloud: [150, 120, 160], cloudShade: [70, 60, 110],
@@ -51,7 +51,7 @@ const DUSK: Mood = {
   },
   night: 0.6, dim: 0.4, shadow: 0.1, sunY: 1.15, moonY: 0.6,
 };
-const NIGHT: Mood = {
+const NIGHT: Stage = {
   col: {
     skyTop: [12, 18, 44], skyBottom: [44, 58, 104], sun: [255, 170, 120],
     cloud: [58, 70, 112], cloudShade: [20, 26, 54],
@@ -61,7 +61,7 @@ const NIGHT: Mood = {
   },
   night: 1, dim: 0.6, shadow: 0, sunY: 1.3, moonY: 0.16,
 };
-const DAWN: Mood = {
+const DAWN: Stage = {
   col: {
     skyTop: [110, 140, 196], skyBottom: [255, 208, 190], sun: [255, 226, 190],
     cloud: [255, 226, 220], cloudShade: [190, 140, 160],
@@ -73,15 +73,15 @@ const DAWN: Mood = {
 };
 
 /** Ablauf eines Tages: bei welchem Anteil der Strecke welche Stimmung gilt. */
-const DAY_PLAN: { at: number; mood: Mood }[] = [
-  { at: 0, mood: DAY },
-  { at: 0.17, mood: DAY },
-  { at: 0.29, mood: SUNSET },
-  { at: 0.38, mood: DUSK },
-  { at: 0.46, mood: NIGHT },
-  { at: 0.78, mood: NIGHT },
-  { at: 0.88, mood: DAWN },
-  { at: 1, mood: DAY },
+const DAY_PLAN: { at: number; stage: Stage }[] = [
+  { at: 0, stage: DAY },
+  { at: 0.17, stage: DAY },
+  { at: 0.29, stage: SUNSET },
+  { at: 0.38, stage: DUSK },
+  { at: 0.46, stage: NIGHT },
+  { at: 0.78, stage: NIGHT },
+  { at: 0.88, stage: DAWN },
+  { at: 1, stage: DAY },
 ];
 
 const NIGHT_TINT: RGB = [18, 24, 52];
@@ -138,9 +138,10 @@ let last: { key: number; look: Look } | null = null;
 
 /** Stimmung nach `distance` Metern Strecke. Der Tag wiederholt sich alle DAY_CYCLE Meter. */
 export function lookAt(distance: number): Look {
-  const key = Math.round(Math.max(0, distance) * 2);
+  // erst auf einen Tag kürzen, dann runden: auch riesige oder unsinnige Strecken bleiben gültig
+  const key = Math.round((Number.isFinite(distance) ? Math.max(0, distance) % DAY_CYCLE : 0) * 2);
   if (last && last.key === key) return last.look;
-  const t = ((key / 2) % DAY_CYCLE) / DAY_CYCLE;
+  const t = key / 2 / DAY_CYCLE;
   let i = DAY_PLAN.findIndex((f) => f.at > t);
   if (i < 1) i = DAY_PLAN.length - 1;
   const a = DAY_PLAN[i - 1]!;
@@ -149,20 +150,20 @@ export function lookAt(distance: number): Look {
   const raw = {} as Record<Key, RGB>;
   const col = {} as Record<Key, string>;
   for (const k of KEYS) {
-    raw[k] = mix(a.mood.col[k], b.mood.col[k], u);
+    raw[k] = mix(a.stage.col[k], b.stage.col[k], u);
     col[k] = css(raw[k], k === 'cloudShade' ? 0.3 : 1);
   }
-  const night = lerp(a.mood.night, b.mood.night, u);
+  const night = lerp(a.stage.night, b.stage.night, u);
   const dark = night >= DARK_FROM;
   const look: Look = {
     col,
     raw,
     towers: TOWER_SHIFT.map((k) => ({ front: css(shift(raw.front, k)), side: css(shift(raw.side, k)), top: css(shift(raw.top, k)) })),
     night,
-    dim: lerp(a.mood.dim, b.mood.dim, u),
-    shadow: lerp(a.mood.shadow, b.mood.shadow, u),
-    sunY: lerp(a.mood.sunY, b.mood.sunY, u),
-    moonY: lerp(a.mood.moonY, b.mood.moonY, u),
+    dim: lerp(a.stage.dim, b.stage.dim, u),
+    shadow: lerp(a.stage.shadow, b.stage.shadow, u),
+    sunY: lerp(a.stage.sunY, b.stage.sunY, u),
+    moonY: lerp(a.stage.moonY, b.stage.moonY, u),
     dark,
     ink: dark ? INK.night : INK.day,
     paper: dark ? PAPER.night : PAPER.day,
@@ -184,4 +185,18 @@ export function hash(a: number, b: number, c: number): number {
   n = Math.imul(n ^ (n >>> 15), 2246822519);
   n ^= n >>> 13;
   return n >>> 0;
+}
+
+/** Fenster auf einer Turmfront, in Metern; `litAtNight`: Anteil mit Licht in tiefer Nacht. */
+export const WINDOW = { w: 2.2, h: 3.1, fillW: 0.56, fillH: 0.5, edge: 0.4, base: 0.9, litAtNight: 0.45 };
+
+/** Fensterraster einer Front von `w` × `h` Metern: Spalten, Reihen, Breite einer Spalte. */
+export function windowGrid(w: number, h: number): { cols: number; rows: number; cw: number } {
+  const cols = Math.max(1, Math.floor((w - 2 * WINDOW.edge) / WINDOW.w));
+  return { cols, rows: Math.max(0, Math.floor((h - WINDOW.base - WINDOW.edge) / WINDOW.h)), cw: (w - 2 * WINDOW.edge) / cols };
+}
+
+/** Brennt in diesem Fenster Licht? Fester Zufall je Fenster; je mehr Nacht, desto mehr Fenster. */
+export function isLit(col: number, row: number, seed: number, night: number): boolean {
+  return hash(col, row, seed) % 100 < night * WINDOW.litAtNight * 100;
 }

@@ -1,7 +1,16 @@
 // Kleine Zeichenhelfer und die Abbildung Welt → Bildschirm, geteilt von
 // render.ts, backdrop.ts und figure.ts.
 
-/** Abbildung Welt → Bildschirm für ein Bild. */
+import type { Look } from './look';
+
+/** Kamera: welcher Weltausschnitt auf dem Bildschirm liegt. */
+export interface Camera {
+  x: number; // Weltkoordinate am linken Bildrand
+  y: number; // Weltkoordinate am unteren Bildrand
+  scale: number; // Pixel pro Meter
+}
+
+/** Abbildung Welt → Bildschirm für ein Bild, samt Stimmung und Spielzeit dieses Bildes. */
 export type Proj = {
   X: (x: number) => number;
   Y: (y: number) => number;
@@ -9,6 +18,8 @@ export type Proj = {
   mid: number; // Welt-x der Bildmitte
   lo: number; // Welt-y am unteren Bildrand
   hi: number; // Welt-y am oberen Bildrand
+  look: Look; // Stimmung dieses Bildes
+  time: number; // Spielzeit dieses Bildes (Warnlichter)
 };
 
 export function line(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number): void {

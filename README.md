@@ -25,6 +25,8 @@ Was gebaut wird: `docs/konzept.md` (abgenommen 08.11.2026).
 
 - **Starten:** `npm install`, dann `npm run dev` (im Heimnetz erreichbar – nur
   im eigenen WLAN starten, nie in fremden Netzen)
+- **Tageszeit ansehen:** `?tageszeit=1300` an die Adresse hängen zeigt die
+  Stimmung, die sonst nach 1300 m käme (nur Farben, siehe `docs/arbeit/B9-grafik-tageszeit.md`).
 - **Testlink als eine Datei:** `npm run einzelseite -- ‹ziel.html›`
 - **Prüfen:** `bash pruefen.sh`
 

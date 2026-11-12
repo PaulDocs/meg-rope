@@ -7,8 +7,7 @@ import type { Look } from './look';
 import { pumpShare, type State, type Vec } from './physics';
 
 const LEG_FULL_SPEED = 4; // m/s quer zum Körper: ab diesem Tempo sind die Beine beim Schwung holen ganz gestreckt
-/** Figur so viel grösser zeichnen als in echt, damit man sie sieht. */
-export const FIGURE_SCALE = 1.6;
+const FIGURE_SCALE = 1.6; // Figur so viel grösser zeichnen als in echt, damit man sie sieht
 const SCARF = { len: 1.9, segments: 7, sag: 6, flutterFrom: 12, wave: 0.2, speed: 13 }; // Länge in m (× Figur), Durchhang als Tempo in m/s
 const STREAK = { from: 28, perSpeed: 0.12, max: 4 }; // Tempostriche im Flug ab so viel m/s
 
