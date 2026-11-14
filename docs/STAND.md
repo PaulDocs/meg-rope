@@ -2,7 +2,7 @@
 objekt: stand
 bereich: meg-rope
 erstellt: 2026-11-08
-stand: 2026-11-12
+stand: 2026-11-15
 ---
 # Stand – Meg Rope
 
@@ -12,7 +12,7 @@ stand: 2026-11-12
 
 - **Spiel:** Schwingen mit Seil und Pendel (B1), Spielvariante «Freier Schwung» mit Kraft in drei Stufen (B4, seit B11 mit demselben Schwung-holen wie «Normal»), Wertung mit Style und Strike, Spielername, Einzelspiel und Challenge nacheinander **auf einem Gerät**, Bestenliste auf dem Gerät (B5), Soundeffekte im Code erzeugt mit Stummschalter (B8), Tageszeit läuft mit der Strecke, Türme mit Fenstern, Männchen mit Schal (B9), neue Titelseite mit Intro und Label «megene games» (B10).
 - **Nicht gebaut:** Challenge übers Netz (Etappe 3), Turnier mit mehreren Runden (Etappe 4). Wo der Server für Etappe 3 laufen soll (NAS wie im Konzept oder Cloudflare), ist nicht entschieden (`docs/entscheide/2026-11-12-hosting-cloudflare.md`).
-- **Hosting (B12):** Am 12.11.2026 von Pascal bei Cloudflare eingerichtet, begleitet von der Sitzung `meg-rope-cloudflare`: Pages-Projekt `meg-rope` unter `meg-rope.pages.dev`, Production aus dem Zweig `live` (Stand `64c980f`), Access davor (Anmeldung vorhanden), D1-Datenbank `meg-rope` als Bindung `DB`, Variablen `ACCESS_TEAM` und `ACCESS_AUD` (Werte nur bei Cloudflare, nie im Repo). Nach dem Binden der Datenbank meldete Pascal «ok läuft»; vorher antwortete `/api/scores` erst «Kein Zugang», dann «Speicher nicht verbunden». **Nicht bestätigt:** Anmeldeseite im privaten Fenster für die Hauptadresse und für `/api/scores`; Eintrag eines Einzelspiels auf einem zweiten Gerät sichtbar; Vorschau-Bauten (die Läufe von `main` standen bei Cloudflare als «Preview» und haben eigene Adressen; die Anleitung sieht sie als ausgeschaltet vor); Adresse eines einzelnen Laufs von Access gedeckt. **Lehren beim Einrichten** (noch nicht in `docs/betrieb.md`): `ACCESS_TEAM` ist nur der Name, keine Adresse mit Pfad (sonst «Kein Zugang»); Bindung und Variablen greifen erst nach «Retry deployment». Claude pusht nie auf `live` (Hook `live-schutz.sh`); Anleitung und Prüflisten: `docs/betrieb.md`.
+- **Hosting (B12):** Am 12.11.2026 von Pascal bei Cloudflare eingerichtet, begleitet von der Sitzung `meg-rope-cloudflare` (am 12.11. von Pascal archiviert): Pages-Projekt `meg-rope` unter `meg-rope.pages.dev`, Production aus dem Zweig `live` (Stand `64c980f`), Access davor (Anmeldung vorhanden), D1-Datenbank `meg-rope` als Bindung `DB`, Variablen `ACCESS_TEAM` und `ACCESS_AUD` (Werte nur bei Cloudflare, nie im Repo). Nach dem Binden der Datenbank meldete Pascal «ok läuft»; vorher antwortete `/api/scores` erst «Kein Zugang», dann «Speicher nicht verbunden». **Nicht bestätigt:** Anmeldeseite im privaten Fenster für die Hauptadresse und für `/api/scores`; Eintrag eines Einzelspiels auf einem zweiten Gerät sichtbar; Vorschau-Bauten (die Läufe von `main` standen bei Cloudflare als «Preview» und haben eigene Adressen; die Anleitung sieht sie als ausgeschaltet vor); Adresse eines einzelnen Laufs von Access gedeckt. **Lehren beim Einrichten** (seit `fa47672` in `docs/betrieb.md`, geprüft gegen die Cloudflare-Doku): `ACCESS_TEAM` ist nur der Name, keine Adresse mit Pfad (sonst «Kein Zugang»); Bindung und Variablen greifen erst nach «Retry deployment». Claude pusht nie auf `live` (Hook `live-schutz.sh`); Anleitung und Prüflisten: `docs/betrieb.md`.
 - **GitHub:** `PaulDocs/meg-rope`, Zweig `main` ist die Wahrheit; Push per Deploy-Key (SSH `github-meg-rope`), keine GitHub-API (`AGENTS.md`, «Sitzungen»).
 - **Alle Karten** (`docs/arbeit/`) stehen auf `abnahme`. Nur Pascal nimmt ab.
 
