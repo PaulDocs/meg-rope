@@ -2,8 +2,8 @@
 objekt: einstieg
 bereich: meg-rope
 erstellt: 2026-11-08
-stand: 2026-11-12
-status: offen
+stand: 2026-11-14
+status: fertig
 art: App
 zweck: "Ein Browserspiel fürs iPad, in dem man mit einem Strichmännchen von Gebäude zu Gebäude schwingt, mit Challenge-Modus für mindestens zwei Spieler im lokalen Netzwerk"
 sprache: TypeScript
