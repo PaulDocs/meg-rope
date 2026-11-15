@@ -31,7 +31,8 @@ Ein Browserspiel fürs iPad, in dem man mit einem Strichmännchen von Gebäude z
   `docs/arbeit/eingang.md`. Adressen werden nie wiederverwendet.
 - **Gebaut wird erst nach «BAU FREI»** von Pascal. Erfassen und Triagieren ist
   ohne Go erlaubt. Höfliche Fragen sind kein Go.
-- Nur Pascal nimmt ab (abnahme → erledigt).
+- **Abnahme nach drei Arten** (Entscheid `100-Cowork/q-lab/entscheide/2026-11-14-selbstaendige-karten-und-abnahme.md`,
+  Ablauf `20-Infra/ablauf-pruefen-reparieren.md`): Art 1 maschinell nimmt Claude mit Beleg ab, zum Beispiel `pruefen.sh` und die Browserprüfung der Webseite. Claude schreibt das Urteil als Vermerk vorn in die Zeile («Abgenommen …» oder «Abnahme TT.MM.JJJJ (…): Befund»). Art 3 (Spielgefühl auf dem Gerät, Live auf Cloudflare Pages) nimmt nur Pascal ab. Im Zweifel Art 3. Es gibt keine Dev-Umgebung mit Prüf-Benutzer, darum gelten hier bis dahin nur Art 1 und Art 3.
 - Immer nur ein kleiner Schritt aufs Mal, Erfolgs-Kriterien vorab. Nach jedem
   Schritt: sag Pascal genau, wie er testet. Abnahmen klein halten, höchstens
   7 Punkte.
@@ -69,7 +70,7 @@ Ein Browserspiel fürs iPad, in dem man mit einem Strichmännchen von Gebäude z
   `~/.claude/hooks/pruefstand.py` lässt Commit und Push sonst nicht durch.
 - `/q-pr-gegenlesen` ist gelaufen und kein `issue (blocking)` ist offen.
 - `docs/STAND.md` und eine Chronik-Datei des Tages sind nachgeführt.
-- Die Karte steht auf `abnahme`, mit Testanleitung für Pascal.
+- Die Karte steht auf `abnahme`, mit Abnahme-Art und einem «Abnahme:»-Satz (was wie geprüft wird); bei Art 3 mit Testanleitung für Pascal.
 - Ungetestetes heisst «ungetestet».
 
 Reihenfolge: `/q-pr-pruefen` → `/q-pr-gegenlesen` → Commit → `/q-sitzung-meldung`;
